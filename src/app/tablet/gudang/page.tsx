@@ -30,6 +30,9 @@ const MOCK_INVENTORY: InventoryItem[] = [
 export default function GudangInboundPage() {
   const [inventory] = useState(MOCK_INVENTORY);
   const [showReceiving, setShowReceiving] = useState(false);
+  const [receivingBoxes, setReceivingBoxes] = useState<Array<{ code: string; weight: string }>>([
+    { code: "", weight: "" }, { code: "", weight: "" }, { code: "", weight: "" },
+  ]);
   const [filterStatus, setFilterStatus] = useState<string>("AVAILABLE");
 
   const filtered = inventory.filter((i) => filterStatus === "ALL" || i.status === filterStatus);
@@ -65,7 +68,7 @@ export default function GudangInboundPage() {
               <Printer className="size-5 mr-2" /> Cetak Label
             </Button>
           </Link>
-          <Button size="xl" onClick={() => setShowReceiving(true)}>
+          <Button size="xl" onClick={() => { setReceivingBoxes([{ code: "", weight: "" }, { code: "", weight: "" }, { code: "", weight: "" }]); setShowReceiving(true); }}>
             🚛 Terima TSG Baru
           </Button>
         </div>
@@ -155,28 +158,32 @@ export default function GudangInboundPage() {
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-bold text-lg">Daftar Boks</h3>
-              <span className="text-sm text-gray-500">3 boks · 89.65 kg</span>
+              <span className="text-sm text-gray-500">{receivingBoxes.length} boks</span>
             </div>
             <div className="space-y-2 max-h-[300px] overflow-y-auto">
-              {[1, 2, 3].map((n) => (
-                <div key={n} className="flex items-center gap-3 rounded-lg border border-gray-200 p-3">
-                  <span className="w-8 text-center font-bold text-gray-400">{n}</span>
+              {receivingBoxes.map((box, i) => (
+                <div key={i} className="flex items-center gap-3 rounded-lg border border-gray-200 p-3">
+                  <span className="w-8 text-center font-bold text-gray-400">{i + 1}</span>
                   <Input
-                    placeholder={`TSG-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${String(n).padStart(3, "0")}`}
+                    value={box.code}
+                    onChange={e => { const next = [...receivingBoxes]; next[i] = { ...next[i]!, code: e.target.value }; setReceivingBoxes(next); }}
+                    placeholder={`TSG-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${String(i + 1).padStart(3, "0")}`}
                     className="flex-1"
                   />
-                  <Input type="number" placeholder="0.00" className="w-32" />
-                  <button className="text-red-400 hover:text-red-600">✕</button>
+                  <Input type="number" value={box.weight} onChange={e => { const next = [...receivingBoxes]; next[i] = { ...next[i]!, weight: e.target.value }; setReceivingBoxes(next); }} placeholder="0.00" className="w-32" />
+                  {receivingBoxes.length > 1 && (
+                    <button className="text-red-400 hover:text-red-600" onClick={() => setReceivingBoxes(receivingBoxes.filter((_, j) => j !== i))}>✕</button>
+                  )}
                 </div>
               ))}
             </div>
-            <Button variant="outline" size="sm" className="mt-2">
+            <Button variant="outline" size="sm" className="mt-2" onClick={() => setReceivingBoxes([...receivingBoxes, { code: "", weight: "" }])}>
               + Tambah Boks
             </Button>
           </div>
 
           <Button size="operator" className="w-full" onClick={() => setShowReceiving(false)}>
-            Simpan · 3 Boks · 89.65 kg
+            Simpan · {receivingBoxes.filter(b => b.code && b.weight).length} Boks
           </Button>
         </div>
       </Dialog>
