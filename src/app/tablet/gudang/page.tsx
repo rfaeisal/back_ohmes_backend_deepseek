@@ -30,6 +30,7 @@ export default function GudangInboundPage() {
   const [receivingError, setReceivingError] = useState("");
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [selectedSupplier, setSelectedSupplier] = useState("");
+  const [locationCode, setLocationCode] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("AVAILABLE");
 
   // Load suppliers on dialog open
@@ -52,6 +53,7 @@ export default function GudangInboundPage() {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           supplierId: selectedSupplier,
+          locationCode: locationCode || undefined,
           boxes: validBoxes.map(b => ({ boxCode: b.code, weightKg: parseFloat(b.weight), tsgType: b.type })),
         }),
       });
@@ -96,7 +98,7 @@ export default function GudangInboundPage() {
               <Printer className="size-5 mr-2" /> Cetak Label
             </Button>
           </Link>
-          <Button size="xl" onClick={() => { loadSuppliers(); setReceivingBoxes([{ code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }]); setReceivingError(""); setShowReceiving(true); }}>
+          <Button size="xl" onClick={() => { loadSuppliers(); setLocationCode(""); setReceivingBoxes([{ code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }]); setReceivingError(""); setShowReceiving(true); }}>
             🚛 Terima TSG Baru
           </Button>
         </div>
@@ -172,7 +174,7 @@ export default function GudangInboundPage() {
         className="max-w-3xl"
       >
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Supplier</label>
               <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white" value={selectedSupplier} onChange={e => setSelectedSupplier(e.target.value)}>
@@ -181,6 +183,7 @@ export default function GudangInboundPage() {
               </select>
             </div>
             <Input label="No Surat Jalan Supplier" placeholder="Opsional" />
+            <Input label="Lokasi Rak" placeholder="RAK-A-01" value={locationCode} onChange={e => setLocationCode(e.target.value)} />
           </div>
 
           <div>

@@ -22,6 +22,7 @@ export interface CreateReceivingInput {
   supplierDocRef?: string;
   receivedAt: Date;
   receivedBy: string;
+  locationCode?: string;
   boxes: Array<{
     boxCode: string;
     weightKg: number;
@@ -118,7 +119,7 @@ export async function createReceiving(input: CreateReceivingInput) {
         boxId: rb.id,
         tsgType: box.tsgType ?? "REGULER",
         status: "AVAILABLE",
-        locationCode: null,
+        locationCode: input.locationCode ?? null,
       });
     }
 

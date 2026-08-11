@@ -11,7 +11,8 @@ import { ServiceError } from "@/lib/services/shift.service";
 const receivingSchema = z.object({
   supplierId: z.string().uuid(),
   supplierDocRef: z.string().optional(),
-  receivedAt: z.string().datetime().optional(), // default now
+  receivedAt: z.string().datetime().optional(),
+  locationCode: z.string().optional(),
   boxes: z
     .array(
       z.object({
@@ -49,6 +50,7 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
       ...parsed.data,
       receivedAt: parsed.data.receivedAt ? new Date(parsed.data.receivedAt) : new Date(),
       receivedBy: ctx.user.userId,
+      locationCode: parsed.data.locationCode,
     });
 
     return NextResponse.json(result, { status: 201 });
