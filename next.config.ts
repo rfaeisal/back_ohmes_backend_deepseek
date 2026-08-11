@@ -1,9 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  experimental: {
-    // Enable if needed for specific features
-  },
+  output: "standalone",
   // Server-side only — client tidak boleh hitung yield
   // Semua kalkulasi produksi via API endpoints
   poweredByHeader: false,

@@ -22,6 +22,7 @@
     "db:seed": "tsx src/db/seed.ts",
     "db:seed:superadmin": "tsx src/db/seed-superadmin.ts",
     "db:reset": "drizzle-kit drop && drizzle-kit migrate && tsx src/db/seed.ts",
+    "deploy:setup": "pnpm db:migrate && pnpm db:seed",
     "postinstall": "echo 'Install complete. Run pnpm dev to start.'"
   },
   "dependencies": {
