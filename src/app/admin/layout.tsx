@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, ClipboardCheck, MapPin, TrendingUp, Wrench, Users, Settings, ScrollText, Shield, Printer, FileText, FileBarChart, Factory, LogOut, Smartphone } from "lucide-react";
+import { LayoutDashboard, ClipboardCheck, MapPin, TrendingUp, Wrench, Users, Settings, ScrollText, Shield, Printer, FileText, FileBarChart, Factory, LogOut, Smartphone, Calendar } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { href: "/admin/reports/shifts", label: "Laporan Per Shift", icon: FileText },
   { href: "/admin/reports/tsg-receiving", label: "Laporan TSG Masuk", icon: FileBarChart },
   { href: "/admin/labels", label: "Cetak Label", icon: Printer },
+  { href: "/admin/roster", label: "Roster Mingguan", icon: Calendar },
   { href: "/admin/sessions", label: "Manajemen Sesi", icon: Smartphone },
   { href: "/admin/super", label: "SUPERADMIN Tools", icon: Shield },
   { href: "/tablet", label: "← Tablet Operator", icon: Factory },
