@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security Vulnerability
+    url: https://github.com/rfaeisal/back_ohmes_backend/security/advisories/new
+    about: Untuk report kerentanan keamanan, gunakan Security Advisory (private disclosure). Jangan buka public issue.
+  - name: On-Call Emergency (P1 Incident)
+    url: https://github.com/rfaeisal/back_ohmes_backend/blob/main/docs/17-operations-runbook.md
+    about: Untuk incident production yang butuh response cepat, ikuti runbook + kontak on-call.
+  - name: Documentation
+    url: https://github.com/rfaeisal/back_ohmes_backend/blob/main/docs/README.md
+    about: Baca documentation pack lebih dulu — mungkin sudah dijawab.

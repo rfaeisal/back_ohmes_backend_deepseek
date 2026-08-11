@@ -1,0 +1,162 @@
+================================================================================
+DOKUMEN SPESIFIKASI SISTEM MES (MANUFACTURING EXECUTION SYSTEM)
+PABRIK ROKOK CABANG — MONITORING MAKER & HLP
+================================================================================
+
+1. KONTEKS OPERASIONAL & MASALAH
+--------------------------------------------------------------------------------
+- Profil Pabrik    : Cabang dengan 2 Mesin Maker dan 1 Mesin HLP.
+- Alur Bahan Utama : TSG (Tembakau Saos Gagang) + Bahan Pendukung (Bobin, Tipping, Filter, Lem).
+- Produk           : Sigaret Kretek Mesin (Merk: Homer).
+- Kendala Utama    :
+ * Laporan harian masih manual (kertas/clipboard).
+ * Tidak ada counter otomatis di mesin Maker.
+ * Pencatatan akhir shift rawan salah hitung, terlambat dianalisis, dan tidak real-time.
+ * Tingginya waste (debu halus) perlu pemantauan presisi.
+
+2. LOGIKA BISNIS & KALKULASI UTAMA
+--------------------------------------------------------------------------------
+a. Penentuan Hasil Batangan & Berat Per Batang (Tanpa Counter Maker):
+  - Jumlah fisik batang Maker dihitung dari hasil kemas HLP.
+  - Rumus Total Batang:
+    Total Batang = (Jumlah Pack Lolos HLP * Isi per Pack) + Reject Batangan HLP
+  - Rumus Berat Rata-rata per Batang (gram):
+    Berat per Batang = (Total Berat Batangan Maker [kg] * 1000) / Total Batang
+
+b. Batch Tracking Per Mesin Maker:
+  - Setiap tray/trolley dari Maker 1 dan Maker 2 diberi Label Batch (Batch ID).
+  - Saat HLP mengemas batch tersebut, HLP mencatat pack lolos dan reject spesifik untuk Maker asal.
+  - Hasilnya: Sistem bisa menghitung berat rata-rata per batang secara terpisah untuk Maker 1 dan Maker 2.
+
+c. Entri Real-Time Berbasis Boks TSG:
+  - Operator tidak input data hanya di akhir shift, melainkan per Boks TSG yang diproses.
+  - Saat 1 boks TSG habis di feeder, operator menimbang hasil batangan boks tersebut.
+  - Rumus Yield Boks:
+    Yield Boks (%) = (Berat Batangan Dihasilkan [kg] / Berat TSG Boks [kg]) * 100%
+
+3. ARCHITECTURE & TECH STACK
+--------------------------------------------------------------------------------
+- Framework    : Next.js (App Router, Server Actions, React Server Components)
+- Database     : PostgreSQL
+- ORM          : Prisma ORM / Drizzle ORM
+- Styling/UI   : Tailwind CSS + Shadcn/UI (Large touch targets untuk tablet industri)
+- Authentication: NextAuth.js / Auth.js (Role-Based: ADMIN, MANAGER, OPERATOR_KECER)
+
+4. DATABASE SCHEMA (POSTGRESQL / PRISMA)
+--------------------------------------------------------------------------------
+enum Role {
+ ADMIN
+ MANAGER
+ OPERATOR_KECER
+ GUDANG
+}
+
+enum MachineType {
+ MAKER
+ HLP
+}
+
+enum ShiftType {
+ PAGI
+ SIANG
+ MALAM
+}
+
+enum ShiftStatus {
+ RUNNING
+ COMPLETED
+ APPROVED
+}
+
+enum DowntimeCategory {
+ GANTI_MATERIAL
+ KENDALA_MESIN
+ TUNGGU_BAHAN
+ ISTIRAHAT_IZIN
+ MAINTENANCE
+}
+
+model User {
+ id          String        @id @default(uuid())
+ name        String
+ username    String        @unique
+ password    String
+ role        Role          @default(OPERATOR_KECER)
+ shiftReports ShiftReport[] @relation("KecerReports")
+}
+
+model Machine {
+ id          String        @id @default(uuid())
+ code        String        @unique // "MKR-01", "HLP-01"
+ name        String
+ type        MachineType
+ shiftReports ShiftReport[]
+ tsgBoxes    TsgBoxProcess[]
+}
+
+model ShiftReport {
+ id              String        @id @default(uuid())
+ reportDate      DateTime      @db.Date
+ shift           ShiftType
+ actualStart     DateTime      @default(now())
+ actualEnd       DateTime?
+ status          ShiftStatus   @default(RUNNING)
+ brand           String        @default("Homer")
+ 
+ machineId       String
+ machine         Machine       @relation(fields: [machineId], references: [id])
+ kecerId         String
+ kecer           User          @relation("KecerReports", fields: [kecerId], references: [id])
+
+ // Akumulasi Material (kg)
+ tsgUsedKg       Decimal       @db.Decimal(10, 2)
+ tsgRemainingKg  Decimal       @db.Decimal(10, 2)
+ outputWeightKg  Decimal       @db.Decimal(10, 2)
+
+ // Consumables & Waste
+ filterQty       Decimal       @db.Decimal(10, 2)
+ bobbinQty       Decimal       @db.Decimal(10, 2)
+ tippingQty      Decimal       @db.Decimal(10, 2)
+ rejectKg        Decimal       @db.Decimal(10, 2) @default(0)
+ coarseDustKg    Decimal       @db.Decimal(10, 2) @default(0)
+ fineDustKg      Decimal       @db.Decimal(10, 2) @default(0)
+
+ notes           String?       @db.Text
+ 
+ // Relations
+ tsgBoxes        TsgBoxProcess[]
+ downtimes       DowntimeLog[]
+}
+
+model TsgBoxProcess {
+ id              String        @id @default(uuid())
+ shiftReportId   String
+ shiftReport     ShiftReport   @relation(fields: [shiftReportId], references: [id], onDelete: Cascade)
+ machineId       String
+ machine         Machine       @relation(fields: [machineId], references: [id])
+ 
+ boxNumber       Int
+ boxCode         String?
+ tsgWeightKg     Decimal       @db.Decimal(10, 2)
+ outputWeightKg  Decimal?      @db.Decimal(10, 2)
+ yieldPercentage Decimal?      @db.Decimal(5, 2)
+ completedAt     DateTime?
+}
+
+model DowntimeLog {
+ id              String           @id @default(uuid())
+ shiftReportId   String
+ shiftReport     ShiftReport      @relation(fields: [shiftReportId], references: [id], onDelete: Cascade)
+ category        DowntimeCategory
+ durationMinutes Int
+ description     String?
+}
+
+5. FITUR UTAMA ANTARMUKA (UI/UX TABLET OPERATOR)
+--------------------------------------------------------------------------------
+- "Start Shift" & "Akhiri Shift": Pencatatan timestamp presisi untuk OEE & durasi jam kerja.
+- Indicator Boks Aktif: Menampilkan status boks TSG di feeder secara real-time.
+- Tombol Utama Ekstra Besar: "BOKS SELESAI — TIMBANG HASIL BATANGAN".
+- Pop-up Modal Timbang Boks: Input cepat hasil kg, kalkulasi otomatis Yield Ratio (%), dan pencetakan label QR untuk tray.
+- Indicator Peringatan Warna: Hijau (Normal 110-114%), Merah (Alert/Warning pemborosan atau cacat).
+================================================================================

@@ -1,0 +1,48 @@
+# EditorConfig — konsistensi format editor cross-team
+# https://editorconfig.org
+
+root = true
+
+# --- Default untuk semua file ---
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+max_line_length = 100
+
+# --- Markdown: allow trailing whitespace (untuk line-break) ---
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = off
+
+# --- YAML: 2 space indent strict ---
+[*.{yml,yaml}]
+indent_size = 2
+
+# --- Makefile: tab wajib ---
+[Makefile]
+indent_style = tab
+
+# --- SQL: 4 space (readability) ---
+[*.sql]
+indent_size = 4
+
+# --- Python (kalau ada script) ---
+[*.py]
+indent_size = 4
+
+# --- Dart (Flutter) ---
+[*.dart]
+indent_size = 2
+max_line_length = 100
+
+# --- JSON: keep compact for lockfiles ---
+[*.json]
+indent_size = 2
+
+# --- Dockerfile ---
+[Dockerfile*]
+indent_size = 4

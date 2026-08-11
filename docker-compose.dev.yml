@@ -1,0 +1,58 @@
+# docker-compose.dev.yml — Local development stack
+# Usage: docker compose -f docker-compose.dev.yml up -d
+# Detail: SETUP.md §4
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: mes_dev_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mes_user
+      POSTGRES_PASSWORD: mes_pass
+      POSTGRES_DB: mes_dev
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    ports:
+      - "5432:5432"
+    volumes:
+      - mes_pgdata:/var/lib/postgresql/data
+      - ./scripts/init-db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mes_user -d mes_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: mes_dev_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - mes_redisdata:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Optional: pgAdmin untuk visual DB browsing
+  # Uncomment kalau butuh (default: pakai `pnpm db:studio` dari Drizzle)
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: mes_dev_pgadmin
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: dev@hummer.example
+  #     PGADMIN_DEFAULT_PASSWORD: dev
+  #   ports:
+  #     - "5050:80"
+  #   depends_on:
+  #     - postgres
+
+volumes:
+  mes_pgdata:
+    name: mes_dev_pgdata
+  mes_redisdata:
+    name: mes_dev_redisdata

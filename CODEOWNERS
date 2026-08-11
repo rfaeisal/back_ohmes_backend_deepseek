@@ -1,0 +1,41 @@
+# CODEOWNERS — Auto-assign reviewer per file/folder
+# Format: <path pattern>  <@github-user or @team>
+# Docs: https://docs.github.com/en/repositories/managing-your-repositories-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Owner wajib approve PR yang mengubah file di scope-nya.
+# Isi placeholder @username sesuai team member sebelum push ke production.
+
+# --- Default owner (semua file kalau tidak match rule lain) ---
+*                                @rfaeisal
+
+# --- Documentation ---
+/docs/                           @rfaeisal
+/README.md                       @rfaeisal
+/CLAUDE.md                       @rfaeisal
+/SETUP.md                        @rfaeisal
+/CONTRIBUTING.md                 @rfaeisal
+
+# --- Security-sensitive ---
+/SECURITY.md                     @rfaeisal
+/docs/22-compliance-pdp.md       @rfaeisal
+/docs/21-data-retention-classification.md  @rfaeisal
+/.env.example                    @rfaeisal
+/docs/05-rbac-matrix.md          @rfaeisal
+/docs/17-operations-runbook.md   @rfaeisal
+/docs/18-backup-recovery.md      @rfaeisal
+
+# --- Mobile team package (biar mobile lead cek konsistensi) ---
+/docs/mobile-team/               @rfaeisal
+
+# --- CI / Infrastructure ---
+/.github/                        @rfaeisal
+/docker-compose*.yml             @rfaeisal
+/vercel.json                     @rfaeisal
+
+# --- Future: source code (uncomment saat coding dimulai Fase 0) ---
+# /src/lib/auth/**                @security-team @backend-lead
+# /src/lib/db/**                  @backend-lead
+# /src/db/schema/**               @backend-lead @dba
+# /src/api/**                     @backend-team
+# /src/app/**                     @frontend-team
+# /mobile/**                      @mobile-lead
