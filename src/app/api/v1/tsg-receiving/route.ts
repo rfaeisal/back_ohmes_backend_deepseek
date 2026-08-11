@@ -70,13 +70,12 @@ export const GET = withAuth(async (request: Request, ctx: AuthContext) => {
   const to = url.searchParams.get("to");
   const includeBoxes = url.searchParams.get("includeBoxes") === "true";
   const plantId = ctx.user.plantIds[0];
-
-  const conditions = [eq(tsgReceiving.plantId, plantId!)];
+  const conditions: any[] = [];
+  if (plantId) conditions.push(eq(tsgReceiving.plantId, plantId));
   if (from) conditions.push(gte(tsgReceiving.receivedAt, new Date(from)));
   if (to) conditions.push(lte(tsgReceiving.receivedAt, new Date(to + "T23:59:59.999Z")));
 
-  const items = await db
-    .select({
+  let query = db.select({
       id: tsgReceiving.id,
       receivingCode: tsgReceiving.receivingCode,
       supplierId: tsgReceiving.supplierId,
@@ -91,9 +90,14 @@ export const GET = withAuth(async (request: Request, ctx: AuthContext) => {
     })
     .from(tsgReceiving)
     .leftJoin(tsgSupplier, eq(tsgReceiving.supplierId, tsgSupplier.id))
-    .where(and(...conditions))
     .orderBy(desc(tsgReceiving.receivedAt))
     .limit(200);
+
+  if (conditions.length > 0) {
+    query = query.where(and(...conditions)) as typeof query;
+  }
+
+  const items = await query;
 
   // Optionally include box details with tsgType
   if (includeBoxes) {
