@@ -68,9 +68,19 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-primary-700">MES Hummer</h1>
-          <p className="mt-2 text-lg text-gray-500">
-            Tablet Operator — Lantai Produksi
-          </p>
+          <p className="mt-2 text-lg text-gray-500">Login ke sistem MES + WMS Hummer</p>
+          <div className="mt-4 rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-left text-blue-700">
+            <p className="font-semibold mb-1">👤 Akun Test Tersedia:</p>
+            <table className="w-full"><tbody>
+              <tr><td className="pr-3 py-0.5 font-mono">admin</td><td className="text-blue-500">→ Admin Dashboard</td></tr>
+              <tr><td className="pr-3 py-0.5 font-mono">andi.kecer</td><td className="text-blue-500">→ Tablet Operator</td></tr>
+              <tr><td className="pr-3 py-0.5 font-mono">budi.supervisor</td><td className="text-blue-500">→ Approval Shift</td></tr>
+              <tr><td className="pr-3 py-0.5 font-mono">citra.gudang</td><td className="text-blue-500">→ Gudang Inbound</td></tr>
+              <tr><td className="pr-3 py-0.5 font-mono">dodi.auditor</td><td className="text-blue-500">→ Correction</td></tr>
+              <tr><td className="pr-3 py-0.5 font-mono">erik.koordinator</td><td className="text-blue-500">→ Area Dashboard</td></tr>
+            </tbody></table>
+            <p className="mt-2">Password: <strong>operator123</strong> / <strong>supervisor123</strong> / <strong>gudang123</strong> / <strong>auditor123</strong> / <strong>koordinator123</strong></p>
+          </div>
         </div>
 
         <form onSubmit={handleLogin} className="rounded-2xl border border-gray-200 bg-white p-8 shadow-lg">
