@@ -27,6 +27,8 @@ const SCOPE_TYPES = ["PLANT", "REGION", "COMPANY", "GLOBAL"];
 
 export default function UsersPage() {
   const [users, setUsers] = useState<any[]>([]);
+  const [plants, setPlants] = useState<any[]>([]);
+  const [regions, setRegions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -41,9 +43,11 @@ export default function UsersPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [uRes, aRes] = await Promise.allSettled([
+      const [uRes, aRes, pRes, rRes] = await Promise.allSettled([
         apiFetch("/users"),
         apiFetch("/user-assignments"),
+        apiFetch("/plants"),
+        apiFetch("/regions"),
       ]);
       const userList = uRes.status === "fulfilled" ? (uRes.value.data ?? []) : [];
       const assignments = aRes.status === "fulfilled" ? (aRes.value.data ?? []) : [];
@@ -52,6 +56,8 @@ export default function UsersPage() {
         ...u,
         assignments: assignments.filter((a: any) => a.userId === u.id),
       })));
+      if (pRes.status === "fulfilled") setPlants(pRes.value.data ?? []);
+      if (rRes.status === "fulfilled") setRegions(rRes.value.data ?? []);
     } catch { setUsers([]); }
     finally { setLoading(false); }
   }, []);
@@ -245,11 +251,29 @@ export default function UsersPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Scope Type</label>
-            <select className="w-full rounded-lg border px-4 py-3" value={form.scopeType ?? "PLANT"} onChange={e => setForm({...form, scopeType: e.target.value})}>
+            <select className="w-full rounded-lg border px-4 py-3" value={form.scopeType ?? "PLANT"} onChange={e => { setForm({...form, scopeType: e.target.value, scopeId: ""}); }}>
               {SCOPE_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
-          <Input label="Scope ID" value={form.scopeId ?? ""} onChange={e => setForm({...form, scopeId: e.target.value})} placeholder="UUID plant/region/company" />
+          {form.scopeType === "PLANT" ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Pabrik</label>
+              <select className="w-full rounded-lg border px-4 py-3" value={form.scopeId ?? ""} onChange={e => setForm({...form, scopeId: e.target.value})}>
+                <option value="">Pilih Pabrik</option>
+                {plants.map((p: any) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+              </select>
+            </div>
+          ) : form.scopeType === "REGION" ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Area / Region</label>
+              <select className="w-full rounded-lg border px-4 py-3" value={form.scopeId ?? ""} onChange={e => setForm({...form, scopeId: e.target.value})}>
+                <option value="">Pilih Area</option>
+                {regions.map((r: any) => <option key={r.id} value={r.id}>{r.code} — {r.name}</option>)}
+              </select>
+            </div>
+          ) : (
+            <Input label="Scope ID" value={form.scopeId ?? ""} onChange={e => setForm({...form, scopeId: e.target.value})} placeholder={form.scopeType === "GLOBAL" ? "00000000-0000-0000-0000-000000000000" : "UUID company"} />
+          )}
           <Button size="lg" className="w-full" onClick={handleAssignRole} disabled={saving}>
             {saving ? "Menyimpan..." : "Assign Role"}
           </Button>
