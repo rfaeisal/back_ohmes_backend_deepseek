@@ -33,6 +33,7 @@ export default function AdminOverview() {
           { href: "/admin/users", title: "Users & Role", desc: "Admin: kelola user, assignment, 13 role", icon: "👤" },
           { href: "/admin/master-data", title: "Master Data", desc: "Admin: pabrik, mesin, produk, supplier", icon: "⚙️" },
           { href: "/admin/audit", title: "Audit Log", desc: "Admin/SUPERADMIN: immutable trail semua aktivitas", icon: "📋" },
+          { href: "/admin/reports/tsg-receiving", title: "Laporan TSG Masuk", desc: "Riwayat penerimaan TSG, filter tanggal & supplier, export CSV", icon: "📋" },
           { href: "/admin/super", title: "SUPERADMIN Tools", desc: "Impersonate, force logout, revoke session, security log", icon: "🔐" },
         ].map((item) => (
           <Link key={item.href} href={item.href}>
