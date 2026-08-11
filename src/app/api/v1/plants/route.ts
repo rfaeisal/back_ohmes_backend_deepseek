@@ -1,13 +1,12 @@
 // GET + POST + DELETE /api/v1/plants
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { isNull } from "drizzle-orm";
 import { withAuth } from "@/lib/auth/middleware";
 import db from "@/db";
 import { plant } from "@/db/schema";
 
 export const GET = withAuth(async () => {
-  const items = await db.select().from(plant).where(isNull(plant.deletedAt)).limit(100);
+  const items = await db.select().from(plant).limit(100);
   return NextResponse.json({ data: items }, { status: 200 });
 });
 
