@@ -43,6 +43,7 @@ export {
   tsgReceivingBox,
   tsgInventory,
   tsgInventoryStatusEnum,
+  tsgTypeEnum,
 } from "./wms-inbound";
 export {
   finishedGoodsReceiving,

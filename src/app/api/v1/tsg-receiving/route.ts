@@ -17,6 +17,7 @@ const receivingSchema = z.object({
       z.object({
         boxCode: z.string().min(1, "Kode boks wajib"),
         weightKg: z.number().min(0.01).max(100),
+        tsgType: z.enum(["REGULER", "MILD", "PUTIHAN"]).optional().default("REGULER"),
       })
     )
     .min(1, "Minimal 1 boks"),

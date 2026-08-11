@@ -78,10 +78,8 @@ export default function TsgReceivingReport() {
       const res = await apiFetch(`/tsg-receiving?${params.toString()}`);
       let data = res.data ?? [];
 
-      // Client-side filter by supplier (API may not support supplier filter yet)
-      if (supplierId) {
-        data = data.filter((r: ReceivingRecord) => r.supplierId === supplierId);
-      }
+      // Client-side filter by supplier
+      if (supplierId) data = data.filter((r: ReceivingRecord) => r.supplierId === supplierId);
 
       // API already returns supplierName & supplierCode via JOIN
       setReceivings(data);

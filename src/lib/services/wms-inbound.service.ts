@@ -25,6 +25,7 @@ export interface CreateReceivingInput {
   boxes: Array<{
     boxCode: string;
     weightKg: number;
+    tsgType?: "REGULER" | "MILD" | "PUTIHAN";
   }>;
   notes?: string;
 }
@@ -104,6 +105,7 @@ export async function createReceiving(input: CreateReceivingInput) {
           boxCode: box.boxCode,
           weightKg: String(box.weightKg),
           boxSeq: i + 1,
+          tsgType: box.tsgType ?? "REGULER",
           receivedAt: input.receivedAt,
         })
         .returning();
@@ -114,6 +116,7 @@ export async function createReceiving(input: CreateReceivingInput) {
       await tx.insert(tsgInventory).values({
         plantId: input.plantId,
         boxId: rb.id,
+        tsgType: box.tsgType ?? "REGULER",
         status: "AVAILABLE",
         locationCode: null,
       });
@@ -144,6 +147,7 @@ export async function getAvailableInventory(
       inventoryId: tsgInventory.id,
       boxCode: tsgReceivingBox.boxCode,
       weightKg: tsgReceivingBox.weightKg,
+      tsgType: tsgReceivingBox.tsgType,
       locationCode: tsgInventory.locationCode,
       createdAt: tsgInventory.createdAt,
     })

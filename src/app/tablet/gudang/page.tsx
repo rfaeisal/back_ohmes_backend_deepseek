@@ -11,17 +11,18 @@ interface InventoryItem {
   id: string;
   boxCode: string;
   weightKg: number;
+  tsgType?: string;
   ageInDays: number;
   location: string;
   status: "AVAILABLE" | "ALLOCATED" | "USED" | "WRITTEN_OFF";
 }
 
 const MOCK_INVENTORY: InventoryItem[] = [
-  { id: "inv_001", boxCode: "TSG-20260808-042", weightKg: 29.70, ageInDays: 3, location: "RAK-A-01", status: "AVAILABLE" },
-  { id: "inv_002", boxCode: "TSG-20260809-011", weightKg: 30.05, ageInDays: 2, location: "RAK-A-02", status: "AVAILABLE" },
-  { id: "inv_003", boxCode: "TSG-20260810-005", weightKg: 29.85, ageInDays: 1, location: "RAK-A-01", status: "AVAILABLE" },
-  { id: "inv_004", boxCode: "TSG-20260810-006", weightKg: 30.20, ageInDays: 1, location: "RAK-B-03", status: "USED" },
-  { id: "inv_005", boxCode: "TSG-20260801-033", weightKg: 29.50, ageInDays: 10, location: "RAK-A-01", status: "ALLOCATED" },
+  { id: "inv_001", boxCode: "TSG-20260808-042", weightKg: 29.70, tsgType: "REGULER", ageInDays: 3, location: "RAK-A-01", status: "AVAILABLE" },
+  { id: "inv_002", boxCode: "TSG-20260809-011", weightKg: 30.05, tsgType: "MILD", ageInDays: 2, location: "RAK-A-02", status: "AVAILABLE" },
+  { id: "inv_003", boxCode: "TSG-20260810-005", weightKg: 29.85, tsgType: "PUTIHAN", ageInDays: 1, location: "RAK-A-01", status: "AVAILABLE" },
+  { id: "inv_004", boxCode: "TSG-20260810-006", weightKg: 30.20, tsgType: "REGULER", ageInDays: 1, location: "RAK-B-03", status: "USED" },
+  { id: "inv_005", boxCode: "TSG-20260801-033", weightKg: 29.50, tsgType: "REGULER", ageInDays: 10, location: "RAK-A-01", status: "ALLOCATED" },
 ];
 
 export default function GudangInboundPage() {
@@ -100,6 +101,7 @@ export default function GudangInboundPage() {
             <thead className="border-b border-gray-200">
               <tr>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Kode Boks</th>
+                <th className="pb-3 text-sm font-semibold text-gray-600">Jenis</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Berat</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Umur</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Lokasi</th>
@@ -110,6 +112,7 @@ export default function GudangInboundPage() {
               {filtered.map((item) => (
                 <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 font-mono font-medium">{item.boxCode}</td>
+                  <td className="py-3"><Badge variant={item.tsgType === "REGULER" ? "info" : item.tsgType === "MILD" ? "success" : "warning"}>{item.tsgType ?? "REGULER"}</Badge></td>
                   <td className="py-3">{item.weightKg} kg</td>
                   <td className="py-3">{ageBadge(item.ageInDays)}</td>
                   <td className="py-3 text-sm text-gray-500">{item.location}</td>

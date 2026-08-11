@@ -19,6 +19,8 @@ import { shiftReport } from "./shift";
 // Enums
 // =============================================================================
 
+export const tsgTypeEnum = pgEnum("tsg_type", ["REGULER", "MILD", "PUTIHAN"]);
+
 export const tsgInventoryStatusEnum = pgEnum("tsg_inventory_status", [
   "AVAILABLE",
   "ALLOCATED",
@@ -94,6 +96,7 @@ export const tsgReceivingBox = pgTable(
     boxCode: text("box_code").notNull().unique(), // 'TSG-20260810-001' unique global
     weightKg: decimal("weight_kg", { precision: 10, scale: 2 }).notNull(),
     boxSeq: integer("box_seq").notNull(), // urutan boks dalam pengiriman
+    tsgType: tsgTypeEnum("tsg_type").notNull().default("REGULER"), // REGULER, MILD, PUTIHAN
     receivedAt: timestamp("received_at").notNull(),
   },
   (t) => ({
@@ -117,6 +120,7 @@ export const tsgInventory = pgTable(
       .references(() => tsgReceivingBox.id)
       .unique(),
     locationCode: text("location_code"), // 'RAK-A-01-03'
+    tsgType: tsgTypeEnum("tsg_type").notNull().default("REGULER"), // denormalized dari receiving
     status: tsgInventoryStatusEnum("status").notNull().default("AVAILABLE"),
     allocatedToShiftId: uuid("allocated_to_shift_id").references(
       () => shiftReport.id
