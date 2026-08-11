@@ -95,7 +95,7 @@ export default function LabelsPage() {
     if (labels.length === 0) { alert("Pilih minimal 1 item."); return; }
     // Store labels in sessionStorage and open print page
     sessionStorage.setItem("printLabels", JSON.stringify(labels));
-    window.open("/admin/labels/print", "_blank");
+    window.open("/print-labels", "_blank");
   };
 
   const itemsList: any[] = tab === "tsg" ? items : tab === "machine" ? items : [];

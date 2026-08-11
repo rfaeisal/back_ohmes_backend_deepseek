@@ -59,7 +59,7 @@ export default function StandaloneLabelsPage() {
     }));
     if (labels.length === 0) { alert("Pilih minimal 1 item."); return; }
     sessionStorage.setItem("printLabels", JSON.stringify(labels));
-    window.open("/admin/labels/print", "_blank");
+    window.open("/print-labels", "_blank");
   };
 
   return (
