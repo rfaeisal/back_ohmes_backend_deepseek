@@ -1,50 +1,32 @@
 import React from "react";
+import { cn } from "@/lib/utils";
 
-interface CardProps {
-  children: React.ReactNode;
-  className?: string;
-  highlight?: "none" | "yellow" | "green" | "red";
-}
+interface CardProps { children: React.ReactNode; className?: string; highlight?: "none" | "yellow" | "green" | "red"; }
 
 export function Card({ children, className = "", highlight = "none" }: CardProps) {
-  const borderColors = {
-    none: "border-gray-200",
-    yellow: "border-yellow-400 bg-yellow-50",
-    green: "border-green-400 bg-green-50",
-    red: "border-red-400 bg-red-50",
+  const borderColors: Record<string, string> = {
+    none: "ring-1 ring-foreground/10",
+    yellow: "ring-2 ring-yellow-400 bg-yellow-50",
+    green: "ring-2 ring-green-400 bg-green-50",
+    red: "ring-2 ring-red-400 bg-red-50",
   };
-
   return (
-    <div
-      className={`rounded-xl border-2 ${borderColors[highlight]} bg-white p-6 shadow-sm ${className}`}
-    >
+    <div className={cn("flex flex-col gap-3 overflow-hidden rounded-xl bg-card py-4 px-4 text-sm text-card-foreground", borderColors[highlight], className)}>
       {children}
     </div>
   );
 }
 
-export function CardTitle({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <h3 className={`text-lg font-bold text-gray-900 mb-1 ${className}`}>
-      {children}
-    </h3>
-  );
+export function CardTitle({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <div className={cn("text-base leading-snug font-medium", className)}>{children}</div>;
 }
 
-export function CardSubtitle({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <p className={`text-sm text-gray-500 ${className}`}>{children}</p>
-  );
+export function CardSubtitle({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <p className={cn("text-sm text-muted-foreground", className)}>{children}</p>;
 }
+
+export function CardContent({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <div className={cn("", className)}>{children}</div>;
+}
+
+export { CardTitle as CardHeader };

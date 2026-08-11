@@ -1,45 +1,49 @@
-import React from "react";
+"use client";
 
-type ButtonVariant = "primary" | "danger" | "outline" | "ghost";
-type ButtonSize = "sm" | "md" | "lg" | "xl" | "operator";
+import React from "react";
+import { Button as ShadcnButton } from "@base-ui/react/button";
+import { cva } from "class-variance-authority";
+import { cn } from "@/lib/utils";
+
+const buttonVariants = cva(
+  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  {
+    variants: {
+      variant: {
+        primary: "bg-primary text-primary-foreground hover:bg-primary/90 border-transparent",
+        danger: "bg-destructive text-destructive-foreground hover:bg-destructive/90 border-transparent",
+        outline: "border-border bg-background hover:bg-muted hover:text-foreground",
+        ghost: "border-transparent hover:bg-muted hover:text-foreground",
+      },
+      size: {
+        sm: "h-7 gap-1 rounded-lg px-2.5 text-xs",
+        md: "h-8 gap-1.5 px-3 text-sm",
+        lg: "h-9 gap-1.5 px-4 text-base",
+        xl: "h-11 gap-2 px-6 text-lg",
+        operator: "h-[88px] gap-2 px-8 text-2xl font-bold",
+      },
+    },
+    defaultVariants: { variant: "primary", size: "md" },
+  }
+);
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: ButtonVariant;
-  size?: ButtonSize;
-  className?: string;
+  variant?: "primary" | "danger" | "outline" | "ghost";
+  size?: "sm" | "md" | "lg" | "xl" | "operator";
   children: React.ReactNode;
 }
 
-const variantClasses: Record<ButtonVariant, string> = {
-  primary: "bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-300",
-  danger: "bg-red-700 text-white hover:bg-red-800 focus:ring-red-300",
-  outline: "border-2 border-gray-300 text-gray-700 hover:bg-gray-100 focus:ring-gray-300",
-  ghost: "text-gray-600 hover:bg-gray-100 focus:ring-gray-300",
-};
-
-const sizeClasses: Record<ButtonSize, string> = {
-  sm: "px-3 py-1.5 text-sm rounded-md",
-  md: "px-5 py-2.5 text-base rounded-lg",
-  lg: "px-6 py-3 text-lg rounded-lg",
-  xl: "px-8 py-4 text-xl rounded-xl",
-  operator: "px-8 py-6 text-2xl rounded-xl min-h-[88px] font-bold",
-};
-
-export function Button({
-  variant = "primary",
-  size = "md",
-  className = "",
-  children,
-  disabled,
-  ...props
-}: ButtonProps) {
+export function Button({ variant = "primary", size = "md", className, children, disabled, ...props }: ButtonProps) {
   return (
-    <button
-      className={`inline-flex items-center justify-center font-semibold transition-colors focus:outline-none focus:ring-4 disabled:opacity-50 disabled:cursor-not-allowed ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+    <ShadcnButton
+      data-slot="button"
+      className={cn(buttonVariants({ variant, size }), className)}
       disabled={disabled}
-      {...props}
+      {...(props as any)}
     >
       {children}
-    </button>
+    </ShadcnButton>
   );
 }
+
+export { buttonVariants };
