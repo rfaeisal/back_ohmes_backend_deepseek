@@ -144,6 +144,8 @@ export async function openBox(input: OpenBoxInput) {
     if (receivingBox) {
       boxCode = receivingBox.boxCode;
       tsgWeightKg = receivingBox.weightKg;
+    } else {
+      throw new ServiceError("BOX_WEIGHT_NOT_FOUND", "Data berat boks tidak ditemukan di receiving. Pastikan boks sudah diterima dengan benar.");
     }
 
     // Update inventory status → USED
