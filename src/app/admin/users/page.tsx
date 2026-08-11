@@ -170,7 +170,7 @@ export default function UsersPage() {
                 <th className="pb-3 text-sm font-semibold text-gray-600">Username</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Nama</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Email</th>
-                <th className="pb-3 text-sm font-semibold text-gray-600">Role</th>
+                <th className="pb-3 text-sm font-semibold text-gray-600">Role / Scope</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Status</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Aksi</th>
               </tr>
@@ -184,15 +184,23 @@ export default function UsersPage() {
                   <td className="py-3">{u.fullName}</td>
                   <td className="py-3 text-sm text-gray-500">{u.email ?? "-"}</td>
                   <td className="py-3">
-                    <div className="flex flex-wrap gap-1">
+                    <div className="space-y-1">
                       {(u.assignments ?? []).length === 0 ? (
                         <Badge variant="neutral">No role</Badge>
-                      ) : (u.assignments ?? []).map((a: any) => (
-                        <span key={a.id} className="inline-flex items-center gap-1 text-xs">
-                          <Badge variant={a.roleCode === "SUPERADMIN" ? "error" : "info"}>{a.roleCode}</Badge>
-                          <button onClick={() => handleRevokeAssignment(a.id)} className="text-red-400 hover:text-red-600" title="Revoke">×</button>
-                        </span>
-                      ))}
+                      ) : (u.assignments ?? []).map((a: any) => {
+                        const scopeName = a.scopeType === "PLANT"
+                          ? plants.find((p: any) => p.id === a.scopeId)?.code ?? a.scopeId?.slice(0, 8)
+                          : a.scopeType === "REGION"
+                          ? regions.find((r: any) => r.id === a.scopeId)?.code ?? a.scopeId?.slice(0, 8)
+                          : a.scopeType === "GLOBAL" ? "GLOBAL" : a.scopeId?.slice(0, 8);
+                        return (
+                          <div key={a.id} className="flex items-center gap-1 text-xs">
+                            <Badge variant={a.roleCode === "SUPERADMIN" ? "error" : "info"}>{a.roleCode}</Badge>
+                            <span className="text-gray-400 font-mono">{a.scopeType}: {scopeName}</span>
+                            <button onClick={() => handleRevokeAssignment(a.id)} className="text-red-400 hover:text-red-600" title="Revoke">×</button>
+                          </div>
+                        );
+                      })}
                     </div>
                   </td>
                   <td className="py-3">
