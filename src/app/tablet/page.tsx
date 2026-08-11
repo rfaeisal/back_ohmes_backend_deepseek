@@ -1,20 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Card, CardTitle, CardSubtitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-// Mock data — nanti di-fetch dari API
-const MOCK_MACHINES = [
-  { id: "mkr01", code: "MKR-01", name: "Maker 1", type: "MAKER", status: "IDLE", lastShiftEnd: "05:30" },
-  { id: "mkr02", code: "MKR-02", name: "Maker 2", type: "MAKER", status: "RUNNING", lastShiftEnd: null },
-  { id: "hlp01", code: "HLP-01", name: "HLP 1", type: "HLP", status: "IDLE", lastShiftEnd: "05:25" },
-];
+const API = "/api/v1";
+function getToken() { return typeof window !== "undefined" ? localStorage.getItem("accessToken") : null; }
+
+async function apiFetch(path: string) {
+  const token = getToken();
+  const res = await fetch(`${API}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!res.ok) return { data: [] };
+  return res.json();
+}
 
 export default function TabletHome() {
-  const [machines] = useState(MOCK_MACHINES);
+  const [machines, setMachines] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await apiFetch("/machines");
+      setMachines(res.data ?? []);
+    } catch { setMachines([]); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   return (
     <div>
@@ -52,36 +67,27 @@ export default function TabletHome() {
       {/* Machin List */}
       <h2 className="text-xl font-bold text-gray-900 mb-4">Mesin</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {machines.map((machine) => (
+        {loading ? <p className="col-span-3 text-center text-gray-400 py-8">Memuat data mesin...</p> :
+          machines.length === 0 ? <p className="col-span-3 text-center text-gray-400 py-8">Belum ada mesin. Setup di Admin → Master Data.</p> :
+          machines.map((m: any) => (
           <Card
-            key={machine.id}
-            highlight={machine.status === "RUNNING" ? "green" : "none"}
+            key={m.id}
             className="hover:shadow-md transition-shadow cursor-pointer"
           >
             <div className="flex items-center justify-between mb-3">
               <div>
-                <CardTitle>{machine.code}</CardTitle>
-                <CardSubtitle>{machine.name} · {machine.type}</CardSubtitle>
+                <CardTitle>{m.code}</CardTitle>
+                <CardSubtitle>{m.name} · {m.type}</CardSubtitle>
               </div>
-              <Badge
-                variant={machine.status === "RUNNING" ? "success" : "neutral"}
-              >
-                {machine.status === "RUNNING" ? "AKTIF" : "IDLE"}
+              <Badge variant={m.isActive ? "success" : "neutral"}>
+                {m.isActive ? "AKTIF" : "OFF"}
               </Badge>
             </div>
-            {machine.status === "RUNNING" ? (
-              <Link href={`/tablet/shift/active-${machine.id}`}>
-                <Button size="lg" variant="primary" className="w-full">
-                  Lanjutkan Shift →
-                </Button>
-              </Link>
-            ) : (
-              <Link href={`/tablet/start-shift?machine=${machine.id}`}>
-                <Button size="lg" variant="outline" className="w-full">
-                  Mulai Shift Baru
-                </Button>
-              </Link>
-            )}
+            <Link href={`/tablet/start-shift?machine=${m.id}`}>
+              <Button size="lg" variant="primary" className="w-full">
+                Mulai Shift Baru
+              </Button>
+            </Link>
           </Card>
         ))}
       </div>
