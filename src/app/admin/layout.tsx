@@ -44,7 +44,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </Link>
           ))}
         </nav>
-        <div className="p-3 border-t border-gray-700">
+        <div className="p-3 border-t border-gray-700 space-y-2">
+          <a
+            href="/tablet/login"
+            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-colors"
+            onClick={(e) => {
+              e.preventDefault();
+              if (typeof window !== "undefined") {
+                localStorage.removeItem("accessToken");
+                localStorage.removeItem("refreshToken");
+                window.location.href = "/tablet/login";
+              }
+            }}
+          >
+            <span>🚪</span>
+            Logout
+          </a>
           <div className="text-xs text-gray-500">v0.1.0 · Fase 0–6</div>
         </div>
       </aside>
