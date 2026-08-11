@@ -187,7 +187,7 @@ export default function ShiftActivePage() {
             size="operator"
             variant="primary"
             className="w-full text-3xl"
-            onClick={() => setShowWeigh(true)}
+            onClick={() => { setOutputWeight(String(activeBox.tsgWeightKg)); setShowWeigh(true); }}
           >
             BOKS SELESAI · TIMBANG HASIL BATANGAN
           </Button>
@@ -379,7 +379,7 @@ export default function ShiftActivePage() {
           <Button
             size="operator"
             className="w-full"
-            disabled={!outputWeight || parseFloat(outputWeight) <= 0}
+            disabled={!outputWeight || parseFloat(outputWeight) <= 0.01}
             onClick={handleWeigh}
           >
             Timbang & Selesai
