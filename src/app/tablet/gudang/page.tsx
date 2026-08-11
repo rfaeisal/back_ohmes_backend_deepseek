@@ -33,7 +33,30 @@ export default function GudangInboundPage() {
   const [receivingBoxes, setReceivingBoxes] = useState<Array<{ code: string; weight: string; type: string }>>([
     { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" },
   ]);
+  const [saving, setSaving] = useState(false);
+  const [receivingError, setReceivingError] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("AVAILABLE");
+
+  const handleSaveReceiving = async () => {
+    const validBoxes = receivingBoxes.filter(b => b.code && b.weight);
+    if (validBoxes.length === 0) { setReceivingError("Minimal 1 boks dengan kode & berat."); return; }
+    setSaving(true); setReceivingError("");
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch("/api/v1/tsg-receiving", {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          supplierId: "a35e1129-7903-433f-82cb-e4bad21f40fd",
+          boxes: validBoxes.map(b => ({ boxCode: b.code, weightKg: parseFloat(b.weight), tsgType: b.type })),
+        }),
+      });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || "Gagal menyimpan"); }
+      setShowReceiving(false);
+      setReceivingBoxes([{ code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }]);
+      window.location.reload();
+    } catch (e: any) { setReceivingError(e.message); }
+    finally { setSaving(false); }
+  };
 
   const filtered = inventory.filter((i) => filterStatus === "ALL" || i.status === filterStatus);
 
@@ -187,8 +210,9 @@ export default function GudangInboundPage() {
             </Button>
           </div>
 
-          <Button size="operator" className="w-full" onClick={() => setShowReceiving(false)}>
-            Simpan · {receivingBoxes.filter(b => b.code && b.weight).length} Boks
+          {receivingError && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{receivingError}</div>}
+          <Button size="operator" className="w-full" onClick={handleSaveReceiving} disabled={saving}>
+            {saving ? "Menyimpan..." : `Simpan · ${receivingBoxes.filter(b => b.code && b.weight).length} Boks`}
           </Button>
         </div>
       </Dialog>
