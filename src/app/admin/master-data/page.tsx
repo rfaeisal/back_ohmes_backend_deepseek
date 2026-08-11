@@ -39,6 +39,7 @@ export default function MasterDataPage() {
   const [machines, setMachines] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [shiftTemplates, setShiftTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -50,16 +51,18 @@ export default function MasterDataPage() {
     setLoading(true);
     setError("");
     try {
-      const [p, m, pr, s] = await Promise.allSettled([
+      const [p, m, pr, s, st] = await Promise.allSettled([
         apiFetch("/plants"),
         apiFetch("/machines"),
         apiFetch("/products"),
         apiFetch("/tsg-suppliers"),
+        apiFetch("/shift-templates"),
       ]);
       if (p.status === "fulfilled") setPlants(p.value.data ?? []);
       if (m.status === "fulfilled") setMachines(m.value.data ?? []);
       if (pr.status === "fulfilled") setProducts(pr.value.data ?? []);
       if (s.status === "fulfilled") setSuppliers(s.value.data ?? []);
+      if (st.status === "fulfilled") setShiftTemplates(st.value.data ?? []);
     } catch {
       setError("Gagal memuat data. Pastikan sudah login.");
     } finally {
@@ -119,7 +122,9 @@ export default function MasterDataPage() {
         machine: `/machines/${id}`,
         product: `/products/${id}`,
         supplier: `/tsg-suppliers/${id}`,
+        shiftTemplate: `/shift-templates/${id}`,
       };
+      if (type === "shiftTemplate" && !confirm("Hapus shift template?")) return;
       await apiFetch(endpoints[type]!, { method: "DELETE" });
       loadData();
     } catch (e: any) {
@@ -143,6 +148,7 @@ export default function MasterDataPage() {
           <Button size="sm" onClick={() => { setForm({}); setShowAdd("machine"); }}>+ Mesin</Button>
           <Button size="sm" onClick={() => { setForm({}); setShowAdd("product"); }}>+ Produk</Button>
           <Button size="sm" onClick={() => { setForm({}); setShowAdd("supplier"); }}>+ Supplier</Button>
+          <Button size="sm" onClick={() => { setForm({}); setShowAdd("shiftTemplate"); }}>+ Shift</Button>
         </div>
       </div>
 
@@ -255,8 +261,36 @@ export default function MasterDataPage() {
         </Card>
       </div>
 
+      {/* Shift Templates */}
+      <Card className="mb-6">
+        <CardTitle>Shift Template ({shiftTemplates.length})</CardTitle>
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="border-b border-gray-200">
+              <tr><th className="pb-3 text-sm font-semibold text-gray-600">Kode</th><th className="pb-3 text-sm font-semibold text-gray-600">Nama</th><th className="pb-3 text-sm font-semibold text-gray-600">Mulai</th><th className="pb-3 text-sm font-semibold text-gray-600">Durasi</th><th className="pb-3 text-sm font-semibold text-gray-600">Aksi</th></tr>
+            </thead>
+            <tbody>
+              {shiftTemplates.length === 0 ? (
+                <tr><td colSpan={5} className="py-6 text-center text-gray-400">Belum ada shift template</td></tr>
+              ) : shiftTemplates.map((st: any) => (
+                <tr key={st.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="py-3 font-mono font-medium">{st.code}</td>
+                  <td className="py-3">{st.name}</td>
+                  <td className="py-3">{st.startTime}</td>
+                  <td className="py-3">{st.durationMinutes} menit ({Math.floor(st.durationMinutes / 60)}j {st.durationMinutes % 60}m)</td>
+                  <td className="py-3 flex gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => { setForm(st); setShowAdd("shiftTemplate"); }}><Pencil className="size-4" /></Button>
+                    <Button size="sm" variant="ghost" onClick={() => handleDelete("shiftTemplate", st.id)}><Trash2 className="size-4 text-red-500" /></Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
       {/* Add Dialog */}
-      <Dialog open={!!showAdd} onClose={() => setShowAdd(null)} title={`${form.id ? "Edit" : "Tambah"} ${showAdd === "plant" ? "Pabrik" : showAdd === "machine" ? "Mesin" : showAdd === "product" ? "Produk" : "Supplier"}`}>
+      <Dialog open={!!showAdd} onClose={() => setShowAdd(null)} title={`${form.id ? "Edit" : "Tambah"} ${showAdd === "plant" ? "Pabrik" : showAdd === "machine" ? "Mesin" : showAdd === "product" ? "Produk" : showAdd === "supplier" ? "Supplier" : "Shift Template"}`}>
         <div className="space-y-3">
           {showAdd === "plant" && (<>
             {!form.id && <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="PLT-MLG-02" />}
@@ -277,6 +311,12 @@ export default function MasterDataPage() {
             {!form.id && <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="PRD-HMR-LTS" />}
             <Input label="Brand" value={form.brand ?? ""} onChange={e => setForm({...form, brand: e.target.value})} placeholder="Hummer" />
             <Input label="Variant" value={form.variant ?? ""} onChange={e => setForm({...form, variant: e.target.value})} placeholder="LTS" />
+          </>)}
+          {showAdd === "shiftTemplate" && (<>
+            {!form.id && <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="shift_pagi" />}
+            <Input label="Nama" value={form.name ?? ""} onChange={e => setForm({...form, name: e.target.value})} placeholder="Shift Pagi" />
+            <Input label="Jam Mulai" value={form.startTime ?? ""} onChange={e => setForm({...form, startTime: e.target.value})} placeholder="05:30" />
+            <Input label="Durasi (menit)" type="number" value={form.durationMinutes ?? ""} onChange={e => setForm({...form, durationMinutes: e.target.value})} placeholder="660" />
           </>)}
           {showAdd === "supplier" && (<>
             {!form.id && <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="SUP-JAWA-03" />}
