@@ -152,9 +152,10 @@ export async function POST(request: Request) {
         );
       }
 
-      // Dev: OTP "000000" valid untuk development
-      if (process.env.NEXT_PUBLIC_APP_ENV === "development" && otp === "000000") {
-        // Allow dummy OTP
+      // OTP bypass: "000000" valid di development ATAU kalau OTP_BYPASS_CODE diset
+      const bypassCode = process.env.OTP_BYPASS_CODE || (process.env.NEXT_PUBLIC_APP_ENV === "development" ? "000000" : null);
+      if (bypassCode && otp === bypassCode) {
+        // Allow bypass OTP
       } else {
         // TODO: Verifikasi OTP via Twilio / TOTP
         return NextResponse.json(
