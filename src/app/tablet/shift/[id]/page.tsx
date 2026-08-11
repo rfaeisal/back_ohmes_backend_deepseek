@@ -182,7 +182,7 @@ export default function ShiftActivePage() {
                 )}
               </p>
               <p className="text-sm text-gray-400 mt-1">
-                Tim: {shiftData.members?.map((m: any) => m.userName ?? m.userId?.slice(0,6)).join(", ") ?? "-"}
+                Tim: {shiftData.members?.map((m: any) => m.userName ?? m.roleName ?? m.userId?.slice(0,6)).join(", ") ?? "-"}
               </p>
             </>
           ) : (

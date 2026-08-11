@@ -14,6 +14,7 @@ import {
   shiftHandoff,
   tsgBoxProcess,
 } from "@/db/schema";
+import { machine, shiftTemplate, product } from "@/db/schema/master-product";
 import { calculateShiftYield } from "@/lib/calc";
 import { writeAudit } from "@/lib/audit";
 
@@ -414,40 +415,39 @@ export async function getShiftDetail(shiftId: string) {
 
   if (!shift) throw new ServiceError("SHIFT_NOT_FOUND", "Shift tidak ditemukan.");
 
-  // Get related data
+  // Get related data with resolved names
   const members = await db
-    .select()
+    .select({
+      id: shiftMember.id, userId: shiftMember.userId, shiftRoleId: shiftMember.shiftRoleId,
+      leaveMinutes: shiftMember.leaveMinutes, note: shiftMember.note,
+      userName: sql<string>`u.full_name`.mapWith(String),
+      roleName: sql<string>`sr.name`.mapWith(String),
+    })
     .from(shiftMember)
+    .leftJoin(sql`"user" u`, eq(shiftMember.userId, sql`u.id`))
+    .leftJoin(sql`shift_role sr`, eq(shiftMember.shiftRoleId, sql`sr.id`))
     .where(eq(shiftMember.shiftReportId, shiftId));
 
-  const wastes = await db
-    .select()
-    .from(shiftWaste)
-    .where(eq(shiftWaste.shiftReportId, shiftId));
+  // Get machine code & shift template name
+  const [machineInfo] = await db.select({ code: machine.code }).from(machine).where(eq(machine.id, shift.machineId)).limit(1);
+  const [templateInfo] = await db.select({ name: shiftTemplate.name }).from(shiftTemplate).where(eq(shiftTemplate.id, shift.shiftTemplateId)).limit(1);
+  const [productInfo] = await db.select({ brand: product.brand, code: product.code }).from(product).where(eq(product.id, shift.productId)).limit(1);
 
-  const boxes = await db
-    .select()
-    .from(tsgBoxProcess)
-    .where(eq(tsgBoxProcess.shiftReportId, shiftId))
-    .orderBy(tsgBoxProcess.boxNumber);
+  const wastes = await db.select().from(shiftWaste).where(eq(shiftWaste.shiftReportId, shiftId));
+  const boxes = await db.select().from(tsgBoxProcess).where(eq(tsgBoxProcess.shiftReportId, shiftId)).orderBy(tsgBoxProcess.boxNumber);
+  const handoffs = await db.select().from(shiftHandoff).where(eq(shiftHandoff.fromShiftId, shiftId));
 
-  const handoffs = await db
-    .select()
-    .from(shiftHandoff)
-    .where(eq(shiftHandoff.fromShiftId, shiftId));
-
-  // Kalkulasi yield shift
   const yieldPct = calculateShiftYield({
-    boxes: boxes
-      .filter((b) => b.outputWeightKg && b.tsgWeightKg)
-      .map((b) => ({
-        outputWeightKg: Number(b.outputWeightKg),
-        tsgWeightKg: Number(b.tsgWeightKg),
-      })),
+    boxes: boxes.filter((b) => b.outputWeightKg && b.tsgWeightKg).map((b) => ({
+      outputWeightKg: Number(b.outputWeightKg), tsgWeightKg: Number(b.tsgWeightKg),
+    })),
   });
 
   return {
     ...shift,
+    machineCode: machineInfo?.code,
+    shiftTemplateName: templateInfo?.name,
+    productName: productInfo ? `${productInfo.brand} ${productInfo.code}` : null,
     members,
     wastes,
     boxes,
