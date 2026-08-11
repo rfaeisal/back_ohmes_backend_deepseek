@@ -34,6 +34,7 @@ function StartShiftForm() {
   const [templates, setTemplates] = useState(MOCK_TEMPLATES);
   const [products, setProducts] = useState(MOCK_PRODUCTS);
   const [users, setUsers] = useState(MOCK_USERS);
+  const [shiftRoles, setShiftRoles] = useState<any[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [selectedProduct, setSelectedProduct] = useState("");
   const [selectedTeam, setSelectedTeam] = useState<string[]>([]);
@@ -42,10 +43,11 @@ function StartShiftForm() {
 
   const loadMasterData = useCallback(async () => {
     try {
-      const [t, p, u] = await Promise.allSettled([
+      const [t, p, u, r] = await Promise.allSettled([
         apiFetch("/shift-templates"),
         apiFetch("/products"),
         apiFetch("/users"),
+        apiFetch("/shift-roles"),
       ]);
       if (t.status === "fulfilled" && t.value.data?.length > 0) {
         setTemplates(t.value.data);
@@ -56,6 +58,7 @@ function StartShiftForm() {
         setSelectedProduct(p.value.data[0].id);
       } else { setSelectedProduct(MOCK_PRODUCTS[0]!.id); }
       if (u.status === "fulfilled" && u.value.data?.length > 0) setUsers(u.value.data);
+      if (r.status === "fulfilled" && r.value.data?.length > 0) setShiftRoles(r.value.data);
     } catch { /* gunakan mock */ }
   }, []);
 
@@ -75,9 +78,9 @@ function StartShiftForm() {
         machineId,
         productId: selectedProduct || products[0]?.id,
         shiftTemplateId: selectedTemplate || templates[0]?.id,
-        members: selectedTeam.map((userId, i) => ({
+        members: selectedTeam.map((userId) => ({
           userId,
-          shiftRoleId: i === 0 ? "ketua_kecer" : "operator",
+          shiftRoleId: shiftRoles.find((r: any) => r.code === "ketua_kecer")?.id ?? shiftRoles[0]?.id ?? userId,
         })),
       };
       const res = await apiFetch("/shifts/start", { method: "POST", body: JSON.stringify(body) });
