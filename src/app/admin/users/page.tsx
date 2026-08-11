@@ -168,9 +168,10 @@ export default function UsersPage() {
                       <Button size="sm" variant="outline" onClick={() => { setShowAssign(u); setForm({}); setError(""); }}>
                         + Role
                       </Button>
-                      <Button size="sm" variant={u.isActive !== false ? "danger" : "primary"}
-                        onClick={() => handleToggleActive(u.id, u.isActive !== false)}>
-                        {u.isActive !== false ? "Nonaktifkan" : "Aktifkan"}
+                      <Button size="sm" variant="ghost"
+                        onClick={() => handleToggleActive(u.id, u.isActive !== false)}
+                        title={u.isActive !== false ? "Nonaktifkan" : "Aktifkan"}>
+                        {u.isActive !== false ? "🟢" : "🔴"}
                       </Button>
                     </div>
                   </td>

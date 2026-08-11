@@ -164,8 +164,8 @@ export default function MasterDataPage() {
                   <td className="py-3">{p.name}</td>
                   <td className="py-3"><Badge variant={!p.deletedAt ? "success" : "error"}>{!p.deletedAt ? "AKTIF" : "OFF"}</Badge></td>
                   <td className="py-3 flex gap-1">
-                    <Button size="sm" variant={!p.deletedAt ? "danger" : "primary"} onClick={() => handleToggleActive("plant", p.id, !p.deletedAt)}>
-                      {!p.deletedAt ? "Nonaktifkan" : "Aktifkan"}
+                    <Button size="sm" variant="ghost" onClick={() => handleToggleActive("plant", p.id, !p.deletedAt)} title={!p.deletedAt ? "Nonaktifkan" : "Aktifkan"}>
+                      {!p.deletedAt ? "🟢" : "🔴"}
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => { setForm(p); setShowAdd("plant"); }}>✏️</Button>
                     <Button size="sm" variant="ghost" onClick={() => handleDelete("plant", p.id)}>🗑</Button>
@@ -195,8 +195,8 @@ export default function MasterDataPage() {
                   <td className="py-3"><Badge variant="neutral">{m.type}</Badge></td>
                   <td className="py-3"><Badge variant={m.isActive ? "success" : "error"}>{m.isActive ? "AKTIF" : "OFF"}</Badge></td>
                   <td className="py-3 flex gap-1">
-                    <Button size="sm" variant={m.isActive ? "danger" : "primary"} onClick={() => handleToggleActive("machine", m.id, m.isActive)}>
-                      {m.isActive ? "Nonaktifkan" : "Aktifkan"}
+                    <Button size="sm" variant="ghost" onClick={() => handleToggleActive("machine", m.id, m.isActive)} title={m.isActive ? "Nonaktifkan" : "Aktifkan"}>
+                      {m.isActive ? "🟢" : "🔴"}
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => { setForm(m); setShowAdd("machine"); }}>✏️</Button>
                     <Button size="sm" variant="ghost" onClick={() => handleDelete("machine", m.id)}>🗑</Button>
@@ -221,8 +221,8 @@ export default function MasterDataPage() {
                   <Badge variant={p.isActive !== false ? "success" : "error"} className="mt-1">{p.isActive !== false ? "AKTIF" : "OFF"}</Badge>
                 </div>
                 <div className="flex gap-1">
-                  <Button size="sm" variant={p.isActive !== false ? "danger" : "primary"} onClick={() => handleToggleActive("product", p.id, p.isActive !== false)}>
-                    {p.isActive !== false ? "Off" : "On"}
+                  <Button size="sm" variant="ghost" onClick={() => handleToggleActive("product", p.id, p.isActive !== false)} title={p.isActive !== false ? "Nonaktifkan" : "Aktifkan"}>
+                    {p.isActive !== false ? "🟢" : "🔴"}
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => { setForm(p); setShowAdd("product"); }}>✏️</Button>
                   <Button size="sm" variant="ghost" onClick={() => handleDelete("product", p.id)}>🗑</Button>
@@ -242,8 +242,8 @@ export default function MasterDataPage() {
                   <Badge variant={s.isActive !== false ? "success" : "error"} className="mt-1">{s.isActive !== false ? "AKTIF" : "OFF"}</Badge>
                 </div>
                 <div className="flex gap-1">
-                  <Button size="sm" variant={s.isActive !== false ? "danger" : "primary"} onClick={() => handleToggleActive("supplier", s.id, s.isActive !== false)}>
-                    {s.isActive !== false ? "Off" : "On"}
+                  <Button size="sm" variant="ghost" onClick={() => handleToggleActive("supplier", s.id, s.isActive !== false)} title={s.isActive !== false ? "Nonaktifkan" : "Aktifkan"}>
+                    {s.isActive !== false ? "🟢" : "🔴"}
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => { setForm(s); setShowAdd("supplier"); }}>✏️</Button>
                   <Button size="sm" variant="ghost" onClick={() => handleDelete("supplier", s.id)}>🗑</Button>
