@@ -30,16 +30,27 @@ type LabelData = {
 export default function LabelsPage() {
   const [tab, setTab] = useState<"tsg" | "machine" | "batch">("tsg");
   const [items, setItems] = useState<any[]>([]);
+  const [counts, setCounts] = useState<Record<string, number>>({ tsg: 0, machine: 0 });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
 
   const loadItems = useCallback(async () => {
     setLoading(true);
     try {
+      // Load counts for all tabs on first load
+      if (counts.tsg === 0 && counts.machine === 0) {
+        const [tsgRes, mRes] = await Promise.allSettled([
+          apiFetch("/tsg-inventory/available?limit=200"),
+          apiFetch("/machines"),
+        ]);
+        const tsgCount = tsgRes.status === "fulfilled" ? (tsgRes.value.data?.length ?? 0) : 0;
+        const mCount = mRes.status === "fulfilled" ? (mRes.value.data?.length ?? 0) : 0;
+        setCounts({ tsg: tsgCount, machine: mCount });
+      }
+      // Load current tab items
       let res: any;
       if (tab === "tsg") {
         res = await apiFetch("/tsg-inventory/available?limit=50");
-        // Normalize: TSG inventory uses inventoryId, map to id for consistency
         const data = (res?.data ?? []).map((item: any) => ({ ...item, id: item.inventoryId ?? item.id }));
         setItems(data);
       } else if (tab === "machine") {
@@ -50,7 +61,7 @@ export default function LabelsPage() {
       }
     } catch { setItems([]); }
     finally { setLoading(false); }
-  }, [tab]);
+  }, [tab, counts.tsg, counts.machine]);
 
   useEffect(() => { loadItems(); }, [loadItems]);
 
@@ -104,9 +115,9 @@ export default function LabelsPage() {
       {/* Tab Selector */}
       <div className="flex gap-2 mb-6">
         {[
-          { key: "tsg", label: "📦 Boks TSG", count: tab === "tsg" ? items.length : "?" },
-          { key: "machine", label: "⚙️ Mesin", count: tab === "machine" ? items.length : "?" },
-          { key: "batch", label: "📦 Batch", count: 0 },
+          { key: "tsg", label: "Boks TSG", count: counts.tsg },
+          { key: "machine", label: "Mesin", count: counts.machine },
+          { key: "batch", label: "Batch", count: 0 },
         ].map((t) => (
           <Button
             key={t.key}
