@@ -602,6 +602,77 @@
 </section>
 
 <!-- ================================================================== -->
+<!-- SCENARIO 5 -->
+<!-- ================================================================== -->
+
+<section>
+  <h2>Skenario 5: Gudang — Cetak Label QR untuk Boks TSG</h2>
+  <span class="role-badge">Role: GUDANG_INBOUND / HQ_ADMIN</span>
+
+  <p>Setelah menerima TSG (Skenario 2), staff gudang mencetak label QR untuk ditempel di setiap boks fisik. Label waterproof tahan lingkungan gudang.</p>
+
+  <div class="note">
+    <strong>Prasyarat:</strong> Harus ada boks TSG di inventory dari Skenario 2.
+  </div>
+
+  <h3>Step-by-Step</h3>
+  <table class="steps">
+    <thead>
+      <tr><th>#</th><th>Halaman</th><th>Menu / Tombol</th><th>Input / Action</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td><span class="step-url">/admin/labels</span></td>
+        <td>Tab <strong>📦 Boks TSG</strong> (default)</td>
+        <td>Lihat daftar inventory yang sudah diterima</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><span class="step-url">/admin/labels</span></td>
+        <td>Centang boks yang mau dicetak</td>
+        <td class="step-input">Pilih 3 boks dari Skenario 2</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td><span class="step-url">/admin/labels</span></td>
+        <td class="step-action">Klik <strong>🖨 Cetak 3 Label</strong></td>
+        <td>Halaman print terbuka di tab baru</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td><span class="step-url">/admin/labels/print</span></td>
+        <td>Preview grid label</td>
+        <td>Setiap label: QR code, kode boks, berat, tanggal</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>Print dialog</td>
+        <td class="step-action">Ctrl+P → pilih printer <strong>Zebra ZT230</strong></td>
+        <td class="step-input">Paper: 100×60mm · Orientation: Landscape · Margins: 3mm</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>Fisik</td>
+        <td>Tempel label di boks TSG</td>
+        <td>Label waterproof siap untuk scanning QR di Fase 3</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="credentials">
+    <h4>🖨 Spesifikasi Cetak</h4>
+    <table>
+      <tr><td>Printer</td><td>Zebra ZT230 atau TSC TE310 (Thermal Transfer, 203 DPI)</td></tr>
+      <tr><td>Label</td><td>Polypropylene (BOPP) 100×60mm — waterproof, tahan minyak</td></tr>
+      <tr><td>Ribbon</td><td>Wax/Resin (WR) — tahan gesek & suhu gudang</td></tr>
+      <tr><td>Ukuran</td><td>100mm × 60mm landscape, margin 3mm</td></tr>
+      <tr><td>Ketahanan</td><td>2-3 tahun outdoor, tahan debu & kelembaban</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ================================================================== -->
 <!-- QUICK REFERENCE -->
 <!-- ================================================================== -->
 
@@ -626,6 +697,7 @@
       <tr><td>Admin</td><td><span class="step-url">/admin/master-data</span></td><td>Master Data</td><td>CRUD pabrik, mesin, produk</td></tr>
       <tr><td>Admin</td><td><span class="step-url">/admin/users</span></td><td>Users</td><td>Daftar user & 13 role</td></tr>
       <tr><td>Admin</td><td><span class="step-url">/admin/audit</span></td><td>Audit Log</td><td>Immutable trail</td></tr>
+      <tr><td>Gudang</td><td><span class="step-url">/admin/labels</span></td><td>Cetak Label</td><td>Print label QR — TSG, mesin, batch</td></tr>
       <tr><td>SUPERADMIN</td><td><span class="step-url">/admin/super</span></td><td>SUPERADMIN</td><td>Impersonate, force logout</td></tr>
     </tbody>
   </table>

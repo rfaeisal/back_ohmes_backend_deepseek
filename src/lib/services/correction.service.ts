@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import db from "@/db";
 import { shiftReport, shiftCorrection, auditLog } from "@/db/schema";
 import { ServiceError } from "./shift.service";
+export { ServiceError } from "./shift.service";
 
 // =============================================================================
 // Types
