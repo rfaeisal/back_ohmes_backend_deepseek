@@ -18,13 +18,18 @@ async function apiFetch(path: string) {
 
 export default function TabletHome() {
   const [machines, setMachines] = useState<any[]>([]);
+  const [activeShifts, setActiveShifts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiFetch("/machines");
-      setMachines(res.data ?? []);
+      const [mRes, sRes] = await Promise.allSettled([
+        apiFetch("/machines"),
+        apiFetch("/shifts?status=RUNNING&limit=50"),
+      ]);
+      if (mRes.status === "fulfilled") setMachines(mRes.value.data ?? []);
+      if (sRes.status === "fulfilled") setActiveShifts(sRes.value.data ?? []);
     } catch { setMachines([]); }
     finally { setLoading(false); }
   }, []);
@@ -69,9 +74,13 @@ export default function TabletHome() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {loading ? <p className="col-span-3 text-center text-gray-400 py-8">Memuat data mesin...</p> :
           machines.length === 0 ? <p className="col-span-3 text-center text-gray-400 py-8">Belum ada mesin. Setup di Admin → Master Data.</p> :
-          machines.map((m: any) => (
+          machines.map((m: any) => {
+            const activeShift = activeShifts.find((s: any) => s.machineId === m.id);
+            const isRunning = !!activeShift;
+            return (
           <Card
             key={m.id}
+            highlight={isRunning ? "green" : "none"}
             className="hover:shadow-md transition-shadow cursor-pointer"
           >
             <div className="flex items-center justify-between mb-3">
@@ -79,17 +88,25 @@ export default function TabletHome() {
                 <CardTitle>{m.code}</CardTitle>
                 <CardSubtitle>{m.name} · {m.type}</CardSubtitle>
               </div>
-              <Badge variant={m.isActive ? "success" : "neutral"}>
-                {m.isActive ? "AKTIF" : "OFF"}
+              <Badge variant={isRunning ? "success" : "neutral"}>
+                {isRunning ? "AKTIF" : "IDLE"}
               </Badge>
             </div>
-            <Link href={`/tablet/start-shift?machine=${m.id}`}>
-              <Button size="lg" variant="primary" className="w-full">
-                Mulai Shift Baru
-              </Button>
-            </Link>
+            {isRunning ? (
+              <Link href={`/tablet/shift/${activeShift.id}`}>
+                <Button size="lg" variant="primary" className="w-full">
+                  Lanjutkan Shift →
+                </Button>
+              </Link>
+            ) : (
+              <Link href={`/tablet/start-shift?machine=${m.id}`}>
+                <Button size="lg" variant="outline" className="w-full">
+                  Mulai Shift Baru
+                </Button>
+              </Link>
+            )}
           </Card>
-        ))}
+        )})}
       </div>
 
       {/* Quick Links */}
