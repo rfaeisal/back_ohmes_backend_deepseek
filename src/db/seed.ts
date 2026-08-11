@@ -7,6 +7,7 @@
 // Usage: pnpm db:seed
 // =============================================================================
 
+import { eq } from "drizzle-orm";
 import db from "@/db";
 import {
   company,
@@ -14,6 +15,7 @@ import {
   plant,
 } from "@/db/schema/tenancy";
 import {
+  user,
   role,
   permission,
   rolePermission,
@@ -389,6 +391,83 @@ async function seed() {
     await db.insert(tsgSupplier).values(s);
   }
   console.log(`  ✓ ${suppliersData.length} suppliers\n`);
+
+  // ===========================================================================
+  // 7. WMS INBOUND — Sample Receiving Data
+  // ===========================================================================
+  console.log("📦 WMS Inbound — Sample Receiving...");
+  const { tsgReceiving, tsgReceivingBox, tsgInventory } = await import("@/db/schema/wms-inbound");
+
+  const sampleReceivings = [
+    {
+      supplierId: suppliersData[0] ? undefined : undefined,
+      boxes: [
+        { code: "TSG-20260811-001", weight: "29.75", type: "REGULER" as const },
+        { code: "TSG-20260811-002", weight: "30.10", type: "REGULER" as const },
+        { code: "TSG-20260811-003", weight: "29.80", type: "MILD" as const },
+        { code: "TSG-20260811-004", weight: "30.25", type: "MILD" as const },
+        { code: "TSG-20260811-005", weight: "29.90", type: "REGULER" as const },
+      ],
+      docRef: "SJ-081-2026",
+      receivedAt: new Date("2026-08-11T05:00:00+07:00"),
+    },
+    {
+      supplierId: undefined,
+      boxes: [
+        { code: "TSG-20260811-101", weight: "28.50", type: "PUTIHAN" as const },
+        { code: "TSG-20260811-102", weight: "29.15", type: "PUTIHAN" as const },
+        { code: "TSG-20260811-103", weight: "28.80", type: "PUTIHAN" as const },
+      ],
+      docRef: "SJ-045-2026",
+      receivedAt: new Date("2026-08-11T06:30:00+07:00"),
+    },
+  ];
+
+  const [sup1] = await db.select({ id: tsgSupplier.id }).from(tsgSupplier).where(eq(tsgSupplier.code, "SUP-JAWA-01")).limit(1);
+  const [sup2] = await db.select({ id: tsgSupplier.id }).from(tsgSupplier).where(eq(tsgSupplier.code, "SUP-JAWA-02")).limit(1);
+  const [adminUser] = await db.select({ id: user.id }).from(user).where(eq(user.username, "admin")).limit(1);
+
+  if (sup1 && sup2 && adminUser) {
+    (sampleReceivings[0] as any).supplierId = sup1.id;
+    (sampleReceivings[1] as any).supplierId = sup2.id;
+
+    let seq = 0;
+    for (const recv of sampleReceivings) {
+      seq++;
+      const totalWeight = recv.boxes.reduce((s, b) => s + parseFloat(b.weight), 0);
+      const [header] = await db.insert(tsgReceiving).values({
+        plantId: plt!.id,
+        supplierId: recv.supplierId as any,
+        receivingCode: `RCV-20260811-0${seq}`,
+        receivedAt: recv.receivedAt,
+        receivedBy: adminUser.id,
+        totalBoxCount: recv.boxes.length,
+        totalWeightKg: totalWeight.toFixed(2),
+        supplierDocRef: recv.docRef,
+      } as any).returning();
+
+      for (let i = 0; i < recv.boxes.length; i++) {
+        const box = recv.boxes[i]!;
+        const [rb] = await db.insert(tsgReceivingBox).values({
+          receivingId: header!.id,
+          plantId: plt!.id,
+          boxCode: box.code,
+          weightKg: box.weight,
+          boxSeq: i + 1,
+          tsgType: box.type as any,
+          receivedAt: recv.receivedAt,
+        } as any).returning();
+
+        await db.insert(tsgInventory).values({
+          plantId: plt!.id,
+          boxId: rb!.id,
+          tsgType: box.type as any,
+          status: "AVAILABLE",
+        } as any);
+      }
+    }
+    console.log(`  ✓ ${sampleReceivings.length} sample receivings (${sampleReceivings.reduce((s, r) => s + r.boxes.length, 0)} boxes)\n`);
+  }
 
   // ===========================================================================
   // DONE
