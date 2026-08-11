@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { href: "/admin/master-data", label: "Master Data", icon: "⚙️", role: "HQ_ADMIN" },
   { href: "/admin/audit", label: "Audit Log", icon: "📋", role: "SUPERADMIN" },
   { href: "/admin/super", label: "SUPERADMIN Tools", icon: "🔐", role: "SUPERADMIN" },
+  { href: "/admin/reports/shifts", label: "Laporan Per Shift", icon: "📄" },
   { href: "/admin/reports/tsg-receiving", label: "Laporan TSG Masuk", icon: "📋" },
   { href: "/admin/labels", label: "Cetak Label", icon: "🖨" },
   { href: "/tablet", label: "← Tablet Operator", icon: "🏭" },
