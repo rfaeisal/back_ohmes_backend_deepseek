@@ -96,8 +96,8 @@ export default function LabelsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Cetak Label</h1>
           <p className="text-gray-500">Generate & cetak label QR untuk boks TSG, mesin, dan batch</p>
         </div>
-        <Button size="xl" onClick={handlePrint} disabled={selected.size === 0}>
-          🖨 Cetak {selected.size} Label
+        <Button size="lg" variant="primary" onClick={handlePrint} disabled={selected.size === 0}>
+          Cetak {selected.size} Label
         </Button>
       </div>
 
@@ -108,15 +108,14 @@ export default function LabelsPage() {
           { key: "machine", label: "⚙️ Mesin", count: tab === "machine" ? items.length : "?" },
           { key: "batch", label: "📦 Batch", count: 0 },
         ].map((t) => (
-          <button
+          <Button
             key={t.key}
+            size="sm"
+            variant={tab === t.key ? "primary" : "outline"}
             onClick={() => { setTab(t.key as typeof tab); setSelected(new Set()); }}
-            className={`rounded-lg px-4 py-2 font-medium transition-colors ${
-              tab === t.key ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
           >
             {t.label} ({t.count})
-          </button>
+          </Button>
         ))}
       </div>
 

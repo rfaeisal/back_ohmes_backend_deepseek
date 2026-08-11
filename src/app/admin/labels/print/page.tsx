@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 
 type LabelData = {
   id: string;
@@ -114,12 +115,12 @@ export default function PrintLabelsPage() {
 
       {/* Toolbar */}
       <div className="toolbar no-print">
-        <button onClick={() => window.print()} className="px-4 py-2 bg-blue-600 text-white rounded font-medium hover:bg-blue-700">
-          🖨 Print ({labels.length} label)
-        </button>
-        <button onClick={() => window.close()} className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-100">
-          ✕ Tutup
-        </button>
+        <Button size="sm" variant="primary" onClick={() => window.print()}>
+          Print ({labels.length} label)
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => window.close()}>
+          Tutup
+        </Button>
         <span className="text-sm text-gray-500 ml-2">
           Ukuran label: 100×60mm | Printer: Thermal Transfer | Material: BOPP waterproof
         </span>
