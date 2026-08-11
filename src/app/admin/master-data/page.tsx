@@ -196,7 +196,10 @@ export default function MasterDataPage() {
             {products.length === 0 ? <p className="text-center text-gray-400 py-4">Belum ada produk</p> : products.map((p: any) => (
               <div key={p.id} className="flex items-center justify-between rounded-lg border border-gray-200 p-3">
                 <div><p className="font-mono font-medium">{p.code}</p><p className="text-sm text-gray-500">{p.brand} {p.variant}</p></div>
-                <Button size="sm" variant="ghost" onClick={() => handleDelete("product", p.id)}>🗑</Button>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" onClick={() => { setForm(p); setShowAdd("product"); }}>✏️</Button>
+                  <Button size="sm" variant="ghost" onClick={() => handleDelete("product", p.id)}>🗑</Button>
+                </div>
               </div>
             ))}
           </div>
@@ -207,7 +210,10 @@ export default function MasterDataPage() {
             {suppliers.length === 0 ? <p className="text-center text-gray-400 py-4">Belum ada supplier</p> : suppliers.map((s: any) => (
               <div key={s.id} className="flex items-center justify-between rounded-lg border border-gray-200 p-3">
                 <div><p className="font-mono font-medium">{s.code}</p><p className="text-sm text-gray-500">{s.name} · {s.contactPerson ?? "-"}</p></div>
-                <Button size="sm" variant="ghost" onClick={() => handleDelete("supplier", s.id)}>🗑</Button>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" onClick={() => { setForm(s); setShowAdd("supplier"); }}>✏️</Button>
+                  <Button size="sm" variant="ghost" onClick={() => handleDelete("supplier", s.id)}>🗑</Button>
+                </div>
               </div>
             ))}
           </div>
@@ -218,10 +224,10 @@ export default function MasterDataPage() {
       <Dialog open={!!showAdd} onClose={() => setShowAdd(null)} title={`${form.id ? "Edit" : "Tambah"} ${showAdd === "plant" ? "Pabrik" : showAdd === "machine" ? "Mesin" : showAdd === "product" ? "Produk" : "Supplier"}`}>
         <div className="space-y-3">
           {showAdd === "plant" && (<>
-            <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="PLT-MLG-02" />
+            {!form.id && <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="PLT-MLG-02" />}
             <Input label="Nama" value={form.name ?? ""} onChange={e => setForm({...form, name: e.target.value})} placeholder="Pabrik Malang 2" />
             <Input label="Alamat" value={form.address ?? ""} onChange={e => setForm({...form, address: e.target.value})} />
-            <Input label="Region ID" value={form.regionId ?? ""} onChange={e => setForm({...form, regionId: e.target.value})} placeholder="UUID region" />
+            {!form.id && <Input label="Region ID" value={form.regionId ?? ""} onChange={e => setForm({...form, regionId: e.target.value})} placeholder="UUID region" />}
           </>)}
           {showAdd === "machine" && (<>
             <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="MKR-03" />
@@ -233,15 +239,16 @@ export default function MasterDataPage() {
             <Input label="Plant ID" value={form.plantId ?? ""} onChange={e => setForm({...form, plantId: e.target.value})} placeholder="UUID plant" />
           </>)}
           {showAdd === "product" && (<>
-            <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="PRD-HMR-LTS" />
+            {!form.id && <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="PRD-HMR-LTS" />}
             <Input label="Brand" value={form.brand ?? ""} onChange={e => setForm({...form, brand: e.target.value})} placeholder="Hummer" />
             <Input label="Variant" value={form.variant ?? ""} onChange={e => setForm({...form, variant: e.target.value})} placeholder="LTS" />
           </>)}
           {showAdd === "supplier" && (<>
-            <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="SUP-JAWA-03" />
+            {!form.id && <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="SUP-JAWA-03" />}
             <Input label="Nama" value={form.name ?? ""} onChange={e => setForm({...form, name: e.target.value})} />
             <Input label="Kontak" value={form.contactPerson ?? ""} onChange={e => setForm({...form, contactPerson: e.target.value})} />
             <Input label="Telepon" value={form.contactPhone ?? ""} onChange={e => setForm({...form, contactPhone: e.target.value})} />
+            <Input label="Alamat" value={form.address ?? ""} onChange={e => setForm({...form, address: e.target.value})} />
           </>)}
           <Button size="lg" className="w-full" onClick={() => form.id ? handleEdit(showAdd!) : handleAdd(showAdd!)}>
             {form.id ? "Update" : "Simpan"}
