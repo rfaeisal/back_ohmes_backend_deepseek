@@ -92,7 +92,6 @@ export default function StartShiftPage() {
   };
 
   const selectedTpl = templates.find((t: any) => t.id === selectedTemplate) ?? templates[0];
-  const selectedPrd = products.find((p: any) => p.id === selectedProduct) ?? products[0];
 
   return (
     <div className="max-w-2xl mx-auto">
