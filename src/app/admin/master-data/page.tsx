@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
+import { Pencil, Trash2, Power, PowerOff } from "lucide-react";
 
 const API = "/api/v1";
 const TOKEN_KEY = "accessToken";
@@ -165,10 +166,10 @@ export default function MasterDataPage() {
                   <td className="py-3"><Badge variant={!p.deletedAt ? "success" : "error"}>{!p.deletedAt ? "AKTIF" : "OFF"}</Badge></td>
                   <td className="py-3 flex gap-1">
                     <Button size="sm" variant="ghost" onClick={() => handleToggleActive("plant", p.id, !p.deletedAt)} title={!p.deletedAt ? "Nonaktifkan" : "Aktifkan"}>
-                      {!p.deletedAt ? "🟢" : "🔴"}
+                      {!p.deletedAt ? <Power className="size-4 text-green-600" /> : <PowerOff className="size-4 text-red-500" />}
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => { setForm(p); setShowAdd("plant"); }}>✏️</Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleDelete("plant", p.id)}>🗑</Button>
+                    <Button size="sm" variant="ghost" onClick={() => { setForm(p); setShowAdd("plant"); }}><Pencil className="size-4" /></Button>
+                    <Button size="sm" variant="ghost" onClick={() => handleDelete("plant", p.id)}><Trash2 className="size-4 text-red-500" /></Button>
                   </td>
                 </tr>
               ))}

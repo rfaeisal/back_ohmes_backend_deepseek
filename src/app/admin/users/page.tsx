@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
+import { Power, PowerOff } from "lucide-react";
 
 const API = "/api/v1";
 function getToken() { return typeof window !== "undefined" ? localStorage.getItem("accessToken") : null; }
@@ -171,7 +172,7 @@ export default function UsersPage() {
                       <Button size="sm" variant="ghost"
                         onClick={() => handleToggleActive(u.id, u.isActive !== false)}
                         title={u.isActive !== false ? "Nonaktifkan" : "Aktifkan"}>
-                        {u.isActive !== false ? "🟢" : "🔴"}
+                        {u.isActive !== false ? <Power className="size-4 text-green-600" /> : <PowerOff className="size-4 text-red-500" />}
                       </Button>
                     </div>
                   </td>
