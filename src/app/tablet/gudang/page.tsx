@@ -17,7 +17,7 @@ export default function GudangInboundPage() {
     try {
       const token = localStorage.getItem("accessToken");
       const res = await fetch("/api/v1/tsg-inventory/available?limit=200", { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) { const data = await res.json(); setInventory(data.data ?? []); }
+      if (res.ok) { const data = await res.json(); const items = (data.data ?? []).map((item: any) => ({ ...item, status: "AVAILABLE", id: item.inventoryId ?? item.id })); setInventory(items); }
     } catch {}
   };
 
@@ -155,7 +155,7 @@ export default function GudangInboundPage() {
                   <td className="py-3"><Badge variant={item.tsgType === "REGULER" ? "info" : item.tsgType === "MILD" ? "success" : "warning"}>{item.tsgType ?? "REGULER"}</Badge></td>
                   <td className="py-3">{item.weightKg} kg</td>
                   <td className="py-3">{ageBadge(item.ageInDays)}</td>
-                  <td className="py-3 text-sm text-gray-500">{item.location}</td>
+                  <td className="py-3 text-sm text-gray-500">{item.locationCode ?? "-"}</td>
                   <td className="py-3">{statusBadge(item.status)}</td>
                 </tr>
               ))}
