@@ -37,6 +37,13 @@ import { tsgSupplier } from "@/db/schema/wms-inbound";
 async function seed() {
   console.log("🌱 Seeding database...\n");
 
+  // Idempotent check — skip if already seeded
+  const [existingCompany] = await db.select({ id: company.id }).from(company).limit(1);
+  if (existingCompany) {
+    console.log("⏭ Database already seeded — skipping.\n");
+    return;
+  }
+
   // ===========================================================================
   // 1. TENANCY
   // ===========================================================================
