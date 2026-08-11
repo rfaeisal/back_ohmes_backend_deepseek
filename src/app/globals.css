@@ -21,6 +21,16 @@
   }
 }
 
+@media print {
+  nav, aside, header, .sidebar, .no-print, button, .toolbar {
+    display: none !important;
+  }
+  body { background: white !important; }
+  main, .main-content { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+  table { font-size: 11px; }
+  .print-area { display: block !important; }
+}
+
 @layer components {
   /* Tombol besar untuk tablet operator (min height 88px) */
   .btn-operator {

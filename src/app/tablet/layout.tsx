@@ -9,7 +9,7 @@ export default function TabletLayout({ children }: { children: React.ReactNode }
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header bar */}
-      <header className="sticky top-0 z-40 border-b border-gray-200 bg-white shadow-sm">
+      <header className="sticky top-0 z-40 border-b border-gray-200 bg-white shadow-sm no-print">
         <div className="flex items-center justify-between px-6 py-3">
           <div className="flex items-center gap-3">
             <span className="text-xl font-bold text-primary-700">MES Hummer</span>

@@ -22,7 +22,7 @@ const NAV_ITEMS = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <aside className="w-60 bg-gray-900 text-white flex flex-col shrink-0">
+      <aside className="w-60 bg-gray-900 text-white flex flex-col shrink-0 no-print">
         <div className="p-4 border-b border-gray-700">
           <Link href="/admin" className="text-lg font-bold tracking-tight">MES Hummer</Link>
           <p className="text-xs text-gray-400 mt-1">Admin Dashboard</p>
