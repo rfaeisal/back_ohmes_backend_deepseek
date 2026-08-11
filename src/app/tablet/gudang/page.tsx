@@ -35,18 +35,30 @@ export default function GudangInboundPage() {
   ]);
   const [saving, setSaving] = useState(false);
   const [receivingError, setReceivingError] = useState("");
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [selectedSupplier, setSelectedSupplier] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("AVAILABLE");
+
+  // Load suppliers on dialog open
+  const loadSuppliers = async () => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch("/api/v1/tsg-suppliers", { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { const data = await res.json(); setSuppliers(data.data ?? []); if (data.data?.length > 0) setSelectedSupplier(data.data[0].id); }
+    } catch {}
+  };
 
   const handleSaveReceiving = async () => {
     const validBoxes = receivingBoxes.filter(b => b.code && b.weight);
     if (validBoxes.length === 0) { setReceivingError("Minimal 1 boks dengan kode & berat."); return; }
+    if (!selectedSupplier) { setReceivingError("Pilih supplier dulu."); return; }
     setSaving(true); setReceivingError("");
     try {
       const token = localStorage.getItem("accessToken");
       const res = await fetch("/api/v1/tsg-receiving", {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          supplierId: "a35e1129-7903-433f-82cb-e4bad21f40fd",
+          supplierId: selectedSupplier,
           boxes: validBoxes.map(b => ({ boxCode: b.code, weightKg: parseFloat(b.weight), tsgType: b.type })),
         }),
       });
@@ -91,7 +103,7 @@ export default function GudangInboundPage() {
               <Printer className="size-5 mr-2" /> Cetak Label
             </Button>
           </Link>
-          <Button size="xl" onClick={() => { setReceivingBoxes([{ code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }]); setShowReceiving(true); }}>
+          <Button size="xl" onClick={() => { loadSuppliers(); setReceivingBoxes([{ code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }]); setReceivingError(""); setShowReceiving(true); }}>
             🚛 Terima TSG Baru
           </Button>
         </div>
@@ -170,9 +182,9 @@ export default function GudangInboundPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Supplier</label>
-              <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base">
-                <option>SUP-JAWA-01 — Supplier Jawa 1</option>
-                <option>SUP-JAWA-02 — Supplier Jawa 2</option>
+              <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white" value={selectedSupplier} onChange={e => setSelectedSupplier(e.target.value)}>
+                {suppliers.length === 0 && <option value="">Memuat...</option>}
+                {suppliers.map((s: any) => <option key={s.id} value={s.id}>{s.name} ({s.code})</option>)}
               </select>
             </div>
             <Input label="No Surat Jalan Supplier" placeholder="Opsional" />
