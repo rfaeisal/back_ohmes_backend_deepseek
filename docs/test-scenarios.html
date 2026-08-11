@@ -1,0 +1,636 @@
+<title>MES Hummer — Test Scenarios</title>
+
+<style>
+  :root {
+    --bg: #fafaf8;
+    --surface: #ffffff;
+    --text: #1d2b3a;
+    --text-secondary: #556677;
+    --accent: #c2780a;
+    --accent-dim: #fef3e0;
+    --border: #e2e0da;
+    --navy: #1a2332;
+    --success: #2e7d32;
+    --warning: #c2780a;
+    --danger: #b71c1c;
+    --neutral: #6b7280;
+    --step-bg: #f6f8fa;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14181e;
+      --surface: #1d2330;
+      --text: #e2e4e8;
+      --text-secondary: #8899aa;
+      --accent: #e8a531;
+      --accent-dim: #2a2214;
+      --border: #2d3540;
+      --navy: #8899cc;
+      --step-bg: #1d2330;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #14181e;
+    --surface: #1d2330;
+    --text: #e2e4e8;
+    --text-secondary: #8899aa;
+    --accent: #e8a531;
+    --accent-dim: #2a2214;
+    --border: #2d3540;
+    --navy: #8899cc;
+    --step-bg: #1d2330;
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, sans-serif;
+    line-height: 1.6;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding-bottom: 32px;
+    border-bottom: 3px solid var(--accent);
+  }
+
+  h1 {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--navy);
+    letter-spacing: -0.02em;
+  }
+
+  h2 {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--navy);
+    margin: 48px 0 16px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+  }
+
+  h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 24px 0 8px;
+  }
+
+  p { color: var(--text-secondary); margin-bottom: 12px; }
+
+  .subtitle {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-top: 8px;
+  }
+
+  .credentials {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 16px 0 24px;
+  }
+
+  .credentials h4 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .credentials table {
+    width: 100%;
+  }
+
+  .credentials td {
+    padding: 4px 8px;
+    font-size: 0.92rem;
+  }
+
+  .credentials td:first-child {
+    font-weight: 500;
+    color: var(--text);
+    width: 120px;
+  }
+
+  .credentials td:last-child {
+    font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+    background: var(--step-bg);
+    border-radius: 3px;
+    padding: 2px 8px;
+  }
+
+  .steps {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 24px;
+    font-size: 0.9rem;
+  }
+
+  .steps thead th {
+    background: var(--navy);
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 10px 12px;
+    text-align: left;
+  }
+
+  .steps thead th:first-child { border-radius: 6px 0 0 0; width: 44px; text-align: center; }
+  .steps thead th:last-child { border-radius: 0 6px 0 0; }
+
+  .steps tbody td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  .steps tbody tr:nth-child(even) { background: var(--step-bg); }
+
+  .steps tbody td:first-child {
+    text-align: center;
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 1.1rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .step-url {
+    font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+    font-size: 0.82rem;
+    background: var(--accent-dim);
+    color: var(--accent);
+    padding: 2px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+
+  .step-input {
+    font-style: italic;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+  }
+
+  .step-action {
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .role-badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+
+  .flow-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin: 8px 0 24px;
+    flex-wrap: wrap;
+  }
+
+  .flow-step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+
+  .flow-arrow {
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 1.2rem;
+  }
+
+  .note {
+    background: var(--accent-dim);
+    border-left: 3px solid var(--accent);
+    padding: 10px 16px;
+    margin: 12px 0;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.85rem;
+    color: var(--text);
+  }
+
+  @media print {
+    body { padding: 20px 0; }
+    h2 { page-break-before: always; }
+    h2:first-of-type { page-break-before: avoid; }
+    .steps thead th { background: var(--navy) !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+
+<header>
+  <h1>MES + WMS Hummer<br>Test Scenarios</h1>
+  <p class="subtitle">4 skenario end-to-end untuk verifikasi sistem sebelum pilot pabrik</p>
+  <p class="subtitle" style="font-size:0.85rem">Server: <span class="step-url">http://localhost:3001</span> &nbsp;|&nbsp; 16 halaman UI &nbsp;|&nbsp; 47 API endpoint</p>
+</header>
+
+<section>
+  <h2>Persiapan — Login SUPERADMIN</h2>
+
+  <p>Semua skenario menggunakan akun SUPERADMIN yang sudah disiapkan. Di production, setiap role akan login dengan akun masing-masing.</p>
+
+  <div class="credentials">
+    <h4>🔑 Credentials</h4>
+    <table>
+      <tr><td>Halaman</td><td>/tablet/login</td></tr>
+      <tr><td>Username</td><td>admin</td></tr>
+      <tr><td>Password</td><td>2BmY8R9Nb64fWexb</td></tr>
+      <tr><td>Kode OTP</td><td>000000</td></tr>
+    </table>
+  </div>
+
+  <div class="note">
+    <strong>Catatan:</strong> Token SUPERADMIN berlaku <strong>5 menit</strong> saja. Jika session expired, login ulang.
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<!-- SCENARIO 1 -->
+<!-- ================================================================== -->
+
+<section>
+  <h2>Skenario 1: Operator — Produksi 3 Boks</h2>
+  <span class="role-badge">Role: OPERATOR_KECER</span>
+
+  <p>Alur pencatatan produksi harian: mulai shift → buka boks TSG dari inventory → timbang hasil batangan → catat waste → akhiri shift.</p>
+
+  <h3>Visual Flow</h3>
+  <div class="flow-row">
+    <div class="flow-step">Login</div><span class="flow-arrow">→</span>
+    <div class="flow-step">Home: Pilih Mesin</div><span class="flow-arrow">→</span>
+    <div class="flow-step">Start Shift</div><span class="flow-arrow">→</span>
+    <div class="flow-step">Buka Boks → Timbang</div><span class="flow-arrow">→</span>
+    <div class="flow-step">Akhiri Shift</div>
+  </div>
+
+  <h3>Step-by-Step</h3>
+  <table class="steps">
+    <thead>
+      <tr><th>#</th><th>Halaman</th><th>Menu / Tombol</th><th>Input / Action</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td><span class="step-url">/tablet/login</span></td>
+        <td class="step-action">Form Login</td>
+        <td class="step-input">Username: admin · Password: ··· · OTP: 000000</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><span class="step-url">/tablet</span></td>
+        <td class="step-action">Card MKR-01 → <strong>Mulai Shift Baru</strong></td>
+        <td>Melihat status mesin: MKR-01 IDLE, MKR-02 AKTIF, HLP-01 IDLE</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td><span class="step-url">/tablet/start-shift</span></td>
+        <td>Pilih <strong>Shift Siang</strong> (05:30)</td>
+        <td class="step-input">Template: Shift Siang · Produk: Hummer STD</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td><span class="step-url">/tablet/start-shift</span></td>
+        <td>Centang anggota tim</td>
+        <td class="step-input">Pilih minimal 1 anggota (centang checkbox)</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td><span class="step-url">/tablet/start-shift</span></td>
+        <td class="step-action">Klik <strong>Mulai Shift · Shift Siang</strong></td>
+        <td>Redirect ke halaman shift aktif</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td><span class="step-url">/tablet/shift/[id]</span></td>
+        <td class="step-action">Klik <strong>BUKA BOKS BARU</strong></td>
+        <td>Dialog muncul: pilih boks pertama (FIFO sticker kuning ⭐)</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td>Dialog Buka Boks</td>
+        <td>Klik boks tertua (highlight kuning)</td>
+        <td class="step-input">TSG otomatis tercatat dari inventory (contoh: 29.70 kg)</td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td><span class="step-url">/tablet/shift/[id]</span></td>
+        <td class="step-action">Klik <strong>BOKS SELESAI · TIMBANG HASIL BATANGAN</strong></td>
+        <td>Tombol besar hijau — dialog timbang muncul</td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td>Dialog Timbang</td>
+        <td>Input berat output</td>
+        <td class="step-input">Berat Batangan: <strong>33.15</strong> kg → Yield preview: 111.62% ✅ NORMAL</td>
+      </tr>
+      <tr>
+        <td>10</td>
+        <td>Dialog Timbang</td>
+        <td class="step-action">Klik <strong>Timbang & Selesai</strong></td>
+        <td>Boks #1 selesai — masuk daftar "Boks Selesai"</td>
+      </tr>
+      <tr>
+        <td>11</td>
+        <td colspan="3"><em>Ulangi langkah 6–10 untuk Boks #2 (output 33.45 kg) dan Boks #3 (output 32.90 kg)</em></td>
+      </tr>
+      <tr>
+        <td>12</td>
+        <td><span class="step-url">/tablet/shift/[id]</span></td>
+        <td class="step-action">Klik <strong>AKHIRI SHIFT</strong></td>
+        <td>Dialog akhir shift dengan 4 field waste muncul</td>
+      </tr>
+      <tr>
+        <td>13</td>
+        <td>Dialog Akhiri Shift</td>
+        <td>Isi 4 kategori waste</td>
+        <td class="step-input">
+          MENIR: 0.85 · RIJEKAN: 10.30 · DEBU KASAR: 10.80 · DEBU HALUS: 36.55
+        </td>
+      </tr>
+      <tr>
+        <td>14</td>
+        <td>Dialog Akhiri Shift</td>
+        <td class="step-action">Klik <strong>Akhiri Shift</strong></td>
+        <td>Status → COMPLETED. Menunggu approval supervisor.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <strong>Verifikasi:</strong> Setelah selesai, cek daftar boks selesai — harus ada 3 boks dengan yield 111.62%, 111.14%, dan 110.61%. Card ringkasan menunjukkan: 3 boks selesai, yield rata-rata ~111.1%.
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<!-- SCENARIO 2 -->
+<!-- ================================================================== -->
+
+<section>
+  <h2>Skenario 2: Staff Gudang — Terima TSG dari Supplier</h2>
+  <span class="role-badge">Role: GUDANG_INBOUND</span>
+
+  <p>Pagi hari, truk supplier datang. Staff gudang mencatat setiap boks TSG yang diterima. Sistem otomatis membuat inventory dengan status AVAILABLE — siap dipakai operator produksi.</p>
+
+  <h3>Visual Flow</h3>
+  <div class="flow-row">
+    <div class="flow-step">Login</div><span class="flow-arrow">→</span>
+    <div class="flow-step">Gudang Inbound</div><span class="flow-arrow">→</span>
+    <div class="flow-step">Terima TSG Baru</div><span class="flow-arrow">→</span>
+    <div class="flow-step">Input Boks</div><span class="flow-arrow">→</span>
+    <div class="flow-step">Simpan</div><span class="flow-arrow">→</span>
+    <div class="flow-step">Cek Inventory</div>
+  </div>
+
+  <h3>Step-by-Step</h3>
+  <table class="steps">
+    <thead>
+      <tr><th>#</th><th>Halaman</th><th>Menu / Tombol</th><th>Input / Action</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td><span class="step-url">/tablet</span></td>
+        <td>Klik card <strong>Gudang Inbound</strong> (🚛)</td>
+        <td>Atau langsung ke /tablet/gudang</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><span class="step-url">/tablet/gudang</span></td>
+        <td class="step-action">Klik <strong>🚛 Terima TSG Baru</strong></td>
+        <td>Dialog receiving terbuka</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Dialog Receiving</td>
+        <td>Pilih Supplier</td>
+        <td class="step-input">Pilih: <strong>SUP-JAWA-01 — Supplier Jawa 1</strong></td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Dialog Receiving</td>
+        <td>Input boks satu per satu</td>
+        <td class="step-input">
+          Boks 1: TSG-20260811-001 · 29.75 kg<br>
+          Boks 2: TSG-20260811-002 · 30.10 kg<br>
+          Boks 3: TSG-20260811-003 · 29.80 kg
+        </td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>Dialog Receiving</td>
+        <td class="step-action">Klik <strong>Simpan · 3 Boks · 89.65 kg</strong></td>
+        <td>Toast: "Terima 3 boks · Total 89.65 kg"</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td><span class="step-url">/tablet/gudang</span></td>
+        <td>Lihat tabel inventory</td>
+        <td>3 boks muncul dengan status <strong>AVAILABLE</strong> — siap dipakai operator</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <strong>Verifikasi:</strong> Inventory table menampilkan boks dengan urutan FIFO (tertua di atas). Operator bisa langsung pakai boks ini di Skenario 1 — muncul di dialog "Buka Boks Baru" dengan sticker kuning ⭐.
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<!-- SCENARIO 3 -->
+<!-- ================================================================== -->
+
+<section>
+  <h2>Skenario 3: Supervisor — Approve Shift</h2>
+  <span class="role-badge">Role: SHIFT_SUPERVISOR</span>
+
+  <p>Supervisor pabrik me-review shift yang sudah COMPLETED. Setelah approve, shift menjadi <strong>LOCKED (immutable)</strong> — tidak bisa diubah lagi kecuali lewat CORRECTION oleh auditor.</p>
+
+  <div class="note">
+    <strong>Prasyarat:</strong> Harus ada shift status COMPLETED dari Skenario 1.
+  </div>
+
+  <h3>Step-by-Step</h3>
+  <table class="steps">
+    <thead>
+      <tr><th>#</th><th>Halaman</th><th>Menu / Tombol</th><th>Input / Action</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td><span class="step-url">/admin</span></td>
+        <td>Klik <strong>Approval Shift</strong> di sidebar</td>
+        <td>Atau langsung ke /admin/approvals</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><span class="step-url">/admin/approvals</span></td>
+        <td>Lihat daftar shift COMPLETED</td>
+        <td>Tabel menampilkan Shift ID, Tanggal, Status COMPLETED, waktu selesai</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td><span class="step-url">/admin/approvals</span></td>
+        <td class="step-action">Klik <strong>Review</strong></td>
+        <td>Dialog detail shift terbuka</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Dialog Detail</td>
+        <td>Review data shift</td>
+        <td class="step-input">Cek: Yield, Waste 4 kategori, jumlah boks, tim</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>Dialog Detail</td>
+        <td>Isi Review Notes</td>
+        <td class="step-input">"OK, debu halus perlu ditindaklanjuti"</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>Dialog Detail</td>
+        <td class="step-action">Klik <strong>✅ Approve → LOCKED</strong></td>
+        <td>Shift status → APPROVED. Data immutable. Muncul di dashboard area.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <strong>Verifikasi:</strong> Setelah approve, shift tidak bisa di-edit lagi (RLS block). Cek di /admin/audit — ada log "shift.approve". Supervisor yang sama <strong>tidak boleh</strong> approve shift yang dia buat sendiri (SELF_APPROVAL error).
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<!-- SCENARIO 4 -->
+<!-- ================================================================== -->
+
+<section>
+  <h2>Skenario 4: Auditor HQ — Koreksi Shift LOCKED</h2>
+  <span class="role-badge">Role: HQ_AUDITOR</span>
+
+  <p>Shift yang sudah APPROVED hanya bisa dikoreksi lewat CORRECTION flow. Data asli <strong>tidak berubah</strong> — correction membuat record baru dengan audit trail lengkap.</p>
+
+  <div class="note">
+    <strong>Prasyarat:</strong> Harus ada shift status APPROVED dari Skenario 3.
+  </div>
+
+  <h3>Step-by-Step</h3>
+  <table class="steps">
+    <thead>
+      <tr><th>#</th><th>Halaman</th><th>Menu / Tombol</th><th>Input / Action</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td><span class="step-url">/admin</span></td>
+        <td>Klik <strong>Correction</strong> di sidebar</td>
+        <td>Atau langsung ke /admin/corrections</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><span class="step-url">/admin/corrections</span></td>
+        <td>Lihat daftar shift APPROVED / 🔒 LOCKED</td>
+        <td>Tabel menampilkan shift dengan badge hijau LOCKED</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td><span class="step-url">/admin/corrections</span></td>
+        <td class="step-action">Klik <strong>Lihat & Koreksi</strong></td>
+        <td>Dialog detail + riwayat koreksi terbuka</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Dialog Detail</td>
+        <td class="step-action">Klik <strong>✏️ Buat Koreksi (CORRECTION)</strong></td>
+        <td>Form koreksi muncul (border merah)</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>Form Koreksi</td>
+        <td>Isi field koreksi</td>
+        <td class="step-input">
+          <strong>Field Path:</strong> waste.MENIR.kg<br>
+          <strong>Nilai Baru:</strong> 1.20<br>
+          <strong>Alasan:</strong> "Salah timbang, revisi berdasarkan re-weigh gudang"
+        </td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>Form Koreksi</td>
+        <td class="step-action">Klik <strong>Simpan Koreksi</strong></td>
+        <td>Correction record dibuat — shift asli TETAP intact</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td>Dialog Detail</td>
+        <td>Lihat riwayat koreksi</td>
+        <td>Koreksi muncul di daftar — bisa lihat field apa yang diubah</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <strong>Verifikasi:</strong> Cek di /admin/audit — ada log "shift.correct". Shift asli di database tetap status APPROVED, data asli tidak berubah. Tabel <strong>shift_correction</strong> menyimpan record koreksi dengan before → after.
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<!-- QUICK REFERENCE -->
+<!-- ================================================================== -->
+
+<section>
+  <h2>Quick Reference — Semua Halaman</h2>
+
+  <table class="steps">
+    <thead>
+      <tr><th>Role</th><th>Halaman</th><th>URL</th><th>Fungsi</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Semua</td><td><span class="step-url">/tablet/login</span></td><td>Login</td><td>Autentikasi JWT + OTP</td></tr>
+      <tr><td>Operator</td><td><span class="step-url">/tablet</span></td><td>Home</td><td>Pilih mesin, mulai shift</td></tr>
+      <tr><td>Operator</td><td><span class="step-url">/tablet/start-shift</span></td><td>Start Shift</td><td>Setup template, produk, tim</td></tr>
+      <tr><td>Operator</td><td><span class="step-url">/tablet/shift/[id]</span></td><td>Shift Aktif</td><td>🎯 Pencatatan produksi</td></tr>
+      <tr><td>Gudang</td><td><span class="step-url">/tablet/gudang</span></td><td>Gudang</td><td>Terima TSG, inventory FIFO</td></tr>
+      <tr><td>Semua</td><td><span class="step-url">/tablet/dashboard</span></td><td>KPI</td><td>Dashboard harian pabrik</td></tr>
+      <tr><td>Supervisor</td><td><span class="step-url">/admin/approvals</span></td><td>Approval</td><td>Approve shift → LOCKED</td></tr>
+      <tr><td>Koordinator</td><td><span class="step-url">/admin/area-dashboard</span></td><td>Area</td><td>Rollup KPI lintas pabrik</td></tr>
+      <tr><td>Analyst</td><td><span class="step-url">/admin/analytics</span></td><td>Analytics</td><td>Yield trend, OEE, export cukai</td></tr>
+      <tr><td>Auditor</td><td><span class="step-url">/admin/corrections</span></td><td>Correction</td><td>Koreksi shift LOCKED</td></tr>
+      <tr><td>Admin</td><td><span class="step-url">/admin/master-data</span></td><td>Master Data</td><td>CRUD pabrik, mesin, produk</td></tr>
+      <tr><td>Admin</td><td><span class="step-url">/admin/users</span></td><td>Users</td><td>Daftar user & 13 role</td></tr>
+      <tr><td>Admin</td><td><span class="step-url">/admin/audit</span></td><td>Audit Log</td><td>Immutable trail</td></tr>
+      <tr><td>SUPERADMIN</td><td><span class="step-url">/admin/super</span></td><td>SUPERADMIN</td><td>Impersonate, force logout</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<footer style="margin-top:64px;padding-top:24px;border-top:1px solid var(--border);text-align:center;color:var(--text-secondary);font-size:0.82rem">
+  MES + WMS Hummer · v0.1.0 · 7 Fase Complete · <span class="step-url">http://localhost:3001</span>
+</footer>
