@@ -111,7 +111,7 @@ export default function LabelsPage() {
           <Button
             key={t.key}
             size="sm"
-            variant={tab === t.key ? "primary" : "secondary"}
+            variant={tab === t.key ? "primary" : "outline"}
             onClick={() => { setTab(t.key as typeof tab); setSelected(new Set()); }}
           >
             {t.label} ({t.count})
