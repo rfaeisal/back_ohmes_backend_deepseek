@@ -53,20 +53,39 @@ export default function ShiftActivePage() {
   const shiftId = params?.id as string;
 
   // Real data from API (used when real shift ID is provided)
-  const [_shiftData, setShiftData] = useState<any>(null);
+  const [shiftData, setShiftData] = useState<any>(null);
   const [apiInventory, setApiInventory] = useState<any[]>([]);
-  const [_dataLoading, setDataLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
 
   const loadData = useCallback(async () => {
     if (!shiftId || shiftId === "test-id") { setDataLoading(false); return; }
     try {
       const [detail, inv] = await Promise.all([
         apiFetch(`/shifts/${shiftId}`),
-        apiFetch("/tsg-inventory/available?limit=10"),
+        apiFetch("/tsg-inventory/available?limit=50"),
       ]);
       setShiftData(detail);
       setApiInventory(inv.data ?? []);
-    } catch { /* gunakan mock data */ }
+      // Set completed boxes from API
+      if (detail?.boxes) {
+        const completed = detail.boxes.filter((b: any) => b.completedAt).map((b: any) => ({
+          id: b.id, boxNumber: b.boxNumber, boxCode: b.boxCode,
+          tsgWeightKg: parseFloat(b.tsgWeightKg), outputWeightKg: parseFloat(b.outputWeightKg || "0"),
+          yieldPct: parseFloat(b.yieldPct || "0"), isPartial: b.isPartial,
+          openedAt: new Date(b.openedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+          completedAt: b.completedAt ? new Date(b.completedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : undefined,
+          indicator: b.yieldPct ? (parseFloat(b.yieldPct) >= 110 && parseFloat(b.yieldPct) <= 114 ? "NORMAL" as const : "WARNING" as const) : undefined,
+        }));
+        setCompletedBoxes(completed);
+        // Check for active box
+        const active = detail.boxes.find((b: any) => !b.completedAt);
+        if (active) setActiveBox({
+          id: active.id, boxNumber: active.boxNumber, boxCode: active.boxCode,
+          tsgWeightKg: parseFloat(active.tsgWeightKg), isPartial: active.isPartial,
+          openedAt: new Date(active.openedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+        });
+      }
+    } catch { /* tetap pakai data kosong */ }
     finally { setDataLoading(false); }
   }, [shiftId]);
 
@@ -149,17 +168,31 @@ export default function ShiftActivePage() {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            SHIFT MALAM · MKR-01
-          </h1>
-          <p className="text-lg text-gray-500 mt-1">
-            Hummer STD &nbsp;·&nbsp; Mulai 16:30 &nbsp;·&nbsp; Sudah berjalan 1j 15m
-          </p>
-          <p className="text-sm text-gray-400 mt-1">
-            Tim: Alfi (Ketua), Ahmadi, Didik, Zaini
-          </p>
+          {dataLoading ? (
+            <h1 className="text-3xl font-bold text-gray-900">Memuat shift...</h1>
+          ) : shiftData ? (
+            <>
+              <h1 className="text-3xl font-bold text-gray-900">
+                {shiftData.shiftTemplateName ?? "Shift"} · {shiftData.machineCode ?? "MKR-01"}
+              </h1>
+              <p className="text-lg text-gray-500 mt-1">
+                {shiftData.productName ?? "Hummer STD"} · Mulai {shiftData.actualStart ? new Date(shiftData.actualStart).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "-"}
+                {shiftData.actualStart && (
+                  <> · Sudah berjalan {Math.floor((Date.now() - new Date(shiftData.actualStart).getTime()) / 3600000)}j {Math.floor(((Date.now() - new Date(shiftData.actualStart).getTime()) % 3600000) / 60000)}m</>
+                )}
+              </p>
+              <p className="text-sm text-gray-400 mt-1">
+                Tim: {shiftData.members?.map((m: any) => m.userName ?? m.userId?.slice(0,6)).join(", ") ?? "-"}
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-3xl font-bold text-gray-900">SHIFT · MKR-01</h1>
+              <p className="text-lg text-gray-500 mt-1">Hummer STD · Mulai -</p>
+            </>
+          )}
         </div>
-        <Badge variant="success">RUNNING</Badge>
+        <Badge variant={shiftData?.status === "RUNNING" ? "success" : shiftData?.status === "COMPLETED" ? "warning" : "success"}>{shiftData?.status ?? "RUNNING"}</Badge>
       </div>
 
       {/* Active Box Card */}
