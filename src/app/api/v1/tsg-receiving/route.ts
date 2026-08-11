@@ -68,6 +68,7 @@ export const GET = withAuth(async (request: Request, ctx: AuthContext) => {
   const url = new URL(request.url);
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
+  const includeBoxes = url.searchParams.get("includeBoxes") === "true";
   const plantId = ctx.user.plantIds[0];
 
   const conditions = [eq(tsgReceiving.plantId, plantId!)];
@@ -93,6 +94,19 @@ export const GET = withAuth(async (request: Request, ctx: AuthContext) => {
     .where(and(...conditions))
     .orderBy(desc(tsgReceiving.receivedAt))
     .limit(200);
+
+  // Optionally include box details with tsgType
+  if (includeBoxes) {
+    const { tsgReceivingBox: tsgRb } = await import("@/db/schema/wms-inbound");
+    for (const item of items) {
+      const boxes = await db
+        .select({ id: tsgRb.id, boxCode: tsgRb.boxCode, weightKg: tsgRb.weightKg, tsgType: tsgRb.tsgType, boxSeq: tsgRb.boxSeq })
+        .from(tsgRb)
+        .where(eq(tsgRb.receivingId, item.id))
+        .orderBy(tsgRb.boxSeq);
+      (item as any).boxes = boxes;
+    }
+  }
 
   return NextResponse.json({ data: items }, { status: 200 });
 });

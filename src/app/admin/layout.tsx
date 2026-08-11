@@ -1,9 +1,6 @@
-import Link from "next/link";
-import type { Metadata } from "next";
+"use client";
 
-export const metadata: Metadata = {
-  title: "Admin Dashboard — MES Hummer",
-};
+import Link from "next/link";
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Overview", icon: "📊" },
