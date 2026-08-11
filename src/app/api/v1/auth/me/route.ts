@@ -1,7 +1,7 @@
 // GET /api/v1/auth/me — Return user info dari JWT
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
-import { extractToken, type AuthContext } from "@/lib/auth/middleware";
+import { extractToken } from "@/lib/auth/middleware";
 import db from "@/db";
 import { user } from "@/db/schema/identity";
 

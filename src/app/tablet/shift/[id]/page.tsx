@@ -1,12 +1,25 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, CardSubtitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+
+const API = "/api/v1";
+function getToken() { return typeof window !== "undefined" ? localStorage.getItem("accessToken") : null; }
+
+async function apiFetch(path: string, options?: RequestInit) {
+  const token = getToken();
+  const res = await fetch(`${API}${path}`, {
+    ...options,
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options?.headers || {}) },
+  });
+  if (!res.ok) { const err = await res.json().catch(() => ({ error: { message: res.statusText } })); throw new Error(err.error?.message ?? res.statusText); }
+  return res.json();
+}
 
 // =============================================================================
 // Mock Data
@@ -36,6 +49,33 @@ const MOCK_INVENTORY = [
 
 export default function ShiftActivePage() {
   const router = useRouter();
+  const params = useParams();
+  const shiftId = params?.id as string;
+
+  // Real data from API (used when real shift ID is provided)
+  const [_shiftData, setShiftData] = useState<any>(null);
+  const [apiInventory, setApiInventory] = useState<any[]>([]);
+  const [_dataLoading, setDataLoading] = useState(true);
+
+  const loadData = useCallback(async () => {
+    if (!shiftId || shiftId === "test-id") { setDataLoading(false); return; }
+    try {
+      const [detail, inv] = await Promise.all([
+        apiFetch(`/shifts/${shiftId}`),
+        apiFetch("/tsg-inventory/available?limit=10"),
+      ]);
+      setShiftData(detail);
+      setApiInventory(inv.data ?? []);
+    } catch { /* gunakan mock data */ }
+    finally { setDataLoading(false); }
+  }, [shiftId]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // Use API inventory if available, otherwise mock
+  const inventoryList = apiInventory.length > 0 ? apiInventory : MOCK_INVENTORY;
+
+  // State
   const [activeBox, setActiveBox] = useState<BoxData | null>({
     id: "box_01",
     boxNumber: 5,
@@ -68,23 +108,43 @@ export default function ShiftActivePage() {
       : "WARNING"
     : null;
 
-  const handleWeigh = () => {
+  const handleWeigh = async () => {
+    if (activeBox && shiftId && shiftId !== "test-id") {
+      try {
+        await apiFetch(`/boxes/${activeBox.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ outputWeightKg: parseFloat(outputWeight) }),
+        });
+        loadData();
+      } catch (e: any) { alert(e.message); }
+    }
     setActiveBox(null);
     setShowWeigh(false);
     setOutputWeight("");
   };
 
-  const handleOpenBox = (inventoryId: string) => {
-    const box = MOCK_INVENTORY.find((b) => b.id === inventoryId);
-    if (box) {
-      setActiveBox({
-        id: `box_${Date.now()}`,
-        boxNumber: completedBoxes.length + 2,
-        boxCode: box.boxCode,
-        tsgWeightKg: box.weightKg,
-        isPartial: false,
-        openedAt: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
-      });
+  const handleOpenBox = async (inventoryId: string) => {
+    if (shiftId && shiftId !== "test-id") {
+      try {
+        await apiFetch(`/shifts/${shiftId}/boxes`, {
+          method: "POST",
+          body: JSON.stringify({ inventoryBoxId: inventoryId }),
+        });
+        loadData();
+      } catch (e: any) { alert(e.message); }
+    } else {
+      // Fallback mock
+      const box = MOCK_INVENTORY.find((b) => b.id === inventoryId);
+      if (box) {
+        setActiveBox({
+          id: `box_${Date.now()}`,
+          boxNumber: completedBoxes.length + 2,
+          boxCode: box.boxCode,
+          tsgWeightKg: box.weightKg,
+          isPartial: false,
+          openedAt: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+        });
+      }
     }
     setShowOpenBox(false);
   };
@@ -298,7 +358,7 @@ export default function ShiftActivePage() {
           Pilih boks dari inventory (FIFO — tertua di atas). Boks tertua disarankan.
         </p>
         <div className="space-y-2 max-h-[400px] overflow-y-auto">
-          {MOCK_INVENTORY.map((item, i) => (
+          {inventoryList.map((item, i) => (
             <button
               key={item.id}
               onClick={() => handleOpenBox(item.id)}

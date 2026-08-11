@@ -16,13 +16,17 @@ export const GET = withAuth(async (request: Request) => {
   const plantId = url.searchParams.get("plantId") ?? undefined;
   const months = parseInt(url.searchParams.get("months") ?? "6");
 
+  const safeQuery = async <T>(fn: () => Promise<T>, fallback: T): Promise<T> => {
+    try { return await fn(); } catch { return fallback; }
+  };
+
   const [yieldTrend, wasteBenchmark, topDowntime, inventoryAge, consumption] =
     await Promise.all([
-      getYieldTrend({ plantId, months }),
-      getWasteBenchmark(from, to),
-      getTopDowntimeCauses(from, to, 10),
-      getInventoryAgePanel(),
-      getConsumptionRate(30),
+      safeQuery(() => getYieldTrend({ plantId, months }), []),
+      safeQuery(() => getWasteBenchmark(from, to), {}),
+      safeQuery(() => getTopDowntimeCauses(from, to, 10), []),
+      safeQuery(() => getInventoryAgePanel(), { aging: [], alertThreshold: 30 }),
+      safeQuery(() => getConsumptionRate(30), []),
     ]);
 
   return NextResponse.json({

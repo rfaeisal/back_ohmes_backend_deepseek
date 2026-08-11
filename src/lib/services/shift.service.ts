@@ -15,6 +15,7 @@ import {
   tsgBoxProcess,
 } from "@/db/schema";
 import { calculateShiftYield } from "@/lib/calc";
+import { writeAudit } from "@/lib/audit";
 
 // =============================================================================
 // Types
@@ -137,6 +138,14 @@ export async function startShift(input: StartShiftInput) {
     return { shift: created, claimedHandoff: unclaimedHandoff ?? null };
   });
 
+  await writeAudit({
+    actorUserId: input.createdBy,
+    action: "shift.start",
+    entityTable: "shift_report",
+    entityId: result.shift.id,
+    after: { machineId: input.machineId, productId: input.productId, status: "RUNNING" },
+  });
+
   return result;
 }
 
@@ -220,6 +229,15 @@ export async function endShift(input: EndShiftInput) {
         notes: input.notes ?? shift.notes,
       })
       .where(eq(shiftReport.id, input.shiftId));
+  });
+
+  await writeAudit({
+    actorUserId: shift.createdBy,
+    action: "shift.end",
+    entityTable: "shift_report",
+    entityId: input.shiftId,
+    before: { status: "RUNNING" },
+    after: { status: "COMPLETED" },
   });
 
   return { shiftId: input.shiftId, status: "COMPLETED" };
@@ -328,6 +346,15 @@ export async function approveShift(
     })
     .where(eq(shiftReport.id, shiftId))
     .returning();
+
+  await writeAudit({
+    actorUserId: approvedBy,
+    action: "shift.approve",
+    entityTable: "shift_report",
+    entityId: shiftId,
+    before: { status: "COMPLETED" },
+    after: { status: "APPROVED", reviewNotes },
+  });
 
   return updated;
 }
