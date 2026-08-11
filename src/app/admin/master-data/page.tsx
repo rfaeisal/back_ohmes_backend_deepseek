@@ -87,8 +87,14 @@ export default function MasterDataPage() {
 
   const handleToggleActive = async (type: string, id: string, current: boolean) => {
     try {
-      const endpoints: Record<string, string> = { machine: `/machines/${id}`, product: `/products/${id}`, supplier: `/tsg-suppliers/${id}` };
-      await apiFetch(endpoints[type]!, { method: "PATCH", body: JSON.stringify({ isActive: !current }) });
+      if (type === "plant") {
+        // Plant uses deletedAt — reactivate = clear deletedAt, deactivate = set deletedAt
+        if (current) await apiFetch(`/plants/${id}`, { method: "DELETE" });
+        else await apiFetch(`/plants/${id}`, { method: "PATCH", body: JSON.stringify({ deletedAt: null }) });
+      } else {
+        const endpoints: Record<string, string> = { machine: `/machines/${id}`, product: `/products/${id}`, supplier: `/tsg-suppliers/${id}` };
+        await apiFetch(endpoints[type]!, { method: "PATCH", body: JSON.stringify({ isActive: !current }) });
+      }
       loadData();
     } catch (e: any) { alert(e.message); }
   };
@@ -147,7 +153,7 @@ export default function MasterDataPage() {
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left">
             <thead className="border-b border-gray-200">
-              <tr><th className="pb-3 text-sm font-semibold text-gray-600">Kode</th><th className="pb-3 text-sm font-semibold text-gray-600">Nama</th><th className="pb-3 text-sm font-semibold text-gray-600">Alamat</th><th className="pb-3 text-sm font-semibold text-gray-600">Aksi</th></tr>
+              <tr><th className="pb-3 text-sm font-semibold text-gray-600">Kode</th><th className="pb-3 text-sm font-semibold text-gray-600">Nama</th><th className="pb-3 text-sm font-semibold text-gray-600">Status</th><th className="pb-3 text-sm font-semibold text-gray-600">Aksi</th></tr>
             </thead>
             <tbody>
               {plants.length === 0 ? (
@@ -156,8 +162,11 @@ export default function MasterDataPage() {
                 <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 font-mono font-medium">{p.code}</td>
                   <td className="py-3">{p.name}</td>
-                  <td className="py-3 text-sm text-gray-500">{p.address ?? "-"}</td>
+                  <td className="py-3"><Badge variant={!p.deletedAt ? "success" : "error"}>{!p.deletedAt ? "AKTIF" : "OFF"}</Badge></td>
                   <td className="py-3 flex gap-1">
+                    <Button size="sm" variant={!p.deletedAt ? "danger" : "primary"} onClick={() => handleToggleActive("plant", p.id, !p.deletedAt)}>
+                      {!p.deletedAt ? "Nonaktifkan" : "Aktifkan"}
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => { setForm(p); setShowAdd("plant"); }}>✏️</Button>
                     <Button size="sm" variant="ghost" onClick={() => handleDelete("plant", p.id)}>🗑</Button>
                   </td>
