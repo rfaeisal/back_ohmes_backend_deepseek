@@ -37,9 +37,17 @@ export default function LabelsPage() {
     setLoading(true);
     try {
       let res: any;
-      if (tab === "tsg") res = await apiFetch("/tsg-inventory/available?limit=50");
-      else if (tab === "machine") res = await apiFetch("/machines");
-      setItems(res?.data ?? res ?? []);
+      if (tab === "tsg") {
+        res = await apiFetch("/tsg-inventory/available?limit=50");
+        // Normalize: TSG inventory uses inventoryId, map to id for consistency
+        const data = (res?.data ?? []).map((item: any) => ({ ...item, id: item.inventoryId ?? item.id }));
+        setItems(data);
+      } else if (tab === "machine") {
+        res = await apiFetch("/machines");
+        setItems(res?.data ?? []);
+      } else {
+        setItems([]);
+      }
     } catch { setItems([]); }
     finally { setLoading(false); }
   }, [tab]);
@@ -62,11 +70,11 @@ export default function LabelsPage() {
     return items
       .filter((i: any) => selected.has(i.id))
       .map((i: any) => ({
-        id: i.id,
-        code: i.boxCode ?? i.code ?? i.id?.slice(0, 8),
+        id: i.id ?? i.inventoryId,
+        code: i.boxCode ?? i.code ?? (i.id ?? i.inventoryId)?.slice(0, 8),
         type: tab === "tsg" ? "TSG_BOX" : tab === "machine" ? "MACHINE" : "BATCH",
         sub1: tab === "tsg" ? `${i.weightKg} kg` : i.type ?? i.name ?? "",
-        sub2: tab === "tsg" ? `Umur ${i.ageInDays} hari` : i.name ?? "",
+        sub2: tab === "tsg" ? `Umur ${i.ageInDays ?? "?"} hari` : i.name ?? "",
         date: today,
       }));
   };
@@ -96,8 +104,8 @@ export default function LabelsPage() {
       {/* Tab Selector */}
       <div className="flex gap-2 mb-6">
         {[
-          { key: "tsg", label: "📦 Boks TSG", count: items.length },
-          { key: "machine", label: "⚙️ Mesin", count: 0 },
+          { key: "tsg", label: "📦 Boks TSG", count: tab === "tsg" ? items.length : "?" },
+          { key: "machine", label: "⚙️ Mesin", count: tab === "machine" ? items.length : "?" },
           { key: "batch", label: "📦 Batch", count: 0 },
         ].map((t) => (
           <button
@@ -164,8 +172,8 @@ export default function LabelsPage() {
                 </tr>
               </thead>
               <tbody>
-                {itemsList.map((item: any) => (
-                  <tr key={item.id} className={`border-b border-gray-100 ${selected.has(item.id) ? "bg-primary-50" : "hover:bg-gray-50"}`}>
+                {itemsList.map((item: any, i: number) => (
+                  <tr key={item.id ?? `item-${i}`} className={`border-b border-gray-100 ${selected.has(item.id) ? "bg-primary-50" : "hover:bg-gray-50"}`}>
                     <td className="py-3">
                       <input type="checkbox" checked={selected.has(item.id)} onChange={() => toggle(item.id)} className="w-4 h-4" />
                     </td>
