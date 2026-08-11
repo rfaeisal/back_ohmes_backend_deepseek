@@ -54,6 +54,7 @@ export default function ShiftActivePage() {
   const [showOpenBox, setShowOpenBox] = useState(false);
   const [showConsumption, setShowConsumption] = useState(false);
   const [showDowntime, setShowDowntime] = useState(false);
+  const [showMaintenance, setShowMaintenance] = useState(false);
   const [showEndShift, setShowEndShift] = useState(false);
 
   // Weigh form
@@ -154,7 +155,12 @@ export default function ShiftActivePage() {
             >
               + Log Downtime
             </Button>
-            <Button size="lg" variant="outline" className="flex-1">
+            <Button
+              size="lg"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShowMaintenance(true)}
+            >
               + Log Maintenance
             </Button>
           </div>
@@ -354,6 +360,25 @@ export default function ShiftActivePage() {
           <Input label="Durasi (menit)" type="number" inputMode="numeric" />
           <Input label="Deskripsi (opsional)" />
           <Button size="operator" className="w-full" onClick={() => setShowDowntime(false)}>
+            Simpan
+          </Button>
+        </div>
+      </Dialog>
+
+      {/* Maintenance Dialog */}
+      <Dialog open={showMaintenance} onClose={() => setShowMaintenance(false)} title="Log Maintenance / Sparepart">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Sparepart</label>
+            <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base">
+              <option>Pisau Filter</option>
+              <option>Nylon</option>
+              <option>Belt Maker</option>
+            </select>
+          </div>
+          <Input label="Quantity" type="number" inputMode="numeric" placeholder="1" />
+          <Input label="Catatan (opsional)" placeholder="Preventive maintenance..." />
+          <Button size="operator" className="w-full" onClick={() => setShowMaintenance(false)}>
             Simpan
           </Button>
         </div>

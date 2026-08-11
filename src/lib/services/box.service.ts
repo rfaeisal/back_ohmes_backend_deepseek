@@ -17,6 +17,7 @@ import {
 import { machineTemplate } from "@/db/schema/master-product";
 import { calculateYieldPct, getYieldIndicator, calculateBeratPerBatangGram, calculateTotalBatang } from "@/lib/calc";
 import { ServiceError } from "./shift.service";
+export { ServiceError } from "./shift.service";
 
 // =============================================================================
 // Types
