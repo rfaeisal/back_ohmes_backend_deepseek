@@ -22,3 +22,4 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
     return NextResponse.json(item, { status: 201 });
   } catch (e: any) { return NextResponse.json({ error: { code: "CREATE_FAILED", message: e.message } }, { status: 400 }); }
 });
+
