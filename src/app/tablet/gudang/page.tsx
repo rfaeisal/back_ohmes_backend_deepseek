@@ -31,9 +31,22 @@ export default function GudangInboundPage() {
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [selectedSupplier, setSelectedSupplier] = useState("");
   const [locationCode, setLocationCode] = useState("");
+  const [editLocId, setEditLocId] = useState<string | null>(null);
+  const [editLocValue, setEditLocValue] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("AVAILABLE");
 
   // Load suppliers on dialog open
+  const saveLocation = async (inventoryId: string) => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      await fetch(`/api/v1/tsg-inventory/${inventoryId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ locationCode: editLocValue }),
+      });
+      setEditLocId(null); loadInventory();
+    } catch {}
+  };
+
   const loadSuppliers = async () => {
     try {
       const token = localStorage.getItem("accessToken");
@@ -157,7 +170,17 @@ export default function GudangInboundPage() {
                   <td className="py-3"><Badge variant={item.tsgType === "REGULER" ? "info" : item.tsgType === "MILD" ? "success" : "warning"}>{item.tsgType ?? "REGULER"}</Badge></td>
                   <td className="py-3">{item.weightKg} kg</td>
                   <td className="py-3">{ageBadge(item.ageInDays)}</td>
-                  <td className="py-3 text-sm text-gray-500">{item.locationCode ?? "-"}</td>
+                  <td className="py-3 text-sm text-gray-500">
+                    {editLocId === item.id ? (
+                      <div className="flex gap-1">
+                        <input className="w-24 rounded border px-2 py-1 text-sm" value={editLocValue} onChange={e => setEditLocValue(e.target.value)} autoFocus onKeyDown={e => e.key === "Enter" && saveLocation(item.id)} />
+                        <button className="text-green-600 text-xs font-bold" onClick={() => saveLocation(item.id)}>✓</button>
+                        <button className="text-red-400 text-xs" onClick={() => setEditLocId(null)}>✕</button>
+                      </div>
+                    ) : (
+                      <span className="cursor-pointer hover:underline" onClick={() => { setEditLocId(item.id); setEditLocValue(item.locationCode ?? ""); }}>{item.locationCode ?? "Klik untuk isi"}</span>
+                    )}
+                  </td>
                   <td className="py-3">{statusBadge(item.status)}</td>
                 </tr>
               ))}
