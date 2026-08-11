@@ -38,6 +38,7 @@ export default function UsersPage() {
   const [showAssign, setShowAssign] = useState<any>(null);
   const [showPassword, setShowPassword] = useState<any>(null);
   const [form, setForm] = useState<Record<string, string>>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -65,7 +66,7 @@ export default function UsersPage() {
   useEffect(() => { load(); }, [load]);
 
   const handleAdd = async () => {
-    setSaving(true); setError("");
+    setSaving(true); setError(""); setFieldErrors({});
     try {
       await apiFetch("/users", { method: "POST", body: JSON.stringify({
         username: form.username, password: form.password, fullName: form.fullName, email: form.email || undefined,
@@ -73,18 +74,19 @@ export default function UsersPage() {
       setSuccess("User berhasil dibuat.");
       setShowAdd(false); setForm({}); load();
     } catch (e: any) {
-      // Try to parse field-level errors from API response
-      let msg = e.message;
+      // Try to parse field-level errors
       try {
         const body = JSON.parse(e.message);
         if (body?.details?.fieldErrors) {
-          const fields = Object.entries(body.details.fieldErrors)
-            .map(([k, v]) => `${k}: ${(v as string[]).join(", ")}`)
-            .join("; ");
-          if (fields) msg = fields;
+          const errs: Record<string, string> = {};
+          for (const [k, v] of Object.entries(body.details.fieldErrors)) {
+            errs[k] = (v as string[]).join(", ");
+          }
+          setFieldErrors(errs);
+          return;
         }
       } catch {}
-      setError(msg);
+      setError(e.message);
     }
     finally { setSaving(false); }
   };
@@ -152,7 +154,7 @@ export default function UsersPage() {
           <h1 className="text-3xl font-bold text-gray-900">Users & Role</h1>
           <p className="text-gray-500">Kelola user, assignment role, aktif/nonaktif</p>
         </div>
-        <Button size="lg" onClick={() => { setForm({}); setError(""); setShowAdd(true); }}>+ Tambah User</Button>
+        <Button size="lg" onClick={() => { setForm({}); setError(""); setFieldErrors({}); setShowAdd(true); }}>+ Tambah User</Button>
       </div>
 
       {error && <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>}
@@ -233,10 +235,10 @@ export default function UsersPage() {
       {/* Add User Dialog */}
       <Dialog open={showAdd} onClose={() => setShowAdd(false)} title="Tambah User Baru">
         <div className="space-y-3">
-          <Input label="Username" value={form.username ?? ""} onChange={e => setForm({...form, username: e.target.value})} placeholder="andi.kecer" />
-          <Input label="Nama Lengkap" value={form.fullName ?? ""} onChange={e => setForm({...form, fullName: e.target.value})} placeholder="Andi Kecer" />
-          <Input label="Email" value={form.email ?? ""} onChange={e => setForm({...form, email: e.target.value})} placeholder="andi@hummer.example" />
-          <Input label="Password" type="password" value={form.password ?? ""} onChange={e => setForm({...form, password: e.target.value})} placeholder="Min 8 karakter" />
+          <Input label="Username" value={form.username ?? ""} onChange={e => setForm({...form, username: e.target.value})} placeholder="andi.kecer" error={fieldErrors.username} />
+          <Input label="Nama Lengkap" value={form.fullName ?? ""} onChange={e => setForm({...form, fullName: e.target.value})} placeholder="Andi Kecer" error={fieldErrors.fullName} />
+          <Input label="Email" value={form.email ?? ""} onChange={e => setForm({...form, email: e.target.value})} placeholder="andi@hummer.example" error={fieldErrors.email} />
+          <Input label="Password" type="password" value={form.password ?? ""} onChange={e => setForm({...form, password: e.target.value})} placeholder="Min 8 karakter" error={fieldErrors.password} />
           <Button size="lg" className="w-full" onClick={handleAdd} disabled={saving || !form.username || !form.password}>
             {saving ? "Menyimpan..." : "Simpan User"}
           </Button>
