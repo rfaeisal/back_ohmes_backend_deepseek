@@ -76,18 +76,12 @@ export default function ShiftActivePage() {
   const inventoryList = apiInventory.length > 0 ? apiInventory : MOCK_INVENTORY;
 
   // State
-  const [activeBox, setActiveBox] = useState<BoxData | null>({
-    id: "box_01",
-    boxNumber: 5,
-    boxCode: "TSG-20260810-012",
-    tsgWeightKg: 29.70,
-    isPartial: false,
-    openedAt: "17:15",
-  });
-  const [completedBoxes] = useState<BoxData[]>([
-    { id: "box_00", boxNumber: 1, boxCode: "TSG-20260810-008", tsgWeightKg: 29.80, isPartial: false, openedAt: "16:35", completedAt: "17:12", outputWeightKg: 33.15, yieldPct: 111.24, indicator: "NORMAL" },
-    { id: "box_02", boxNumber: 2, boxCode: "TSG-20260810-009", tsgWeightKg: 30.10, isPartial: false, openedAt: "17:15", completedAt: "17:48", outputWeightKg: 33.45, yieldPct: 111.13, indicator: "NORMAL" },
-  ]);
+  const [activeBox, setActiveBox] = useState<BoxData | null>(null);
+  const [completedBoxes, setCompletedBoxes] = useState<BoxData[]>([]);
+  const [consumptionEvents, setConsumptionEvents] = useState<any[]>([]);
+  const [downtimeEvents, setDowntimeEvents] = useState<any[]>([]);
+  const [maintenanceEvents, setMaintenanceEvents] = useState<any[]>([]);
+  const [actionMsg, setActionMsg] = useState("");
 
   // Dialog states
   const [showWeigh, setShowWeigh] = useState(false);
@@ -96,6 +90,11 @@ export default function ShiftActivePage() {
   const [showDowntime, setShowDowntime] = useState(false);
   const [showMaintenance, setShowMaintenance] = useState(false);
   const [showEndShift, setShowEndShift] = useState(false);
+
+  // Consumable/Downtime/Maintenance form
+  const [consForm, setConsForm] = useState({ item: "", qty: "", note: "" });
+  const [downForm, setDownForm] = useState({ cat: "GANTI_MATERIAL", dur: "", desc: "" });
+  const [mtnForm, setMtnForm] = useState({ part: "", qty: "", note: "" });
 
   // Weigh form
   const [outputWeight, setOutputWeight] = useState("");
@@ -111,10 +110,11 @@ export default function ShiftActivePage() {
   const handleWeigh = async () => {
     if (activeBox && shiftId && shiftId !== "test-id") {
       try {
-        await apiFetch(`/boxes/${activeBox.id}`, {
+        const result = await apiFetch(`/boxes/${activeBox.id}`, {
           method: "PATCH",
           body: JSON.stringify({ outputWeightKg: parseFloat(outputWeight) }),
         });
+        setCompletedBoxes(prev => [...prev, { ...activeBox, outputWeightKg: parseFloat(outputWeight), yieldPct: result.yieldPct, indicator: result.indicator, completedAt: new Date().toISOString() }]);
         loadData();
       } catch (e: any) { alert(e.message); }
     }
@@ -126,25 +126,20 @@ export default function ShiftActivePage() {
   const handleOpenBox = async (inventoryId: string) => {
     if (shiftId && shiftId !== "test-id") {
       try {
-        await apiFetch(`/shifts/${shiftId}/boxes`, {
+        const result = await apiFetch(`/shifts/${shiftId}/boxes`, {
           method: "POST",
           body: JSON.stringify({ inventoryBoxId: inventoryId }),
         });
+        setActiveBox({
+          id: result.boxId,
+          boxNumber: result.boxNumber,
+          boxCode: result.boxCode,
+          tsgWeightKg: parseFloat(result.tsgWeightKg),
+          isPartial: result.isPartial,
+          openedAt: new Date(result.openedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+        });
         loadData();
       } catch (e: any) { alert(e.message); }
-    } else {
-      // Fallback mock
-      const box = MOCK_INVENTORY.find((b) => b.id === inventoryId);
-      if (box) {
-        setActiveBox({
-          id: `box_${Date.now()}`,
-          boxNumber: completedBoxes.length + 2,
-          boxCode: box.boxCode,
-          tsgWeightKg: box.weightKg,
-          isPartial: false,
-          openedAt: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
-        });
-      }
     }
     setShowOpenBox(false);
   };
@@ -241,25 +236,65 @@ export default function ShiftActivePage() {
         </Card>
       )}
 
+      {/* Action feedback */}
+      {actionMsg && (
+        <div className="mb-4 rounded-lg bg-green-50 border border-green-200 p-3 text-sm text-green-700 flex justify-between">
+          {actionMsg} <button onClick={() => setActionMsg("")} className="ml-2 font-bold">✕</button>
+        </div>
+      )}
+
       {/* Ringkasan */}
       <div className="grid grid-cols-4 gap-4 mb-6">
-        <Card>
-          <p className="text-xs text-gray-500">Boks Selesai</p>
-          <p className="text-2xl font-bold">{completedBoxes.length}</p>
-        </Card>
-        <Card>
-          <p className="text-xs text-gray-500">Yield Rata-rata</p>
-          <p className="text-2xl font-bold text-green-700">111.2%</p>
-        </Card>
-        <Card>
-          <p className="text-xs text-gray-500">Downtime</p>
-          <p className="text-2xl font-bold text-yellow-700">8 mnt</p>
-        </Card>
-        <Card>
-          <p className="text-xs text-gray-500">Consumables</p>
-          <p className="text-2xl font-bold">2 event</p>
-        </Card>
+        <Card><p className="text-xs text-gray-500">Boks Selesai</p><p className="text-2xl font-bold">{completedBoxes.length}</p></Card>
+        <Card><p className="text-xs text-gray-500">Yield Rata-rata</p><p className="text-2xl font-bold text-green-700">{completedBoxes.length > 0 ? (completedBoxes.reduce((s, b) => s + (b.yieldPct ?? 0), 0) / completedBoxes.length).toFixed(1) : "-"}%</p></Card>
+        <Card><p className="text-xs text-gray-500">Downtime</p><p className="text-2xl font-bold text-yellow-700">{downtimeEvents.reduce((s, d) => s + parseInt(d.dur || "0"), 0)} mnt</p></Card>
+        <Card><p className="text-xs text-gray-500">Consumables</p><p className="text-2xl font-bold">{consumptionEvents.length} event</p></Card>
       </div>
+
+      {/* Event Logs */}
+      {consumptionEvents.length === 0 && downtimeEvents.length === 0 && maintenanceEvents.length === 0 ? null : (
+        <div className="mb-6 space-y-3">
+          {consumptionEvents.length > 0 && (
+            <Card>
+              <CardTitle>Pemakaian Consumables ({consumptionEvents.length})</CardTitle>
+              <div className="mt-2 space-y-1">
+                {consumptionEvents.map((e, i) => (
+                  <div key={i} className="flex justify-between text-sm border-b border-gray-100 py-1">
+                    <span>{e.item} — {e.qty}</span>
+                    <span className="text-gray-400">{e.time}{e.note ? ` · ${e.note}` : ""}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+          {downtimeEvents.length > 0 && (
+            <Card>
+              <CardTitle>Downtime ({downtimeEvents.length})</CardTitle>
+              <div className="mt-2 space-y-1">
+                {downtimeEvents.map((e, i) => (
+                  <div key={i} className="flex justify-between text-sm border-b border-gray-100 py-1">
+                    <span>{e.cat} — {e.dur} menit</span>
+                    <span className="text-gray-400">{e.time}{e.desc ? ` · ${e.desc}` : ""}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+          {maintenanceEvents.length > 0 && (
+            <Card>
+              <CardTitle>Maintenance ({maintenanceEvents.length})</CardTitle>
+              <div className="mt-2 space-y-1">
+                {maintenanceEvents.map((e, i) => (
+                  <div key={i} className="flex justify-between text-sm border-b border-gray-100 py-1">
+                    <span>{e.part} — {e.qty} unit</span>
+                    <span className="text-gray-400">{e.time}{e.note ? ` · ${e.note}` : ""}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Completed Boxes */}
       {completedBoxes.length > 0 && (
@@ -389,18 +424,23 @@ export default function ShiftActivePage() {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Item</label>
-            <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base">
-              <option>Bobbin Hummer</option>
-              <option>Filter Hummer</option>
-              <option>Tipping Hummer</option>
-              <option>Lem Hummer</option>
+            <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base" value={consForm.item} onChange={e => setConsForm({...consForm, item: e.target.value})}>
+              <option value="">Pilih Item</option>
+              <option value="Bobbin Hummer">Bobbin Hummer</option>
+              <option value="Filter Hummer">Filter Hummer</option>
+              <option value="Tipping Hummer">Tipping Hummer</option>
+              <option value="Lem Hummer">Lem Hummer</option>
             </select>
           </div>
-          <Input label="Quantity" type="number" inputMode="decimal" />
-          <Input label="Catatan (opsional)" />
-          <Button size="operator" className="w-full" onClick={() => setShowConsumption(false)}>
-            Simpan
-          </Button>
+          <Input label="Quantity" type="number" value={consForm.qty} onChange={e => setConsForm({...consForm, qty: e.target.value})} />
+          <Input label="Catatan (opsional)" value={consForm.note} onChange={e => setConsForm({...consForm, note: e.target.value})} />
+          <Button size="operator" className="w-full" onClick={() => {
+            if (!consForm.item || !consForm.qty) { setActionMsg("Isi item dan quantity"); return; }
+            setConsumptionEvents(prev => [...prev, { item: consForm.item, qty: consForm.qty, note: consForm.note, time: new Date().toLocaleTimeString("id-ID") }]);
+            setActionMsg(`✅ Pemakaian ${consForm.item} dicatat`);
+            setConsForm({ item: "", qty: "", note: "" });
+            setShowConsumption(false);
+          }}>Simpan</Button>
         </div>
       </Dialog>
 
@@ -409,19 +449,19 @@ export default function ShiftActivePage() {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
-            <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base">
-              <option>GANTI_MATERIAL</option>
-              <option>KENDALA_MESIN</option>
-              <option>TUNGGU_BAHAN</option>
-              <option>ISTIRAHAT_IZIN</option>
-              <option>MAINTENANCE</option>
+            <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base" value={downForm.cat} onChange={e => setDownForm({...downForm, cat: e.target.value})}>
+              <option>GANTI_MATERIAL</option><option>KENDALA_MESIN</option><option>TUNGGU_BAHAN</option><option>ISTIRAHAT_IZIN</option><option>MAINTENANCE</option>
             </select>
           </div>
-          <Input label="Durasi (menit)" type="number" inputMode="numeric" />
-          <Input label="Deskripsi (opsional)" />
-          <Button size="operator" className="w-full" onClick={() => setShowDowntime(false)}>
-            Simpan
-          </Button>
+          <Input label="Durasi (menit)" type="number" value={downForm.dur} onChange={e => setDownForm({...downForm, dur: e.target.value})} />
+          <Input label="Deskripsi (opsional)" value={downForm.desc} onChange={e => setDownForm({...downForm, desc: e.target.value})} />
+          <Button size="operator" className="w-full" onClick={() => {
+            if (!downForm.dur) { setActionMsg("Isi durasi downtime"); return; }
+            setDowntimeEvents(prev => [...prev, { cat: downForm.cat, dur: downForm.dur, desc: downForm.desc, time: new Date().toLocaleTimeString("id-ID") }]);
+            setActionMsg(`✅ Downtime ${downForm.cat} (${downForm.dur} menit) dicatat`);
+            setDownForm({ cat: "GANTI_MATERIAL", dur: "", desc: "" });
+            setShowDowntime(false);
+          }}>Simpan</Button>
         </div>
       </Dialog>
 
@@ -430,17 +470,20 @@ export default function ShiftActivePage() {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Sparepart</label>
-            <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base">
-              <option>Pisau Filter</option>
-              <option>Nylon</option>
-              <option>Belt Maker</option>
+            <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base" value={mtnForm.part} onChange={e => setMtnForm({...mtnForm, part: e.target.value})}>
+              <option value="">Pilih Sparepart</option>
+              <option value="Pisau Filter">Pisau Filter</option><option value="Nylon">Nylon</option><option value="Belt Maker">Belt Maker</option>
             </select>
           </div>
-          <Input label="Quantity" type="number" inputMode="numeric" placeholder="1" />
-          <Input label="Catatan (opsional)" placeholder="Preventive maintenance..." />
-          <Button size="operator" className="w-full" onClick={() => setShowMaintenance(false)}>
-            Simpan
-          </Button>
+          <Input label="Quantity" type="number" value={mtnForm.qty} onChange={e => setMtnForm({...mtnForm, qty: e.target.value})} placeholder="1" />
+          <Input label="Catatan (opsional)" value={mtnForm.note} onChange={e => setMtnForm({...mtnForm, note: e.target.value})} />
+          <Button size="operator" className="w-full" onClick={() => {
+            if (!mtnForm.part || !mtnForm.qty) { setActionMsg("Isi sparepart dan quantity"); return; }
+            setMaintenanceEvents(prev => [...prev, { part: mtnForm.part, qty: mtnForm.qty, note: mtnForm.note, time: new Date().toLocaleTimeString("id-ID") }]);
+            setActionMsg(`✅ Maintenance ${mtnForm.part} dicatat`);
+            setMtnForm({ part: "", qty: "", note: "" });
+            setShowMaintenance(false);
+          }}>Simpan</Button>
         </div>
       </Dialog>
 
