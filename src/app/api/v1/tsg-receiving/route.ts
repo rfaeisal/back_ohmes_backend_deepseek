@@ -1,7 +1,10 @@
-// POST /api/v1/tsg-receiving — Terima TSG dari supplier
+// POST + GET /api/v1/tsg-receiving — Terima & lihat TSG dari supplier
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { eq, and, gte, lte, desc } from "drizzle-orm";
 import { withAuth, type AuthContext } from "@/lib/auth/middleware";
+import db from "@/db";
+import { tsgReceiving, tsgSupplier } from "@/db/schema";
 import { createReceiving } from "@/lib/services/wms-inbound.service";
 import { ServiceError } from "@/lib/services/shift.service";
 
@@ -57,4 +60,38 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
     }
     throw err;
   }
+});
+
+// GET /api/v1/tsg-receiving — List receiving dengan filter
+export const GET = withAuth(async (request: Request, ctx: AuthContext) => {
+  const url = new URL(request.url);
+  const from = url.searchParams.get("from");
+  const to = url.searchParams.get("to");
+  const plantId = ctx.user.plantIds[0];
+
+  const conditions = [eq(tsgReceiving.plantId, plantId!)];
+  if (from) conditions.push(gte(tsgReceiving.receivedAt, new Date(from)));
+  if (to) conditions.push(lte(tsgReceiving.receivedAt, new Date(to + "T23:59:59.999Z")));
+
+  const items = await db
+    .select({
+      id: tsgReceiving.id,
+      receivingCode: tsgReceiving.receivingCode,
+      supplierId: tsgReceiving.supplierId,
+      receivedAt: tsgReceiving.receivedAt,
+      receivedBy: tsgReceiving.receivedBy,
+      totalBoxCount: tsgReceiving.totalBoxCount,
+      totalWeightKg: tsgReceiving.totalWeightKg,
+      supplierDocRef: tsgReceiving.supplierDocRef,
+      notes: tsgReceiving.notes,
+      supplierName: tsgSupplier.name,
+      supplierCode: tsgSupplier.code,
+    })
+    .from(tsgReceiving)
+    .leftJoin(tsgSupplier, eq(tsgReceiving.supplierId, tsgSupplier.id))
+    .where(and(...conditions))
+    .orderBy(desc(tsgReceiving.receivedAt))
+    .limit(200);
+
+  return NextResponse.json({ data: items }, { status: 200 });
 });

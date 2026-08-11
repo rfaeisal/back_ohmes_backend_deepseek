@@ -83,13 +83,7 @@ export default function TsgReceivingReport() {
         data = data.filter((r: ReceivingRecord) => r.supplierId === supplierId);
       }
 
-      // Enrich with supplier name
-      data = data.map((r: any) => ({
-        ...r,
-        supplierName: suppliers.find((s) => s.id === r.supplierId)?.name ?? r.supplierId,
-        supplierCode: suppliers.find((s) => s.id === r.supplierId)?.code ?? "-",
-      }));
-
+      // API already returns supplierName & supplierCode via JOIN
       setReceivings(data);
     } catch { setReceivings([]); }
     finally { setLoading(false); }
