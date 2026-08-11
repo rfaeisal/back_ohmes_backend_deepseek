@@ -42,7 +42,20 @@ export default function LoginPage() {
       localStorage.setItem("accessToken", data.accessToken);
       localStorage.setItem("refreshToken", data.refreshToken);
 
-      router.push("/tablet");
+      // Redirect berdasarkan role
+      const roles: string[] = (data.roles ?? []).map((r: any) => r.code);
+      const isAdmin = roles.some((r: string) =>
+        ["SUPERADMIN", "HQ_ADMIN", "HQ_ANALYST", "HQ_AUDITOR", "PLANT_MANAGER"].includes(r)
+      );
+      const isSupervisor = roles.includes("SHIFT_SUPERVISOR");
+      const isCoordinator = roles.some((r: string) => ["AREA_COORDINATOR", "AREA_QA"].includes(r));
+      const isGudang = roles.some((r: string) => ["GUDANG_INBOUND", "GUDANG_OUTBOUND", "EKSPEDISI"].includes(r));
+
+      if (isAdmin) router.push("/admin");
+      else if (isSupervisor) router.push("/admin/approvals");
+      else if (isCoordinator) router.push("/admin/area-dashboard");
+      else if (isGudang) router.push("/tablet/gudang");
+      else router.push("/tablet");
     } catch {
       setError("Tidak bisa terhubung ke server.");
     } finally {

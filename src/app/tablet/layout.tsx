@@ -20,6 +20,10 @@ export default function TabletLayout({ children }: { children: React.ReactNode }
           <div className="flex items-center gap-3 text-sm text-gray-500">
             <span>PLT-MLG-01 · Pabrik Malang 1</span>
             <span className="text-gray-300">|</span>
+            <a href="/admin" className="text-gray-600 hover:underline font-medium">
+              ⚙️ Admin
+            </a>
+            <span className="text-gray-300">|</span>
             <a href="/tablet/login" className="text-red-600 hover:underline font-medium">
               Logout
             </a>

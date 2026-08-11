@@ -110,6 +110,17 @@ export default function TabletHome() {
             </div>
           </Card>
         </Link>
+        <Link href="/admin">
+          <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
+            <div className="flex items-center gap-4">
+              <span className="text-3xl">⚙️</span>
+              <div>
+                <CardTitle>Admin Dashboard</CardTitle>
+                <CardSubtitle>Master data · Approval · Audit · Reports</CardSubtitle>
+              </div>
+            </div>
+          </Card>
+        </Link>
       </div>
     </div>
   );

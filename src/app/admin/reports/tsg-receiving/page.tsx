@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -208,8 +208,8 @@ export default function TsgReceivingReport() {
               </thead>
               <tbody>
                 {receivings.map((r) => (
-                  <>
-                    <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onClick={() => toggleExpand(r.id)}>
+                  <React.Fragment key={r.id}>
+                    <tr className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onClick={() => toggleExpand(r.id)}>
                       <td className="py-3 text-gray-400">{expanded.has(r.id) ? "▼" : "▶"}</td>
                       <td className="py-3 font-mono font-medium text-sm">{r.receivingCode}</td>
                       <td className="py-3">
@@ -235,7 +235,7 @@ export default function TsgReceivingReport() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

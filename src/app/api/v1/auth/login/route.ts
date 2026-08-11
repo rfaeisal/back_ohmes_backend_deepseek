@@ -262,7 +262,9 @@ export async function POST(request: Request) {
           id: foundUser.id,
           fullName: foundUser.fullName,
           username: foundUser.username,
+          isPrivileged: isSuperadmin,
         },
+        roles: userRoles.map((r) => ({ code: r.roleCode, isPrivileged: r.isPrivileged })),
         assignments: resolvedScope.assignments,
         activeScope: {
           scopeType: resolvedScope.activeScopeType,
