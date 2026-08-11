@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary-50: #f0fdf4;
+    --color-primary-600: #16a34a;
+    --color-primary-700: #15803d;
+  }
+
+  /* Base styling untuk element form — mendukung tablet industrial */
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
+@layer components {
+  /* Tombol besar untuk tablet operator (min height 88px) */
+  .btn-operator {
+    @apply inline-flex items-center justify-center rounded-lg px-8 py-6 text-2xl font-semibold transition-colors focus:outline-none focus:ring-4;
+    min-height: 88px;
+  }
+
+  .btn-operator-primary {
+    @apply btn-operator bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-300;
+  }
+
+  .btn-operator-danger {
+    @apply btn-operator bg-red-700 text-white hover:bg-red-800 focus:ring-red-300;
+  }
+
+  /* Card untuk shift/boks */
+  .card-shift {
+    @apply rounded-xl border border-gray-200 bg-white p-6 shadow-sm;
+  }
+}

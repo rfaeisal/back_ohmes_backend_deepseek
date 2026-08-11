@@ -99,6 +99,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
         env:
+          DATABASE_URL: postgres://build:build@localhost:5432/build
+          JWT_SECRET: build_secret_placeholder_not_used_in_build
+          JWT_ISSUER: mes.hummer
           NEXT_PUBLIC_APP_ENV: production
           NEXT_PUBLIC_BASE_URL: https://mes.hummer.example
 

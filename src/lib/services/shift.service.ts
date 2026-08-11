@@ -1,0 +1,479 @@
+// =============================================================================
+// Shift Service — Business Logic Shift Lifecycle
+// =============================================================================
+// Semua aturan bisnis shift di-enforce di sini.
+// Dipanggil dari API route handlers (Next.js Route Handlers).
+// =============================================================================
+
+import { eq, and, isNull, sql } from "drizzle-orm";
+import db from "@/db";
+import {
+  shiftReport,
+  shiftMember,
+  shiftWaste,
+  shiftHandoff,
+  tsgBoxProcess,
+} from "@/db/schema";
+import { calculateShiftYield } from "@/lib/calc";
+
+// =============================================================================
+// Types
+// =============================================================================
+
+export interface StartShiftInput {
+  machineId: string;
+  productId: string;
+  shiftTemplateId: string;
+  members: Array<{
+    userId: string;
+    shiftRoleId: string;
+  }>;
+  plantId: string;
+  createdBy: string;
+}
+
+export interface EndShiftInput {
+  shiftId: string;
+  waste: Array<{
+    category: "MENIR" | "RIJEKAN" | "DEBU_KASAR" | "DEBU_HALUS";
+    kg: number;
+    settlementStatus: "PENDING" | "LUNAS";
+  }>;
+  notes?: string;
+}
+
+export interface HandoffInput {
+  shiftId: string;
+  machineId: string;
+  plantId: string;
+  sisaTsgKg: number;
+  batanganSementaraKg: number;
+  note?: string;
+  weighedBy: string;
+}
+
+// =============================================================================
+// Start Shift
+// =============================================================================
+
+export async function startShift(input: StartShiftInput) {
+  // 1. Validasi mesin tidak sedang RUNNING
+  const [activeShift] = await db
+    .select({ id: shiftReport.id })
+    .from(shiftReport)
+    .where(
+      and(
+        eq(shiftReport.machineId, input.machineId),
+        eq(shiftReport.status, "RUNNING")
+      )
+    )
+    .limit(1);
+
+  if (activeShift) {
+    throw new ServiceError(
+      "MACHINE_HAS_RUNNING_SHIFT",
+      "Mesin masih memiliki shift aktif. Akhiri shift sebelumnya dulu.",
+      { activeShiftId: activeShift.id }
+    );
+  }
+
+  // 2. Validasi produk terdaftar di plant
+  // (via plant_product — simplified untuk sekarang)
+
+  // 3. Validasi minimal 1 anggota dengan canEndShift
+  // (via shift_role — simplified)
+
+  // 4. Cek ShiftHandoff unclaimed untuk mesin ini
+  const [unclaimedHandoff] = await db
+    .select()
+    .from(shiftHandoff)
+    .where(
+      and(
+        eq(shiftHandoff.machineId, input.machineId),
+        isNull(shiftHandoff.claimedByShiftId)
+      )
+    )
+    .limit(1);
+
+  // 5. Create shift report dalam transaksi
+  const result = await db.transaction(async (tx) => {
+    // Create shift
+    const [created] = await tx
+      .insert(shiftReport)
+      .values({
+        plantId: input.plantId,
+        machineId: input.machineId,
+        productId: input.productId,
+        shiftTemplateId: input.shiftTemplateId,
+        reportDate: new Date().toISOString().slice(0, 10),
+        actualStart: new Date(),
+        status: "RUNNING",
+        createdBy: input.createdBy,
+      })
+      .returning();
+
+    if (!created) throw new Error("SHIFT_CREATE_FAILED");
+
+    // Create members
+    for (const member of input.members) {
+      await tx.insert(shiftMember).values({
+        shiftReportId: created.id,
+        userId: member.userId,
+        shiftRoleId: member.shiftRoleId,
+      });
+    }
+
+    // Claim handoff jika ada
+    if (unclaimedHandoff) {
+      await tx
+        .update(shiftHandoff)
+        .set({
+          claimedByShiftId: created.id,
+          claimedAt: new Date(),
+        })
+        .where(eq(shiftHandoff.id, unclaimedHandoff.id));
+    }
+
+    return { shift: created, claimedHandoff: unclaimedHandoff ?? null };
+  });
+
+  return result;
+}
+
+// =============================================================================
+// End Shift
+// =============================================================================
+
+export async function endShift(input: EndShiftInput) {
+  // 1. Validasi shift status RUNNING
+  const [shift] = await db
+    .select()
+    .from(shiftReport)
+    .where(eq(shiftReport.id, input.shiftId))
+    .limit(1);
+
+  if (!shift) throw new ServiceError("SHIFT_NOT_FOUND", "Shift tidak ditemukan.");
+  if (shift.status !== "RUNNING") {
+    throw new ServiceError(
+      "SHIFT_NOT_RUNNING",
+      "Hanya shift dengan status RUNNING yang bisa diakhiri."
+    );
+  }
+
+  // 2. Validasi 4 kategori waste lengkap
+  const categories: string[] = input.waste.map((w) => w.category);
+  const requiredCategories: string[] = ["MENIR", "RIJEKAN", "DEBU_KASAR", "DEBU_HALUS"];
+  for (const cat of requiredCategories) {
+    if (!categories.includes(cat)) {
+      throw new ServiceError(
+        "WASTE_INCOMPLETE",
+        `Kategori waste ${cat} wajib diisi.`
+      );
+    }
+  }
+
+  // 3. Cek tidak ada boks aktif tanpa handoff
+  const [activeBox] = await db
+    .select({ id: tsgBoxProcess.id })
+    .from(tsgBoxProcess)
+    .where(
+      and(
+        eq(tsgBoxProcess.shiftReportId, input.shiftId),
+        isNull(tsgBoxProcess.completedAt)
+      )
+    )
+    .limit(1);
+
+  if (activeBox) {
+    // Cek apakah handoff sudah dibuat
+    const [handoff] = await db
+      .select()
+      .from(shiftHandoff)
+      .where(eq(shiftHandoff.fromShiftId, input.shiftId))
+      .limit(1);
+
+    if (!handoff) {
+      throw new ServiceError(
+        "SHIFT_HAS_ACTIVE_BOX",
+        "Masih ada boks aktif. Buat handoff terlebih dahulu.",
+        { activeBoxIds: [activeBox.id] }
+      );
+    }
+  }
+
+  // 4. Insert waste + update shift dalam transaksi
+  await db.transaction(async (tx) => {
+    for (const w of input.waste) {
+      await tx.insert(shiftWaste).values({
+        shiftReportId: input.shiftId,
+        category: w.category as "MENIR" | "RIJEKAN" | "DEBU_KASAR" | "DEBU_HALUS",
+        kg: String(w.kg),
+        settlementStatus: w.settlementStatus as "PENDING" | "LUNAS",
+      });
+    }
+
+    await tx
+      .update(shiftReport)
+      .set({
+        status: "COMPLETED",
+        actualEnd: new Date(),
+        notes: input.notes ?? shift.notes,
+      })
+      .where(eq(shiftReport.id, input.shiftId));
+  });
+
+  return { shiftId: input.shiftId, status: "COMPLETED" };
+}
+
+// =============================================================================
+// Handoff
+// =============================================================================
+
+export async function createHandoff(input: HandoffInput) {
+  // Validasi shift RUNNING
+  const [shift] = await db
+    .select()
+    .from(shiftReport)
+    .where(eq(shiftReport.id, input.shiftId))
+    .limit(1);
+
+  if (!shift || shift.status !== "RUNNING") {
+    throw new ServiceError(
+      "SHIFT_NOT_RUNNING",
+      "Hanya shift RUNNING yang bisa buat handoff."
+    );
+  }
+
+  // Validasi ada boks aktif
+  const [activeBox] = await db
+    .select({ id: tsgBoxProcess.id })
+    .from(tsgBoxProcess)
+    .where(
+      and(
+        eq(tsgBoxProcess.shiftReportId, input.shiftId),
+        isNull(tsgBoxProcess.completedAt)
+      )
+    )
+    .limit(1);
+
+  if (!activeBox) {
+    throw new ServiceError(
+      "NO_ACTIVE_BOX",
+      "Tidak ada boks aktif untuk di-handoff."
+    );
+  }
+
+  // Validasi berat > 0
+  if (input.sisaTsgKg <= 0 || input.batanganSementaraKg <= 0) {
+    throw new ServiceError(
+      "INVALID_WEIGHT",
+      "Berat sisa TSG dan batangan sementara harus > 0."
+    );
+  }
+
+  // Create handoff
+  const [handoff] = await db
+    .insert(shiftHandoff)
+    .values({
+      fromShiftId: input.shiftId,
+      machineId: input.machineId,
+      plantId: input.plantId,
+      sisaTsgKg: String(input.sisaTsgKg),
+      batanganSementaraKg: String(input.batanganSementaraKg),
+      weighedAt: new Date(),
+      weighedBy: input.weighedBy,
+      note: input.note ?? null,
+    })
+    .returning();
+
+  return handoff;
+}
+
+// =============================================================================
+// Approve
+// =============================================================================
+
+export async function approveShift(
+  shiftId: string,
+  approvedBy: string,
+  reviewNotes?: string
+) {
+  const [shift] = await db
+    .select()
+    .from(shiftReport)
+    .where(eq(shiftReport.id, shiftId))
+    .limit(1);
+
+  if (!shift) throw new ServiceError("SHIFT_NOT_FOUND", "Shift tidak ditemukan.");
+  if (shift.status !== "COMPLETED") {
+    throw new ServiceError(
+      "SHIFT_NOT_COMPLETED",
+      "Hanya shift COMPLETED yang bisa di-approve."
+    );
+  }
+  if (shift.createdBy === approvedBy) {
+    throw new ServiceError(
+      "SELF_APPROVAL",
+      "Tidak bisa approve shift sendiri. Harus supervisor lain."
+    );
+  }
+
+  const [updated] = await db
+    .update(shiftReport)
+    .set({
+      status: "APPROVED",
+      approvedBy,
+      approvedAt: new Date(),
+      reviewNotes: reviewNotes ?? null,
+    })
+    .where(eq(shiftReport.id, shiftId))
+    .returning();
+
+  return updated;
+}
+
+// =============================================================================
+// Reopen (COMPLETED → RUNNING, pre-approval only)
+// =============================================================================
+
+export async function reopenShift(shiftId: string, reason: string) {
+  const [shift] = await db
+    .select()
+    .from(shiftReport)
+    .where(eq(shiftReport.id, shiftId))
+    .limit(1);
+
+  if (!shift) throw new ServiceError("SHIFT_NOT_FOUND", "Shift tidak ditemukan.");
+  if (shift.status !== "COMPLETED") {
+    throw new ServiceError(
+      "SHIFT_NOT_COMPLETED",
+      "Hanya shift COMPLETED yang bisa di-reopen."
+    );
+  }
+
+  await db
+    .update(shiftReport)
+    .set({ status: "RUNNING", notes: reason })
+    .where(eq(shiftReport.id, shiftId));
+
+  return { shiftId, status: "RUNNING" };
+}
+
+// =============================================================================
+// Get Shift Detail
+// =============================================================================
+
+export async function getShiftDetail(shiftId: string) {
+  const [shift] = await db
+    .select({
+      id: shiftReport.id,
+      plantId: shiftReport.plantId,
+      machineId: shiftReport.machineId,
+      productId: shiftReport.productId,
+      shiftTemplateId: shiftReport.shiftTemplateId,
+      reportDate: shiftReport.reportDate,
+      actualStart: shiftReport.actualStart,
+      actualEnd: shiftReport.actualEnd,
+      status: shiftReport.status,
+      createdBy: shiftReport.createdBy,
+      approvedBy: shiftReport.approvedBy,
+      approvedAt: shiftReport.approvedAt,
+      reviewNotes: shiftReport.reviewNotes,
+      notes: shiftReport.notes,
+    })
+    .from(shiftReport)
+    .where(eq(shiftReport.id, shiftId))
+    .limit(1);
+
+  if (!shift) throw new ServiceError("SHIFT_NOT_FOUND", "Shift tidak ditemukan.");
+
+  // Get related data
+  const members = await db
+    .select()
+    .from(shiftMember)
+    .where(eq(shiftMember.shiftReportId, shiftId));
+
+  const wastes = await db
+    .select()
+    .from(shiftWaste)
+    .where(eq(shiftWaste.shiftReportId, shiftId));
+
+  const boxes = await db
+    .select()
+    .from(tsgBoxProcess)
+    .where(eq(tsgBoxProcess.shiftReportId, shiftId))
+    .orderBy(tsgBoxProcess.boxNumber);
+
+  const handoffs = await db
+    .select()
+    .from(shiftHandoff)
+    .where(eq(shiftHandoff.fromShiftId, shiftId));
+
+  // Kalkulasi yield shift
+  const yieldPct = calculateShiftYield({
+    boxes: boxes
+      .filter((b) => b.outputWeightKg && b.tsgWeightKg)
+      .map((b) => ({
+        outputWeightKg: Number(b.outputWeightKg),
+        tsgWeightKg: Number(b.tsgWeightKg),
+      })),
+  });
+
+  return {
+    ...shift,
+    members,
+    wastes,
+    boxes,
+    handoffs,
+    yieldPct,
+  };
+}
+
+// =============================================================================
+// List Shifts
+// =============================================================================
+
+export async function listShifts(params: {
+  plantId?: string;
+  status?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+  cursor?: string;
+}) {
+  const conditions = [];
+
+  if (params.plantId) {
+    conditions.push(eq(shiftReport.plantId, params.plantId));
+  }
+  if (params.status) {
+    conditions.push(eq(shiftReport.status, params.status as "RUNNING" | "COMPLETED" | "APPROVED"));
+  }
+
+  const limit = Math.min(params.limit ?? 50, 200);
+
+  const shifts = await db
+    .select()
+    .from(shiftReport)
+    .where(and(...conditions))
+    .orderBy(sql`${shiftReport.reportDate} DESC, ${shiftReport.actualStart} DESC`)
+    .limit(limit);
+
+  return { data: shifts, pagination: { hasMore: shifts.length === limit } };
+}
+
+// =============================================================================
+// Error Class
+// =============================================================================
+
+export class ServiceError extends Error {
+  public code: string;
+  public details?: Record<string, unknown>;
+
+  constructor(code: string, message: string, details?: Record<string, unknown>) {
+    super(message);
+    this.name = "ServiceError";
+    this.code = code;
+    this.details = details;
+  }
+}
