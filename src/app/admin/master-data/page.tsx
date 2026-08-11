@@ -85,6 +85,17 @@ export default function MasterDataPage() {
     }
   };
 
+  const handleEdit = async (type: string) => {
+    try {
+      const endpoints: Record<string, string> = {
+        plant: `/plants/${form.id}`, machine: `/machines/${form.id}`,
+        product: `/products/${form.id}`, supplier: `/tsg-suppliers/${form.id}`,
+      };
+      await apiFetch(endpoints[type]!, { method: "PATCH", body: JSON.stringify(form) });
+      setShowAdd(null); setForm({}); loadData();
+    } catch (e: any) { alert(e.message); }
+  };
+
   const handleDelete = async (type: string, id: string) => {
     if (!confirm("Yakin hapus?")) return;
     try {
@@ -138,7 +149,10 @@ export default function MasterDataPage() {
                   <td className="py-3 font-mono font-medium">{p.code}</td>
                   <td className="py-3">{p.name}</td>
                   <td className="py-3 text-sm text-gray-500">{p.address ?? "-"}</td>
-                  <td className="py-3"><Button size="sm" variant="ghost" onClick={() => handleDelete("plant", p.id)}>🗑 Hapus</Button></td>
+                  <td className="py-3 flex gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => { setForm(p); setShowAdd("plant"); }}>✏️</Button>
+                    <Button size="sm" variant="ghost" onClick={() => handleDelete("plant", p.id)}>🗑</Button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -163,7 +177,10 @@ export default function MasterDataPage() {
                   <td className="py-3">{m.name}</td>
                   <td className="py-3"><Badge variant="neutral">{m.type}</Badge></td>
                   <td className="py-3"><Badge variant={m.isActive ? "success" : "neutral"}>{m.isActive ? "AKTIF" : "OFF"}</Badge></td>
-                  <td className="py-3"><Button size="sm" variant="ghost" onClick={() => handleDelete("machine", m.id)}>🗑 Hapus</Button></td>
+                  <td className="py-3 flex gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => { setForm(m); setShowAdd("machine"); }}>✏️</Button>
+                    <Button size="sm" variant="ghost" onClick={() => handleDelete("machine", m.id)}>🗑</Button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -198,7 +215,7 @@ export default function MasterDataPage() {
       </div>
 
       {/* Add Dialog */}
-      <Dialog open={!!showAdd} onClose={() => setShowAdd(null)} title={`Tambah ${showAdd === "plant" ? "Pabrik" : showAdd === "machine" ? "Mesin" : showAdd === "product" ? "Produk" : "Supplier"}`}>
+      <Dialog open={!!showAdd} onClose={() => setShowAdd(null)} title={`${form.id ? "Edit" : "Tambah"} ${showAdd === "plant" ? "Pabrik" : showAdd === "machine" ? "Mesin" : showAdd === "product" ? "Produk" : "Supplier"}`}>
         <div className="space-y-3">
           {showAdd === "plant" && (<>
             <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="PLT-MLG-02" />
@@ -226,7 +243,9 @@ export default function MasterDataPage() {
             <Input label="Kontak" value={form.contactPerson ?? ""} onChange={e => setForm({...form, contactPerson: e.target.value})} />
             <Input label="Telepon" value={form.contactPhone ?? ""} onChange={e => setForm({...form, contactPhone: e.target.value})} />
           </>)}
-          <Button size="lg" className="w-full" onClick={() => handleAdd(showAdd!)}>Simpan</Button>
+          <Button size="lg" className="w-full" onClick={() => form.id ? handleEdit(showAdd!) : handleAdd(showAdd!)}>
+            {form.id ? "Update" : "Simpan"}
+          </Button>
         </div>
       </Dialog>
     </div>
