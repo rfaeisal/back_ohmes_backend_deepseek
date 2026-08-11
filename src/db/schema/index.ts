@@ -59,6 +59,7 @@ export {
 } from "./dispatch";
 export {
   auditLog,
+  shiftCorrection,
   qrRegistry,
   idempotencyKey,
   qrTypeEnum,

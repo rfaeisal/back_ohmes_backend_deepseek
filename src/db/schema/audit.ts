@@ -12,6 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { plant } from "./tenancy";
 import { user } from "./identity";
+import { shiftReport } from "./shift";
 
 // =============================================================================
 // Enums
@@ -72,6 +73,23 @@ export const qrRegistry = pgTable("qr_registry", {
   generatedAt: timestamp("generated_at").notNull().defaultNow(),
   printedAt: timestamp("printed_at"),
   isActive: boolean("is_active").notNull().default(true),
+});
+
+// =============================================================================
+// Shift Correction — untuk CORRECTION flow pasca-LOCKED
+// =============================================================================
+
+export const shiftCorrection = pgTable("shift_correction", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  originalShiftId: uuid("original_shift_id")
+    .notNull()
+    .references(() => shiftReport.id),
+  correctedBy: uuid("corrected_by")
+    .notNull()
+    .references(() => user.id),
+  correctionFields: jsonb("correction_fields").notNull(), // [{ path, oldValue, newValue, reason }]
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // =============================================================================
