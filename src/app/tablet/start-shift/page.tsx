@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, CardSubtitle } from "@/components/ui/card";
@@ -26,7 +26,7 @@ const MOCK_TEMPLATES = [
 const MOCK_PRODUCTS = [{ id: "prd_hmr_std", code: "PRD-HMR-STD", brand: "Hummer", variant: "STD" }];
 const MOCK_USERS: any[] = [];
 
-export default function StartShiftPage() {
+function StartShiftForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const machineId = searchParams.get("machine") ?? "MKR-01";
@@ -187,5 +187,13 @@ export default function StartShiftPage() {
         {loading ? "Memulai..." : `Mulai Shift · ${selectedTpl?.name ?? ""}`}
       </Button>
     </div>
+  );
+}
+
+export default function StartShiftPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-gray-500">Memuat...</div>}>
+      <StartShiftForm />
+    </Suspense>
   );
 }
