@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
-import { Power, PowerOff } from "lucide-react";
+import { Power, PowerOff, Key } from "lucide-react";
 
 const API = "/api/v1";
 function getToken() { return typeof window !== "undefined" ? localStorage.getItem("accessToken") : null; }
@@ -34,6 +34,7 @@ export default function UsersPage() {
   // Dialog states
   const [showAdd, setShowAdd] = useState(false);
   const [showAssign, setShowAssign] = useState<any>(null);
+  const [showPassword, setShowPassword] = useState<any>(null);
   const [form, setForm] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
@@ -96,6 +97,20 @@ export default function UsersPage() {
       }) });
       setSuccess("Role berhasil di-assign.");
       setShowAssign(null); setForm({}); load();
+    } catch (e: any) { setError(e.message); }
+    finally { setSaving(false); }
+  };
+
+  const handleChangePassword = async () => {
+    if (!showPassword) return;
+    setSaving(true); setError("");
+    try {
+      await apiFetch(`/super/users/${showPassword.id}/reset-password`, {
+        method: "POST",
+        body: JSON.stringify({ newPassword: form.newPassword, requireChangeOnNextLogin: false }),
+      });
+      setSuccess(`Password untuk ${showPassword.username} berhasil direset.`);
+      setShowPassword(null); setForm({});
     } catch (e: any) { setError(e.message); }
     finally { setSaving(false); }
   };
@@ -166,6 +181,9 @@ export default function UsersPage() {
                   </td>
                   <td className="py-3">
                     <div className="flex gap-2">
+                      <Button size="sm" variant="ghost" onClick={() => { setShowPassword(u); setForm({}); setError(""); }} title="Ganti Password">
+                        <Key className="size-4" />
+                      </Button>
                       <Button size="sm" variant="outline" onClick={() => { setShowAssign(u); setForm({}); setError(""); }}>
                         + Role
                       </Button>
@@ -202,6 +220,16 @@ export default function UsersPage() {
           <Input label="Password" type="password" value={form.password ?? ""} onChange={e => setForm({...form, password: e.target.value})} placeholder="Min 8 karakter" />
           <Button size="lg" className="w-full" onClick={handleAdd} disabled={saving || !form.username || !form.password}>
             {saving ? "Menyimpan..." : "Simpan User"}
+          </Button>
+        </div>
+      </Dialog>
+
+      {/* Change Password Dialog */}
+      <Dialog open={!!showPassword} onClose={() => setShowPassword(null)} title={`Ganti Password: ${showPassword?.username ?? ""}`}>
+        <div className="space-y-3">
+          <Input label="Password Baru" type="password" value={form.newPassword ?? ""} onChange={e => setForm({...form, newPassword: e.target.value})} placeholder="Min 8 karakter" />
+          <Button size="lg" className="w-full" onClick={handleChangePassword} disabled={saving || !form.newPassword || (form.newPassword?.length ?? 0) < 8}>
+            {saving ? "Menyimpan..." : "Reset Password"}
           </Button>
         </div>
       </Dialog>
