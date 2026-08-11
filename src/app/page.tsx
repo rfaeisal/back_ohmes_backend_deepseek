@@ -18,26 +18,26 @@ export default function HomePage() {
             Status
           </h2>
           <div className="flex items-center gap-2">
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-yellow-400" />
-            <span className="font-medium">Fase 0 — Foundation (dalam pengerjaan)</span>
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" />
+            <span className="font-medium">Semua Fase Selesai (0–6)</span>
           </div>
           <p className="mt-2 text-sm text-gray-500">
-            API Foundation, skema database, RBAC, dan autentikasi sedang
-            disiapkan. Fitur operasional dimulai di Fase 1.
+            43 tabel database, 40+ API endpoint, 7 halaman tablet UI, 86 test.
+            Siap untuk pilot pabrik.
           </p>
         </div>
         <div className="flex flex-wrap justify-center gap-3">
           <Link
-            href="/api/v1/health"
+            href="/tablet"
             className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 transition-colors"
           >
-            Cek API Health
+            Buka Aplikasi Tablet
           </Link>
           <Link
-            href="/docs"
+            href="/api/v1/health"
             className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
           >
-            Dokumentasi
+            Cek API Health
           </Link>
         </div>
       </div>

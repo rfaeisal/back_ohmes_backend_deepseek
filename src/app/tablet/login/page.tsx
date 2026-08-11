@@ -10,6 +10,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -25,6 +26,7 @@ export default function LoginPage() {
         body: JSON.stringify({
           username,
           password,
+          otp: otp || undefined,
           deviceType: "WEB",
         }),
       });
@@ -82,6 +84,13 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
+            />
+            <Input
+              label="Kode OTP (Super Admin)"
+              type="text"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              placeholder="000000 (dev) — kosongkan untuk operator biasa"
             />
           </div>
 
