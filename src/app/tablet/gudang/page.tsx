@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Printer } from "lucide-react";
 
 interface InventoryItem {
   id: string;
@@ -57,9 +59,16 @@ export default function GudangInboundPage() {
             Terima TSG dari supplier · Inventory FIFO
           </p>
         </div>
-        <Button size="xl" onClick={() => setShowReceiving(true)}>
-          🚛 Terima TSG Baru
-        </Button>
+        <div className="flex gap-3">
+          <Link href="/admin/labels">
+            <Button size="xl" variant="outline">
+              <Printer className="size-5 mr-2" /> Cetak Label
+            </Button>
+          </Link>
+          <Button size="xl" onClick={() => setShowReceiving(true)}>
+            🚛 Terima TSG Baru
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
