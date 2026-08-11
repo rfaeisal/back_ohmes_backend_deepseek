@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -9,27 +9,20 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Printer } from "lucide-react";
 
-interface InventoryItem {
-  id: string;
-  boxCode: string;
-  weightKg: number;
-  tsgType?: string;
-  ageInDays: number;
-  location: string;
-  status: "AVAILABLE" | "ALLOCATED" | "USED" | "WRITTEN_OFF";
-}
-
-const MOCK_INVENTORY: InventoryItem[] = [
-  { id: "inv_001", boxCode: "TSG-20260808-042", weightKg: 29.70, tsgType: "REGULER", ageInDays: 3, location: "RAK-A-01", status: "AVAILABLE" },
-  { id: "inv_002", boxCode: "TSG-20260809-011", weightKg: 30.05, tsgType: "MILD", ageInDays: 2, location: "RAK-A-02", status: "AVAILABLE" },
-  { id: "inv_003", boxCode: "TSG-20260810-005", weightKg: 29.85, tsgType: "PUTIHAN", ageInDays: 1, location: "RAK-A-01", status: "AVAILABLE" },
-  { id: "inv_004", boxCode: "TSG-20260810-006", weightKg: 30.20, tsgType: "REGULER", ageInDays: 1, location: "RAK-B-03", status: "USED" },
-  { id: "inv_005", boxCode: "TSG-20260801-033", weightKg: 29.50, tsgType: "REGULER", ageInDays: 10, location: "RAK-A-01", status: "ALLOCATED" },
-];
-
 export default function GudangInboundPage() {
-  const [inventory] = useState(MOCK_INVENTORY);
+  const [inventory, setInventory] = useState<any[]>([]);
   const [showReceiving, setShowReceiving] = useState(false);
+
+  const loadInventory = async () => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch("/api/v1/tsg-inventory/available?limit=200", { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { const data = await res.json(); setInventory(data.data ?? []); }
+    } catch {}
+  };
+
+  // Load on mount
+  useEffect(() => { loadInventory(); }, []);
   const [receivingBoxes, setReceivingBoxes] = useState<Array<{ code: string; weight: string; type: string }>>([
     { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" },
   ]);
@@ -65,7 +58,7 @@ export default function GudangInboundPage() {
       if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || "Gagal menyimpan"); }
       setShowReceiving(false);
       setReceivingBoxes([{ code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }]);
-      window.location.reload();
+      loadInventory();
     } catch (e: any) { setReceivingError(e.message); }
     finally { setSaving(false); }
   };
