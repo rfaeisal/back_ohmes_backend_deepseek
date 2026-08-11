@@ -30,8 +30,8 @@ const MOCK_INVENTORY: InventoryItem[] = [
 export default function GudangInboundPage() {
   const [inventory] = useState(MOCK_INVENTORY);
   const [showReceiving, setShowReceiving] = useState(false);
-  const [receivingBoxes, setReceivingBoxes] = useState<Array<{ code: string; weight: string }>>([
-    { code: "", weight: "" }, { code: "", weight: "" }, { code: "", weight: "" },
+  const [receivingBoxes, setReceivingBoxes] = useState<Array<{ code: string; weight: string; type: string }>>([
+    { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" },
   ]);
   const [filterStatus, setFilterStatus] = useState<string>("AVAILABLE");
 
@@ -68,7 +68,7 @@ export default function GudangInboundPage() {
               <Printer className="size-5 mr-2" /> Cetak Label
             </Button>
           </Link>
-          <Button size="xl" onClick={() => { setReceivingBoxes([{ code: "", weight: "" }, { code: "", weight: "" }, { code: "", weight: "" }]); setShowReceiving(true); }}>
+          <Button size="xl" onClick={() => { setReceivingBoxes([{ code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }]); setShowReceiving(true); }}>
             🚛 Terima TSG Baru
           </Button>
         </div>
@@ -170,14 +170,19 @@ export default function GudangInboundPage() {
                     placeholder={`TSG-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${String(i + 1).padStart(3, "0")}`}
                     className="flex-1"
                   />
-                  <Input type="number" value={box.weight} onChange={e => { const next = [...receivingBoxes]; next[i] = { ...next[i]!, weight: e.target.value }; setReceivingBoxes(next); }} placeholder="0.00" className="w-32" />
+                  <Input type="number" value={box.weight} onChange={e => { const next = [...receivingBoxes]; next[i] = { ...next[i]!, weight: e.target.value }; setReceivingBoxes(next); }} placeholder="0.00" className="w-28" />
+                  <select className="w-28 rounded-lg border border-gray-300 px-2 py-3 text-sm bg-white" value={box.type} onChange={e => { const next = [...receivingBoxes]; next[i] = { ...next[i]!, type: e.target.value }; setReceivingBoxes(next); }}>
+                    <option value="REGULER">Reguler</option>
+                    <option value="MILD">Mild</option>
+                    <option value="PUTIHAN">Putihan</option>
+                  </select>
                   {receivingBoxes.length > 1 && (
                     <button className="text-red-400 hover:text-red-600" onClick={() => setReceivingBoxes(receivingBoxes.filter((_, j) => j !== i))}>✕</button>
                   )}
                 </div>
               ))}
             </div>
-            <Button variant="outline" size="sm" className="mt-2" onClick={() => setReceivingBoxes([...receivingBoxes, { code: "", weight: "" }])}>
+            <Button variant="outline" size="sm" className="mt-2" onClick={() => setReceivingBoxes([...receivingBoxes, { code: "", weight: "", type: "REGULER" }])}>
               + Tambah Boks
             </Button>
           </div>
