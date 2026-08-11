@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { eq, and, sql } from "drizzle-orm";
 import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import db from "@/db";
-import { shiftReport, shiftWaste, shiftMember, downtimeLog } from "@/db/schema";
+import { shiftReport, shiftWaste, downtimeLog } from "@/db/schema";
 
 export const GET = withAuth(
   async (_request: Request, _ctx: AuthContext, { params }: { params: Promise<{ plantId: string }> }) => {

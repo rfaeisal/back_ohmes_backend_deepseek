@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardTitle, CardSubtitle } from "@/components/ui/card";
+import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 const MOCK_KPI = {

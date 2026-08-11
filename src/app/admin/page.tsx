@@ -26,30 +26,14 @@ export default function AdminOverview() {
       {/* Navigation Cards */}
       <div className="grid grid-cols-2 gap-4">
         {[
-          {
-            href: "/admin/users",
-            title: "Users & Role",
-            desc: "Kelola user, assignment role, scope, dan session",
-            icon: "👤",
-          },
-          {
-            href: "/admin/master-data",
-            title: "Master Data",
-            desc: "Produk, mesin, template, supplier, shift role",
-            icon: "⚙️",
-          },
-          {
-            href: "/admin/audit",
-            title: "Audit Log",
-            desc: "Lihat semua aktivitas, filter by entity & user",
-            icon: "📋",
-          },
-          {
-            href: "/admin/super",
-            title: "SUPERADMIN Tools",
-            desc: "Impersonate, force logout, security log, session",
-            icon: "🔐",
-          },
+          { href: "/admin/approvals", title: "Approval Shift", desc: "Supervisor: review & approve shift COMPLETED → LOCKED", icon: "✅" },
+          { href: "/admin/area-dashboard", title: "Dashboard Area", desc: "Koordinator: rollup KPI semua pabrik dalam region", icon: "📍" },
+          { href: "/admin/analytics", title: "HQ Analytics", desc: "Analyst: yield trend, OEE, waste benchmark, export cukai", icon: "📈" },
+          { href: "/admin/corrections", title: "CORRECTION Flow", desc: "Auditor: koreksi shift LOCKED tanpa mengubah data asli", icon: "🔧" },
+          { href: "/admin/users", title: "Users & Role", desc: "Admin: kelola user, assignment, 13 role", icon: "👤" },
+          { href: "/admin/master-data", title: "Master Data", desc: "Admin: pabrik, mesin, produk, supplier", icon: "⚙️" },
+          { href: "/admin/audit", title: "Audit Log", desc: "Admin/SUPERADMIN: immutable trail semua aktivitas", icon: "📋" },
+          { href: "/admin/super", title: "SUPERADMIN Tools", desc: "Impersonate, force logout, revoke session, security log", icon: "🔐" },
         ].map((item) => (
           <Link key={item.href} href={item.href}>
             <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
@@ -69,7 +53,7 @@ export default function AdminOverview() {
       <div className="mt-8">
         <h2 className="text-xl font-bold text-gray-900 mb-4">Status Fase</h2>
         <div className="grid grid-cols-7 gap-2">
-          {["F0 Foundation", "F1 Pilot", "F2 Rollout", "F3 Mobile+QR", "F4 Analytics", "F5 Outbound", "F6 Distribusi"].map((f, i) => (
+          {["F0 Foundation", "F1 Pilot", "F2 Rollout", "F3 Mobile+QR", "F4 Analytics", "F5 Outbound", "F6 Distribusi"].map((f) => (
             <Card key={f} highlight="green">
               <div className="text-center">
                 <p className="text-lg font-bold text-green-700">✅</p>

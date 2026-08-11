@@ -7,10 +7,14 @@ export const metadata: Metadata = {
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Overview", icon: "📊" },
-  { href: "/admin/users", label: "Users & Role", icon: "👤" },
-  { href: "/admin/master-data", label: "Master Data", icon: "⚙️" },
-  { href: "/admin/audit", label: "Audit Log", icon: "📋" },
-  { href: "/admin/super", label: "SUPERADMIN", icon: "🔐" },
+  { href: "/admin/approvals", label: "Approval Shift", icon: "✅", role: "SHIFT_SUPERVISOR" },
+  { href: "/admin/area-dashboard", label: "Dashboard Area", icon: "📍", role: "AREA_COORDINATOR" },
+  { href: "/admin/analytics", label: "HQ Analytics", icon: "📈", role: "HQ_ANALYST" },
+  { href: "/admin/corrections", label: "Correction", icon: "🔧", role: "HQ_AUDITOR" },
+  { href: "/admin/users", label: "Users & Role", icon: "👤", role: "HQ_ADMIN" },
+  { href: "/admin/master-data", label: "Master Data", icon: "⚙️", role: "HQ_ADMIN" },
+  { href: "/admin/audit", label: "Audit Log", icon: "📋", role: "SUPERADMIN" },
+  { href: "/admin/super", label: "SUPERADMIN Tools", icon: "🔐", role: "SUPERADMIN" },
   { href: "/tablet", label: "← Tablet Operator", icon: "🏭" },
 ];
 
