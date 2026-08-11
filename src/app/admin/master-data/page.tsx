@@ -305,7 +305,13 @@ export default function MasterDataPage() {
             <select className="w-full rounded-lg border px-4 py-3" value={form.type ?? "MAKER"} onChange={e => setForm({...form, type: e.target.value})}>
               <option value="MAKER">MAKER</option><option value="HLP">HLP</option>
             </select>
-            <Input label="Plant ID" value={form.plantId ?? ""} onChange={e => setForm({...form, plantId: e.target.value})} placeholder="UUID plant" />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Pabrik</label>
+              <select className="w-full rounded-lg border px-4 py-3 bg-white" value={form.plantId ?? ""} onChange={e => setForm({...form, plantId: e.target.value})}>
+                <option value="">Pilih Pabrik</option>
+                {plants.map((p: any) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+              </select>
+            </div>
           </>)}
           {showAdd === "product" && (<>
             {!form.id && <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="PRD-HMR-LTS" />}
@@ -317,6 +323,15 @@ export default function MasterDataPage() {
             <Input label="Nama" value={form.name ?? ""} onChange={e => setForm({...form, name: e.target.value})} placeholder="Shift Pagi" />
             <Input label="Jam Mulai" value={form.startTime ?? ""} onChange={e => setForm({...form, startTime: e.target.value})} placeholder="05:30" />
             <Input label="Durasi (menit)" type="number" value={form.durationMinutes ?? ""} onChange={e => setForm({...form, durationMinutes: e.target.value})} placeholder="660" />
+            {!form.id && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Pabrik</label>
+                <select className="w-full rounded-lg border px-4 py-3 bg-white" value={form.plantId ?? ""} onChange={e => setForm({...form, plantId: e.target.value})}>
+                  <option value="">Pilih Pabrik</option>
+                  {plants.map((p: any) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                </select>
+              </div>
+            )}
           </>)}
           {showAdd === "supplier" && (<>
             {!form.id && <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="SUP-JAWA-03" />}
