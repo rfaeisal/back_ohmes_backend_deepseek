@@ -106,7 +106,7 @@ export default function GudangInboundPage() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Link href="/admin/labels">
+          <Link href="/tablet/labels">
             <Button size="xl" variant="outline">
               <Printer className="size-5 mr-2" /> Cetak Label
             </Button>
