@@ -190,16 +190,17 @@ export default function MasterDataPage() {
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left">
             <thead className="border-b border-gray-200">
-              <tr><th className="pb-3 text-sm font-semibold text-gray-600">Kode</th><th className="pb-3 text-sm font-semibold text-gray-600">Nama</th><th className="pb-3 text-sm font-semibold text-gray-600">Tipe</th><th className="pb-3 text-sm font-semibold text-gray-600">Status</th><th className="pb-3 text-sm font-semibold text-gray-600">Aksi</th></tr>
+              <tr><th className="pb-3 text-sm font-semibold text-gray-600">Kode</th><th className="pb-3 text-sm font-semibold text-gray-600">Nama</th><th className="pb-3 text-sm font-semibold text-gray-600">Tipe</th><th className="pb-3 text-sm font-semibold text-gray-600">Pabrik</th><th className="pb-3 text-sm font-semibold text-gray-600">Status</th><th className="pb-3 text-sm font-semibold text-gray-600">Aksi</th></tr>
             </thead>
             <tbody>
               {machines.length === 0 ? (
-                <tr><td colSpan={5} className="py-6 text-center text-gray-400">Belum ada mesin</td></tr>
+                <tr><td colSpan={6} className="py-6 text-center text-gray-400">Belum ada mesin</td></tr>
               ) : machines.map((m: any) => (
                 <tr key={m.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 font-mono font-medium">{m.code}</td>
                   <td className="py-3">{m.name}</td>
                   <td className="py-3"><Badge variant="neutral">{m.type}</Badge></td>
+                  <td className="py-3 text-sm text-gray-500">{plants.find((p: any) => p.id === m.plantId)?.code ?? "-"}</td>
                   <td className="py-3"><Badge variant={m.isActive ? "success" : "error"}>{m.isActive ? "AKTIF" : "OFF"}</Badge></td>
                   <td className="py-3 flex gap-1">
                     <Button size="sm" variant="ghost" onClick={() => handleToggleActive("machine", m.id, m.isActive)} title={m.isActive ? "Nonaktifkan" : "Aktifkan"}>
@@ -267,17 +268,18 @@ export default function MasterDataPage() {
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left">
             <thead className="border-b border-gray-200">
-              <tr><th className="pb-3 text-sm font-semibold text-gray-600">Kode</th><th className="pb-3 text-sm font-semibold text-gray-600">Nama</th><th className="pb-3 text-sm font-semibold text-gray-600">Mulai</th><th className="pb-3 text-sm font-semibold text-gray-600">Durasi</th><th className="pb-3 text-sm font-semibold text-gray-600">Aksi</th></tr>
+              <tr><th className="pb-3 text-sm font-semibold text-gray-600">Kode</th><th className="pb-3 text-sm font-semibold text-gray-600">Nama</th><th className="pb-3 text-sm font-semibold text-gray-600">Mulai</th><th className="pb-3 text-sm font-semibold text-gray-600">Durasi</th><th className="pb-3 text-sm font-semibold text-gray-600">Pabrik</th><th className="pb-3 text-sm font-semibold text-gray-600">Aksi</th></tr>
             </thead>
             <tbody>
               {shiftTemplates.length === 0 ? (
-                <tr><td colSpan={5} className="py-6 text-center text-gray-400">Belum ada shift template</td></tr>
+                <tr><td colSpan={6} className="py-6 text-center text-gray-400">Belum ada shift template</td></tr>
               ) : shiftTemplates.map((st: any) => (
                 <tr key={st.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 font-mono font-medium">{st.code}</td>
                   <td className="py-3">{st.name}</td>
                   <td className="py-3">{st.startTime}</td>
                   <td className="py-3">{st.durationMinutes} menit ({Math.floor(st.durationMinutes / 60)}j {st.durationMinutes % 60}m)</td>
+                  <td className="py-3 text-sm text-gray-500">{plants.find((p: any) => p.id === st.plantId)?.code ?? "-"}</td>
                   <td className="py-3 flex gap-1">
                     <Button size="sm" variant="ghost" onClick={() => { setForm(st); setShowAdd("shiftTemplate"); }}><Pencil className="size-4" /></Button>
                     <Button size="sm" variant="ghost" onClick={() => handleDelete("shiftTemplate", st.id)}><Trash2 className="size-4 text-red-500" /></Button>
