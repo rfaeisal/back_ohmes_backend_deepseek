@@ -28,7 +28,11 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
   try {
     const body = await request.json();
     const parsed = assignSchema.safeParse(body);
-    if (!parsed.success) return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Input tidak valid.", details: parsed.error.flatten() }, requestId: ctx.requestId }, { status: 400 });
+    if (!parsed.success) {
+      const fields = parsed.error.flatten().fieldErrors;
+      const fieldMsgs = Object.entries(fields).map(([k, v]) => `${k}: ${(v as string[]).join(", ")}`).join("; ");
+      return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: fieldMsgs || "Input tidak valid.", details: parsed.error.flatten() }, requestId: ctx.requestId }, { status: 400 });
+    }
 
     const [roleRecord] = await db.select({ id: role.id }).from(role).where(eq(role.code, parsed.data.roleCode)).limit(1);
     if (!roleRecord) return NextResponse.json({ error: { code: "ROLE_NOT_FOUND", message: "Role tidak ditemukan." }, requestId: ctx.requestId }, { status: 400 });

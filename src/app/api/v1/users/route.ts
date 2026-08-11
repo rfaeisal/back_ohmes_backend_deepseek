@@ -25,7 +25,11 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
   try {
     const body = await request.json();
     const parsed = createSchema.safeParse(body);
-    if (!parsed.success) return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Input tidak valid.", details: parsed.error.flatten() }, requestId: ctx.requestId }, { status: 400 });
+    if (!parsed.success) {
+      const fields = parsed.error.flatten().fieldErrors;
+      const fieldMsgs = Object.entries(fields).map(([k, v]) => `${k}: ${(v as string[]).join(", ")}`).join("; ");
+      return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: fieldMsgs || "Input tidak valid.", details: parsed.error.flatten() }, requestId: ctx.requestId }, { status: 400 });
+    }
 
     const passwordHash = await hashPassword(parsed.data.password);
     const [newUser] = await db.insert(user).values({

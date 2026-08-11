@@ -72,7 +72,20 @@ export default function UsersPage() {
       }) });
       setSuccess("User berhasil dibuat.");
       setShowAdd(false); setForm({}); load();
-    } catch (e: any) { setError(e.message); }
+    } catch (e: any) {
+      // Try to parse field-level errors from API response
+      let msg = e.message;
+      try {
+        const body = JSON.parse(e.message);
+        if (body?.details?.fieldErrors) {
+          const fields = Object.entries(body.details.fieldErrors)
+            .map(([k, v]) => `${k}: ${(v as string[]).join(", ")}`)
+            .join("; ");
+          if (fields) msg = fields;
+        }
+      } catch {}
+      setError(msg);
+    }
     finally { setSaving(false); }
   };
 
