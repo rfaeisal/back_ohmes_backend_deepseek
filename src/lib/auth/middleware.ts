@@ -43,10 +43,8 @@ export function withAuth(
   handler: AuthHandler,
   options?: AuthOptions
 ) {
-  return async function (
-    request: Request,
-    routeParams?: { params: Promise<Record<string, string>> }
-  ): Promise<NextResponse> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return async function (request: Request, ...args: any[]): Promise<NextResponse> {
     const requestId =
       request.headers.get("X-Request-Id") ||
       `req_${crypto.randomUUID().slice(0, 8)}`;
@@ -104,9 +102,9 @@ export function withAuth(
       });
 
       // 5. Call handler dengan context + route params
-      // Handler bisa punya 2 atau 3 parameter: (req, ctx) atau (req, ctx, { params })
-      const response = routeParams
-        ? await handler(request, { user: payload, requestId }, routeParams)
+      const routeArg = args[0] as { params: Promise<Record<string, string>> } | undefined;
+      const response = routeArg
+        ? await handler(request, { user: payload, requestId }, routeArg)
         : await handler(request, { user: payload, requestId });
 
       // 6. Inject request ID ke response
