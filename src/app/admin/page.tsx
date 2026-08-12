@@ -1,7 +1,20 @@
 import Link from "next/link";
+import { sql } from "drizzle-orm";
+import db from "@/db";
 import { Card, CardTitle, CardSubtitle } from "@/components/ui/card";
+import { plant, user, shiftReport } from "@/db/schema";
 
-export default function AdminOverview() {
+export default async function AdminOverview() {
+  // Real data dari database
+  const plants = await db.select().from(plant);
+  const users = await db.select().from(user).where(sql`${user.deletedAt} IS NULL`);
+  const today = new Date().toISOString().slice(0, 10);
+  const todayShifts = await db.select().from(shiftReport).where(sql`${shiftReport.reportDate}::text = ${today} AND ${shiftReport.deletedAt} IS NULL`);
+
+  const plantInfo = plants.length === 1 ? `${plants[0]!.code}` : `${plants.length} pabrik`;
+  const runningToday = todayShifts.filter((s) => s.status === "RUNNING").length;
+  const completedToday = todayShifts.filter((s) => s.status === "COMPLETED" || s.status === "APPROVED").length;
+
   return (
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
@@ -9,18 +22,28 @@ export default function AdminOverview() {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-4 gap-4 mb-8">
-        {[
-          { label: "Pabrik", value: "1", sub: "PLT-MLG-01" },
-          { label: "User", value: "1", sub: "1 SUPERADMIN" },
-          { label: "Shift Hari Ini", value: "0", sub: "Belum ada" },
-          { label: "API Endpoints", value: "40+", sub: "7 fase selesai" },
-        ].map((s) => (
-          <Card key={s.label}>
-            <p className="text-xs text-gray-500">{s.label}</p>
-            <p className="text-3xl font-bold text-gray-900">{s.value}</p>
-            <p className="text-sm text-gray-400">{s.sub}</p>
-          </Card>
-        ))}
+        <Card>
+          <p className="text-xs text-gray-500">Pabrik</p>
+          <p className="text-3xl font-bold text-gray-900">{plants.length}</p>
+          <p className="text-sm text-gray-400">{plantInfo}</p>
+        </Card>
+        <Card>
+          <p className="text-xs text-gray-500">User Aktif</p>
+          <p className="text-3xl font-bold text-gray-900">{users.length}</p>
+          <p className="text-sm text-gray-400">7 role utama</p>
+        </Card>
+        <Card>
+          <p className="text-xs text-gray-500">Shift Hari Ini</p>
+          <p className="text-3xl font-bold text-gray-900">{todayShifts.length}</p>
+          <p className="text-sm text-gray-400">
+            {runningToday > 0 ? `${runningToday} berjalan` : completedToday > 0 ? `${completedToday} selesai` : "Belum ada"}
+          </p>
+        </Card>
+        <Card>
+          <p className="text-xs text-gray-500">API Endpoints</p>
+          <p className="text-3xl font-bold text-gray-900">60+</p>
+          <p className="text-sm text-gray-400">REST /api/v1</p>
+        </Card>
       </div>
 
       {/* Navigation Cards */}
