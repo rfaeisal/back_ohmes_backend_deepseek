@@ -48,14 +48,14 @@ export default function RosterPage() {
   const [saving, setSaving] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<string>("");
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent?: boolean) => {
+    if (!silent) setLoading(true);
     const ws = formatDate(weekStart);
     const data = await apiFetch(`/shift-roster?weekStart=${ws}`);
     setUsers(data.users ?? []);
     setTemplates(data.templates ?? []);
     setAssignments(data.assignments ?? []);
-    setLoading(false);
+    if (!silent) setLoading(false);
   }, [weekStart]);
 
   useEffect(() => { load(); }, [load]);
@@ -86,8 +86,8 @@ export default function RosterPage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ weekStart: formatDate(weekStart), assignments }),
       });
-      alert("✅ Roster disimpan!");
-      load();
+      alert("✅ Roster disimpan! (" + assignments.length + " assignment)");
+      load(true); // silent reload
     } catch { alert("❌ Gagal menyimpan"); }
     finally { setSaving(false); }
   };
