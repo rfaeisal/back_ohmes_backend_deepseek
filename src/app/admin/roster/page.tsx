@@ -82,14 +82,14 @@ export default function RosterPage() {
     setSaving(true);
     try {
       const token = getToken();
-      await fetch(`${API}/shift-roster`, {
+      const res = await fetch(`${API}/shift-roster`, {
         method: "POST",
         cache: "no-store",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ weekStart: formatDate(weekStart), assignments }),
       });
-      alert("✅ Roster disimpan! (" + assignments.length + " assignment)");
-      load(true); // silent reload
+      const data = await res.json();
+      alert(`✅ Roster disimpan! (${data.saved ?? assignments.length} assignment)`);
     } catch { alert("❌ Gagal menyimpan"); }
     finally { setSaving(false); }
   };
