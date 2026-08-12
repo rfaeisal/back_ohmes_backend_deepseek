@@ -310,24 +310,32 @@ export default function MasterDataPage() {
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left">
             <thead className="border-b border-gray-200">
-              <tr><th className="pb-3 text-sm font-semibold text-gray-600">Kode</th><th className="pb-3 text-sm font-semibold text-gray-600">Nama</th><th className="pb-3 text-sm font-semibold text-gray-600">Mulai</th><th className="pb-3 text-sm font-semibold text-gray-600">Durasi</th><th className="pb-3 text-sm font-semibold text-gray-600">Pabrik</th><th className="pb-3 text-sm font-semibold text-gray-600">Aksi</th></tr>
+              <tr><th className="pb-3 text-sm font-semibold text-gray-600">Kode</th><th className="pb-3 text-sm font-semibold text-gray-600">Nama</th><th className="pb-3 text-sm font-semibold text-gray-600">Mulai</th><th className="pb-3 text-sm font-semibold text-gray-600">Selesai</th><th className="pb-3 text-sm font-semibold text-gray-600">Durasi</th><th className="pb-3 text-sm font-semibold text-gray-600">Pabrik</th><th className="pb-3 text-sm font-semibold text-gray-600">Aksi</th></tr>
             </thead>
             <tbody>
               {shiftTemplates.length === 0 ? (
-                <tr><td colSpan={6} className="py-6 text-center text-gray-400">Belum ada shift template</td></tr>
-              ) : shiftTemplates.map((st: any) => (
-                <tr key={st.id} className="border-b border-gray-100 hover:bg-gray-50">
+                <tr><td colSpan={7} className="py-6 text-center text-gray-400">Belum ada shift template</td></tr>
+              ) : shiftTemplates.map((st: any) => {
+                const p = (st.startTime || "00:00").split(":");
+                const sh = parseInt(p[0] || "0"); const sm = parseInt(p[1] || "0");
+                const tm = parseInt(st.durationMinutes) || 0;
+                const eh = (sh + Math.floor((sm + tm) / 60)) % 24;
+                const em = (sm + tm) % 60;
+                const et = `${String(eh).padStart(2,"0")}:${String(em).padStart(2,"0")}`;
+                const cross = (sh * 60 + sm + tm) > 24 * 60;
+                return <tr key={st.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 font-mono font-medium">{st.code}</td>
                   <td className="py-3">{st.name}</td>
                   <td className="py-3">{st.startTime}</td>
-                  <td className="py-3">{st.durationMinutes} menit ({Math.floor(st.durationMinutes / 60)}j {st.durationMinutes % 60}m)</td>
+                  <td className="py-3">{et} {cross && <Badge variant="warning" className="ml-1 text-xs">+1</Badge>}</td>
+                  <td className="py-3 text-sm">{Math.floor(tm/60)}j {tm%60}m</td>
                   <td className="py-3 text-sm text-gray-500">{plants.find((p: any) => p.id === st.plantId)?.code ?? "-"}</td>
                   <td className="py-3 flex gap-1">
                     <Button size="sm" variant="ghost" onClick={() => { setForm(st); setShowAdd("shiftTemplate"); }}><Pencil className="size-4" /></Button>
                     <Button size="sm" variant="ghost" onClick={() => handleDelete("shiftTemplate", st.id)}><Trash2 className="size-4 text-red-500" /></Button>
                   </td>
-                </tr>
-              ))}
+                </tr>;
+              })}
             </tbody>
           </table>
         </div>
@@ -386,8 +394,14 @@ export default function MasterDataPage() {
           {showAdd === "shiftTemplate" && (<>
             {!form.id && <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="shift_pagi" />}
             <Input label="Nama" value={form.name ?? ""} onChange={e => setForm({...form, name: e.target.value})} placeholder="Shift Pagi" />
-            <Input label="Jam Mulai" value={form.startTime ?? ""} onChange={e => setForm({...form, startTime: e.target.value})} placeholder="05:30" />
-            <Input label="Durasi (menit)" type="number" value={form.durationMinutes ?? ""} onChange={e => setForm({...form, durationMinutes: e.target.value})} placeholder="660" />
+            <Input label="Jam Mulai" value={form.startTime ?? ""} onChange={e => setForm({...form, startTime: e.target.value})} placeholder="07:00" />
+            <Input label="Jam Selesai" value={form.endTime ?? ""} onChange={e => { const sp = (form.startTime || "00:00").split(":"); const sh = parseInt(sp[0]||"0"); const sm = parseInt(sp[1]||"0"); const ep = (e.target.value || "00:00").split(":"); const eh = parseInt(ep[0]||"0"); const em = parseInt(ep[1]||"0"); let dur = (eh*60+em) - (sh*60+sm); if (dur <= 0) dur += 24*60; setForm({...form, endTime: e.target.value, durationMinutes: String(dur)}); }} placeholder="15:00" />
+            {form.endTime && form.startTime && (
+              <div className="flex items-center gap-2 text-sm">
+                <Badge variant="info">Durasi: {Math.floor(parseInt(form.durationMinutes || "0") / 60)}j {parseInt(form.durationMinutes || "0") % 60}m</Badge>
+                {(() => { const sp = (form.startTime || "00:00").split(":"); const sh = parseInt(sp[0]||"0"); const ep = (form.endTime || "00:00").split(":"); const eh = parseInt(ep[0]||"0"); return (eh < sh) ? <Badge variant="warning">Lintas Hari</Badge> : null; })()}
+              </div>
+            )}
             {!form.id && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Pabrik</label>
