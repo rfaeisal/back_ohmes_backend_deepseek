@@ -58,25 +58,14 @@ export const POST = withAuth(async (request: Request) => {
   if (!parsed.success) return NextResponse.json({ error: { code: "VALIDATION_ERROR" } }, { status: 400 });
 
   const { weekStart, assignments } = parsed.data;
-  // Save roster using raw SQL — upsert pattern
+  // Delete old assignments for this week, then re-insert
+  await db.execute(sql`DELETE FROM shift_roster WHERE week_start = ${weekStart}`);
   for (const a of assignments) {
+    const roleId = a.shiftRoleId || "f57ef947-862f-4cc1-bb95-2d89e8963c11";
     await db.execute(sql`
       INSERT INTO shift_roster (user_id, date, shift_template_id, shift_role_id, week_start)
-      VALUES (${a.userId}, ${a.date}, ${a.shiftTemplateId}, ${a.shiftRoleId || "f57ef947-862f-4cc1-bb95-2d89e8963c11"}, ${weekStart})
-      ON CONFLICT (user_id, date, shift_template_id) DO NOTHING
+      VALUES (${a.userId}::uuid, ${a.date}::date, ${a.shiftTemplateId}::uuid, ${roleId}::uuid, ${weekStart}::date)
     `);
-  }
-
-  // Also delete assignments not in the submitted list for this week
-  // (simple approach: delete all for this week, then re-insert)
-  if (assignments.length > 0) {
-    await db.execute(sql`DELETE FROM shift_roster WHERE week_start = ${weekStart}`);
-    for (const a of assignments) {
-      await db.execute(sql`
-        INSERT INTO shift_roster (user_id, date, shift_template_id, shift_role_id, week_start)
-        VALUES (${a.userId}, ${a.date}, ${a.shiftTemplateId}, ${a.shiftRoleId || "f57ef947-862f-4cc1-bb95-2d89e8963c11"}, ${weekStart})
-      `);
-    }
   }
 
   return NextResponse.json({ success: true, saved: assignments.length }, { status: 201 });
