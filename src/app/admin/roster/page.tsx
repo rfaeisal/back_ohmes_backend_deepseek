@@ -140,7 +140,7 @@ export default function RosterPage() {
                       <td key={i} className={`py-2 text-center cursor-pointer transition-colors ${activeTemplate ? 'hover:bg-primary-50' : ''}`}
                         onClick={() => toggleCell(u.id, formatDate(d))}>
                         {cellAssignments.length > 0 ? (
-                          <div className="flex flex-wrap gap-0.5 justify-center">
+                          <div className="flex flex-col gap-0.5 items-center">
                             {cellAssignments.map((a: any, j: number) => {
                               const tpl = templates.find((t: any) => t.id === a.shiftTemplateId);
                               return <Badge key={j} variant="info" className="text-xs">{tpl?.name ?? "?"}</Badge>;
