@@ -61,22 +61,15 @@ export default function RosterPage() {
   const dates = getWeekDates(weekStart);
   const dayNames = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
 
-  const getAssignment = (userId: string, date: string) => {
-    return assignments.find((a: any) => a.userId === userId && a.date === date);
-  };
-
   const toggleCell = (userId: string, date: string) => {
     if (!activeTemplate) return;
-    const existing = assignments.findIndex((a: any) => a.userId === userId && a.date === date);
+    const existingIdx = assignments.findIndex((a: any) => a.userId === userId && a.date === date && a.shiftTemplateId === activeTemplate);
     const next = [...assignments];
-    if (existing >= 0) {
-      // If same template → remove assignment. If different → switch.
-      if (next[existing]!.shiftTemplateId === activeTemplate) {
-        next.splice(existing, 1);
-      } else {
-        next[existing] = { ...next[existing]!, shiftTemplateId: activeTemplate };
-      }
+    if (existingIdx >= 0) {
+      // Remove this specific assignment
+      next.splice(existingIdx, 1);
     } else {
+      // Add new assignment (allow multiple per day)
       next.push({ userId, date, shiftTemplateId: activeTemplate, shiftRoleId: "ketua_kecer" });
     }
     setAssignments(next);
@@ -142,15 +135,19 @@ export default function RosterPage() {
                     <div className="text-xs text-gray-400 font-mono">@{u.username}</div>
                   </td>
                   {dates.map((d, i) => {
-                    const a = getAssignment(u.id, formatDate(d));
-                    const tpl = templates.find((t: any) => t.id === a?.shiftTemplateId);
+                    const cellAssignments = assignments.filter((a: any) => a.userId === u.id && a.date === formatDate(d));
                     return (
                       <td key={i} className={`py-2 text-center cursor-pointer transition-colors ${activeTemplate ? 'hover:bg-primary-50' : ''}`}
                         onClick={() => toggleCell(u.id, formatDate(d))}>
-                        {a ? (
-                          <Badge variant="info" className="text-xs">{tpl?.name ?? "?"}</Badge>
+                        {cellAssignments.length > 0 ? (
+                          <div className="flex flex-wrap gap-0.5 justify-center">
+                            {cellAssignments.map((a: any, j: number) => {
+                              const tpl = templates.find((t: any) => t.id === a.shiftTemplateId);
+                              return <Badge key={j} variant="info" className="text-xs">{tpl?.name ?? "?"}</Badge>;
+                            })}
+                          </div>
                         ) : (
-                          <span className="text-gray-300">{activeTemplate ? "Klik untuk isi" : "—"}</span>
+                          <span className="text-gray-300">{activeTemplate ? "Klik" : "—"}</span>
                         )}
                       </td>
                     );
