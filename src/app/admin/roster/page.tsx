@@ -15,8 +15,10 @@ async function apiFetch(path: string, options?: RequestInit) {
     ...options,
     headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options?.headers || {}) },
   });
+  if (res.status === 401 && options?.method) { localStorage.removeItem("accessToken"); window.location.href = "/tablet/login"; return { users: [], templates: [], assignments: [] }; }
   if (!res.ok) return { users: [], templates: [], assignments: [] };
-  return res.json();
+  const data = await res.json();
+  return data;
 }
 
 function getWeekDates(weekStart: Date): Date[] {
