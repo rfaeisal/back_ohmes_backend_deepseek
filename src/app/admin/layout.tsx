@@ -27,10 +27,15 @@ const NAV_ITEMS = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isPrivileged, setIsPrivileged] = useState(false);
 
   useEffect(() => {
     const t = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
-    if (!t) window.location.href = "/tablet/login";
+    if (!t) { window.location.href = "/tablet/login"; return; }
+    try {
+      const payload = JSON.parse(atob(t.split(".")[1]!));
+      setIsPrivileged(payload.isPrivileged ?? false);
+    } catch {}
   }, []);
 
   // Close sidebar on route change (for mobile)
@@ -49,7 +54,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </button>
       </div>
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.filter((item) => item.href !== "/admin/super" || isPrivileged).map((item) => {
           const Icon = item.icon;
           return (
             <Link key={item.href} href={item.href}

@@ -14,6 +14,12 @@ async function apiFetch(path: string, options?: RequestInit) {
     ...options,
     headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options?.headers || {}) },
   });
+  if (res.status === 401) {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    window.location.href = "/tablet/login";
+    throw new Error("Sesi berakhir. Silakan login kembali.");
+  }
   if (!res.ok) { const err = await res.json().catch(() => ({ error: { message: res.statusText } })); throw new Error(err.error?.message ?? res.statusText); }
   return res.json();
 }
