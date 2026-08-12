@@ -329,7 +329,7 @@ export default function MasterDataPage() {
                   <td className="py-3">{st.startTime}</td>
                   <td className="py-3">{et} {cross && <Badge variant="warning" className="ml-1 text-xs">+1</Badge>}</td>
                   <td className="py-3 text-sm">{Math.floor(tm/60)}j {tm%60}m</td>
-                  <td className="py-3 text-sm text-gray-500">{plants.find((p: any) => p.id === st.plantId)?.code ?? "-"}</td>
+                  <td className="py-3 text-sm text-gray-500">{(() => { const pl = plants.find((p: any) => p.id === st.plantId); return pl ? `${pl.name} (${pl.code})` : "-"; })()}</td>
                   <td className="py-3 flex gap-1">
                     <Button size="sm" variant="ghost" onClick={() => { setForm(st); setShowAdd("shiftTemplate"); }}><Pencil className="size-4" /></Button>
                     <Button size="sm" variant="ghost" onClick={() => handleDelete("shiftTemplate", st.id)}><Trash2 className="size-4 text-red-500" /></Button>
