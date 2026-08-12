@@ -60,7 +60,7 @@ export default function PrintLabelsPage() {
           margin: 3mm;
         }
         @media print {
-          body { margin: 0; padding: 0; background: white; }
+          body { margin: 0; padding: 0; background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .no-print { display: none !important; }
           .label-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm; padding: 2mm; }
           .label-card {

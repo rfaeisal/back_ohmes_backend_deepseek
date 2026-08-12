@@ -62,9 +62,10 @@ export default function MonthlyPrintRoster() {
       <style>{`
         @media print {
           .no-print { display: none !important; }
-          body { font-size: 9px; }
+          body { font-size: 9px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           table { page-break-inside: avoid; }
           th, td { padding: 2px 3px !important; }
+          .shift-0, .shift-1, .shift-2, .shift-3, .shift-4 { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
         table { border-collapse: collapse; width: 100%; font-size: 10px; }
         th, td { border: 1px solid #ddd; padding: 3px 5px; text-align: center; }
