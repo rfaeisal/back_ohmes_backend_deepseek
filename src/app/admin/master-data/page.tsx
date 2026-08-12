@@ -175,15 +175,16 @@ export default function MasterDataPage() {
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left">
             <thead className="border-b border-gray-200">
-              <tr><th className="pb-3 text-sm font-semibold text-gray-600">Kode</th><th className="pb-3 text-sm font-semibold text-gray-600">Nama</th><th className="pb-3 text-sm font-semibold text-gray-600">Status</th><th className="pb-3 text-sm font-semibold text-gray-600">Aksi</th></tr>
+              <tr><th className="pb-3 text-sm font-semibold text-gray-600">Kode</th><th className="pb-3 text-sm font-semibold text-gray-600">Nama</th><th className="pb-3 text-sm font-semibold text-gray-600">Area</th><th className="pb-3 text-sm font-semibold text-gray-600">Status</th><th className="pb-3 text-sm font-semibold text-gray-600">Aksi</th></tr>
             </thead>
             <tbody>
               {plants.length === 0 ? (
-                <tr><td colSpan={4} className="py-6 text-center text-gray-400">Belum ada pabrik</td></tr>
+                <tr><td colSpan={5} className="py-6 text-center text-gray-400">Belum ada pabrik</td></tr>
               ) : plants.map((p: any) => (
                 <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 font-mono font-medium">{p.code}</td>
                   <td className="py-3">{p.name}</td>
+                  <td className="py-3 text-sm text-gray-500">{regions.find((r: any) => r.id === p.regionId)?.code ?? "-"}</td>
                   <td className="py-3"><Badge variant={!p.deletedAt ? "success" : "error"}>{!p.deletedAt ? "AKTIF" : "OFF"}</Badge></td>
                   <td className="py-3 flex gap-1">
                     <Button size="sm" variant="ghost" onClick={() => handleToggleActive("plant", p.id, !p.deletedAt)} title={!p.deletedAt ? "Nonaktifkan" : "Aktifkan"}>
@@ -352,7 +353,15 @@ export default function MasterDataPage() {
             {!form.id && <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="PLT-MLG-02" />}
             <Input label="Nama" value={form.name ?? ""} onChange={e => setForm({...form, name: e.target.value})} placeholder="Pabrik Malang 2" />
             <Input label="Alamat" value={form.address ?? ""} onChange={e => setForm({...form, address: e.target.value})} />
-            {!form.id && <Input label="Region ID" value={form.regionId ?? ""} onChange={e => setForm({...form, regionId: e.target.value})} placeholder="UUID region" />}
+            {!form.id && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Area / Region</label>
+                <select className="w-full rounded-lg border px-4 py-3 bg-white" value={form.regionId ?? ""} onChange={e => setForm({...form, regionId: e.target.value})}>
+                  <option value="">Pilih Area</option>
+                  {regions.map((r: any) => <option key={r.id} value={r.id}>{r.code} — {r.name}</option>)}
+                </select>
+              </div>
+            )}
           </>)}
           {showAdd === "machine" && (<>
             <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="MKR-03" />
