@@ -22,12 +22,14 @@ export const GET = withAuth(async (request: Request) => {
   const url = new URL(request.url);
   const weekStart = url.searchParams.get("weekStart") ?? new Date().toISOString().slice(0, 10);
 
-  // Get all users for plant
+  // Get users with production roles only
   const users = await db.execute(sql`
-    SELECT u.id, u.username, u.full_name
+    SELECT DISTINCT u.id, u.username, u.full_name
     FROM "user" u
     JOIN user_assignment ua ON ua.user_id = u.id
+    JOIN role r ON ua.role_id = r.id
     WHERE ua.revoked_at IS NULL AND u.is_active = true
+    AND r.code IN ('OPERATOR_KECER', 'OPERATOR_MEMBER', 'SHIFT_SUPERVISOR')
   `);
 
   // Get shift templates
