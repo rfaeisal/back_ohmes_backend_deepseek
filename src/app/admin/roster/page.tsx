@@ -13,6 +13,7 @@ async function apiFetch(path: string, options?: RequestInit) {
   const token = getToken();
   const res = await fetch(`${API}${path}`, {
     ...options,
+    cache: "no-store",
     headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options?.headers || {}) },
   });
   if (res.status === 401 && options?.method) { localStorage.removeItem("accessToken"); window.location.href = "/tablet/login"; return { users: [], templates: [], assignments: [] }; }
@@ -83,6 +84,7 @@ export default function RosterPage() {
       const token = getToken();
       await fetch(`${API}/shift-roster`, {
         method: "POST",
+        cache: "no-store",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ weekStart: formatDate(weekStart), assignments }),
       });
