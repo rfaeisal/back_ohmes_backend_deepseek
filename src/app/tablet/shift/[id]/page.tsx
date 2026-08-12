@@ -103,6 +103,14 @@ export default function ShiftActivePage() {
   const [showDowntime, setShowDowntime] = useState(false);
   const [showMaintenance, setShowMaintenance] = useState(false);
   const [showEndShift, setShowEndShift] = useState(false);
+  const [endShiftLoading, setEndShiftLoading] = useState(false);
+  const [wasteForm, setWasteForm] = useState<Record<string, { kg: string; status: string }>>({
+    MENIR: { kg: "", status: "PENDING" },
+    RIJEKAN: { kg: "", status: "PENDING" },
+    DEBU_KASAR: { kg: "", status: "PENDING" },
+    DEBU_HALUS: { kg: "", status: "PENDING" },
+  });
+  const [endNotes, setEndNotes] = useState("");
 
   // Consumable/Downtime/Maintenance form
   const [consForm, setConsForm] = useState({ item: "", qty: "", note: "" });
@@ -523,28 +531,65 @@ export default function ShiftActivePage() {
           {["MENIR", "RIJEKAN", "DEBU_KASAR", "DEBU_HALUS"].map((cat) => (
             <div key={cat} className="flex items-center gap-4">
               <span className="w-32 text-sm font-medium">{cat.replace("_", " ")}</span>
-              <Input type="number" placeholder="0.00 kg" className="flex-1" />
-              <select className="rounded-lg border border-gray-300 px-3 py-3 text-sm">
+              <Input
+                type="number"
+                placeholder="0.00 kg"
+                className="flex-1"
+                value={wasteForm[cat]?.kg ?? ""}
+                onChange={(e) => setWasteForm(prev => ({ ...prev, [cat]: { ...prev[cat], kg: e.target.value } }))}
+              />
+              <select
+                className="rounded-lg border border-gray-300 px-3 py-3 text-sm"
+                value={wasteForm[cat]?.status ?? "PENDING"}
+                onChange={(e) => setWasteForm(prev => ({ ...prev, [cat]: { ...prev[cat], status: e.target.value } }))}
+              >
                 <option>PENDING</option>
                 <option>LUNAS</option>
               </select>
             </div>
           ))}
-          <Input label="Catatan Shift (opsional)" />
+          <Input label="Catatan Shift (opsional)" value={endNotes} onChange={(e) => setEndNotes(e.target.value)} />
+          {actionMsg && (
+            <div className={`rounded-lg p-3 text-sm ${actionMsg.startsWith("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>{actionMsg}</div>
+          )}
           <div className="flex gap-3">
-            <Button size="lg" variant="outline" className="flex-1" onClick={() => setShowEndShift(false)}>
+            <Button size="lg" variant="outline" className="flex-1" onClick={() => setShowEndShift(false)} disabled={endShiftLoading}>
               Batal
             </Button>
             <Button
               size="lg"
               variant="danger"
               className="flex-1"
-              onClick={() => {
-                setShowEndShift(false);
-                router.push("/tablet");
+              disabled={endShiftLoading}
+              onClick={async () => {
+                setEndShiftLoading(true);
+                setActionMsg("");
+                try {
+                  const waste = (["MENIR", "RIJEKAN", "DEBU_KASAR", "DEBU_HALUS"] as const).map((cat) => ({
+                    category: cat,
+                    kg: parseFloat(wasteForm[cat]?.kg || "0"),
+                    settlementStatus: wasteForm[cat]?.status || "PENDING",
+                  }));
+                  const missingWaste = waste.filter(w => w.kg <= 0);
+                  if (missingWaste.length === 4) {
+                    setActionMsg("Isi minimal 1 kategori waste dengan nilai > 0.");
+                    setEndShiftLoading(false);
+                    return;
+                  }
+                  await apiFetch(`/shifts/${shiftId}/end`, {
+                    method: "PATCH",
+                    body: JSON.stringify({ waste, notes: endNotes || undefined }),
+                  });
+                  setShowEndShift(false);
+                  router.push("/tablet");
+                } catch (e: any) {
+                  setActionMsg(e.message);
+                } finally {
+                  setEndShiftLoading(false);
+                }
               }}
             >
-              Akhiri Shift
+              {endShiftLoading ? "Mengakhiri..." : "Akhiri Shift"}
             </Button>
           </div>
         </div>
