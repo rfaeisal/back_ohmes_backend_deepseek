@@ -60,13 +60,17 @@ export const POST = withAuth(async (request: Request) => {
   const { weekStart, assignments } = parsed.data;
   // Delete old + insert new
   await db.execute(sql`DELETE FROM shift_roster WHERE week_start = ${weekStart}::date`);
+  let inserted = 0;
   for (const a of assignments) {
-    const roleId = a.shiftRoleId || "f57ef947-862f-4cc1-bb95-2d89e8963c11";
-    await db.execute(sql`
-      INSERT INTO shift_roster (user_id, date, shift_template_id, shift_role_id, week_start)
-      VALUES (${a.userId}::uuid, ${a.date}::date, ${a.shiftTemplateId}::uuid, ${roleId}::uuid, ${weekStart}::date)
-    `);
+    try {
+      const roleId = a.shiftRoleId || "f57ef947-862f-4cc1-bb95-2d89e8963c11";
+      await db.execute(sql`
+        INSERT INTO shift_roster (user_id, date, shift_template_id, shift_role_id, week_start)
+        VALUES (${a.userId}::uuid, ${a.date}::date, ${a.shiftTemplateId}::uuid, ${roleId}::uuid, ${weekStart}::date)
+      `);
+      inserted++;
+    } catch (e: any) { console.error("Insert failed:", e.message); }
   }
 
-  return NextResponse.json({ success: true, saved: assignments.length }, { status: 201 });
+  return NextResponse.json({ success: true, saved: inserted }, { status: 201 });
 });
