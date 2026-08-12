@@ -89,7 +89,7 @@ export default function RosterPage() {
         body: JSON.stringify({ weekStart: formatDate(weekStart), assignments }),
       });
       const data = await res.json();
-      alert(`✅ Roster disimpan! (${data.saved ?? assignments.length} assignment)`);
+      alert(`✅ Roster disimpan! (${assignments.length} assignment)`);
     } catch { alert("❌ Gagal menyimpan"); }
     finally { setSaving(false); }
   };
