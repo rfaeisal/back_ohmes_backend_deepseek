@@ -39,16 +39,16 @@ export const GET = withAuth(async (request: Request) => {
     WHERE is_active = true
   `);
 
-  // Get existing roster — for now return empty assignments
-  // In production, fetch from shift_roster table
-  // Drizzle execute returns array-like; cast to get rows
+  // Load existing roster from database
+  const existing = await db.execute(sql`SELECT user_id, date::text, shift_template_id, shift_role_id FROM shift_roster WHERE week_start = ${weekStart}`);
+  const rosterRows = Array.isArray(existing) ? existing : [];
   const userRows = Array.isArray(users) ? users : [];
   const templateRows = Array.isArray(templates) ? templates : [];
   return NextResponse.json({
     weekStart,
     users: userRows,
     templates: templateRows,
-    assignments: [],
+    assignments: rosterRows.map((r: any) => ({ userId: r.user_id, date: r.date, shiftTemplateId: r.shift_template_id, shiftRoleId: r.shift_role_id })),
   }, { status: 200 });
 });
 
@@ -56,6 +56,28 @@ export const POST = withAuth(async (request: Request) => {
   const body = await request.json();
   const parsed = rosterSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: { code: "VALIDATION_ERROR" } }, { status: 400 });
-  // TODO: Save to shift_roster table
-  return NextResponse.json({ success: true, saved: parsed.data.assignments.length }, { status: 201 });
+
+  const { weekStart, assignments } = parsed.data;
+  // Save roster using raw SQL — upsert pattern
+  for (const a of assignments) {
+    await db.execute(sql`
+      INSERT INTO shift_roster (user_id, date, shift_template_id, shift_role_id, week_start)
+      VALUES (${a.userId}, ${a.date}, ${a.shiftTemplateId}, ${a.shiftRoleId || "f57ef947-862f-4cc1-bb95-2d89e8963c11"}, ${weekStart})
+      ON CONFLICT (user_id, date, shift_template_id) DO NOTHING
+    `);
+  }
+
+  // Also delete assignments not in the submitted list for this week
+  // (simple approach: delete all for this week, then re-insert)
+  if (assignments.length > 0) {
+    await db.execute(sql`DELETE FROM shift_roster WHERE week_start = ${weekStart}`);
+    for (const a of assignments) {
+      await db.execute(sql`
+        INSERT INTO shift_roster (user_id, date, shift_template_id, shift_role_id, week_start)
+        VALUES (${a.userId}, ${a.date}, ${a.shiftTemplateId}, ${a.shiftRoleId || "f57ef947-862f-4cc1-bb95-2d89e8963c11"}, ${weekStart})
+      `);
+    }
+  }
+
+  return NextResponse.json({ success: true, saved: assignments.length }, { status: 201 });
 });
