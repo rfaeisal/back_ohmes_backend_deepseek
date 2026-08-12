@@ -30,6 +30,7 @@ export default function UsersPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [plants, setPlants] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -46,11 +47,12 @@ export default function UsersPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [uRes, aRes, pRes, rRes] = await Promise.allSettled([
+      const [uRes, aRes, pRes, rRes, cRes] = await Promise.allSettled([
         apiFetch("/users"),
         apiFetch("/user-assignments"),
         apiFetch("/plants"),
         apiFetch("/regions"),
+        apiFetch("/companies"),
       ]);
       const userList = uRes.status === "fulfilled" ? (uRes.value.data ?? []) : [];
       const assignments = aRes.status === "fulfilled" ? (aRes.value.data ?? []) : [];
@@ -61,6 +63,7 @@ export default function UsersPage() {
       })));
       if (pRes.status === "fulfilled") setPlants(pRes.value.data ?? []);
       if (rRes.status === "fulfilled") setRegions(rRes.value.data ?? []);
+      if (cRes.status === "fulfilled") setCompanies(cRes.value.data ?? []);
     } catch { setUsers([]); }
     finally { setLoading(false); }
   }, []);
@@ -320,8 +323,16 @@ export default function UsersPage() {
                 {regions.map((r: any) => <option key={r.id} value={r.id}>{r.code} — {r.name}</option>)}
               </select>
             </div>
+          ) : form.scopeType === "COMPANY" ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+              <select className="w-full rounded-lg border px-4 py-3" value={form.scopeId ?? ""} onChange={e => setForm({...form, scopeId: e.target.value})}>
+                <option value="">Pilih Company</option>
+                {companies.map((c: any) => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
+              </select>
+            </div>
           ) : (
-            <Input label="Scope ID" value={form.scopeId ?? ""} onChange={e => setForm({...form, scopeId: e.target.value})} placeholder={form.scopeType === "GLOBAL" ? "00000000-0000-0000-0000-000000000000" : "UUID company"} />
+            <Input label="Scope ID" value={form.scopeId ?? ""} onChange={e => setForm({...form, scopeId: e.target.value})} placeholder="UUID GLOBAL" />
           )}
           <Button size="lg" className="w-full" onClick={handleAssignRole} disabled={saving}>
             {saving ? "Menyimpan..." : "Assign Role"}
