@@ -33,7 +33,7 @@ export default function MonthlyPrintRoster() {
         const from = firstDay.toISOString().slice(0, 10);
         const lastDay = new Date(firstDay.getFullYear(), firstDay.getMonth() + 1, 0);
         const to = lastDay.toISOString().slice(0, 10);
-        const res = await fetch(`${API}/shift-roster/month?from=${from}&to=${to}&_t=${Date.now()}`, {
+        const res = await fetch(`${API}/shift-roster?from=${from}&to=${to}&_t=${Date.now()}`, {
           cache: "no-store", headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
