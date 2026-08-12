@@ -118,6 +118,16 @@ export default function MonthlyPrintRoster() {
             </tbody>
           </table>
         </div>
+        <div className="mt-4 text-xs">
+          <p className="font-semibold mb-1">Keterangan Shift:</p>
+          <div className="flex gap-4 flex-wrap">
+            {templates.map((t: any, i: number) => (
+              <span key={t.id} className={`shift-${i % 5} px-2 py-1 rounded`}>
+                {t.name} ({t.code}): {t.start_time?.slice(0,5)} — {Math.floor(t.duration_minutes/60)}j {t.duration_minutes%60}m
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
