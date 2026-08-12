@@ -74,7 +74,7 @@ export default function RosterPage() {
       next.splice(existingIdx, 1);
     } else {
       // Add new assignment (allow multiple per day)
-      next.push({ userId, date, shiftTemplateId: activeTemplate, shiftRoleId: "ketua_kecer" });
+      next.push({ userId, date, shiftTemplateId: activeTemplate, shiftRoleId: "f57ef947-862f-4cc1-bb95-2d89e8963c11" });
     }
     setAssignments(next);
   };
