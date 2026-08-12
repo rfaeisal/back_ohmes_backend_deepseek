@@ -3,7 +3,7 @@ const path = require("path");
 const pwPath = path.resolve(__dirname, "node_modules/.pnpm/playwright@1.62.1/node_modules/playwright/index.js");
 const { chromium } = require(pwPath);
 
-const BASE = "http://localhost:3002";
+const BASE = "http://localhost:3001";
 
 // Credentials
 const CREDS = {
@@ -112,6 +112,7 @@ async function main() {
     console.log("STEP 4: Produksi — buka boks & timbang");
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
+    let boxData = null;
     if (inventory.length > 0) {
       const box = inventory[0];
       console.log(`  ➤ Buka: ${box.boxCode} (${box.weightKg} kg)`);
@@ -120,7 +121,7 @@ async function main() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
         data: { inventoryBoxId: box.inventoryId },
       });
-      const boxData = await boxRes.json();
+      boxData = await boxRes.json();
       console.log(`  Box [${boxRes.status()}]: #${boxData.boxNumber} ${boxData.boxCode}`);
 
       if (boxData.boxId) {
@@ -139,10 +140,64 @@ async function main() {
     }
 
     // =========================================================================
-    // STEP 5: END SHIFT
+    // STEP 5: LOG CONSUMPTION, DOWNTIME, MAINTENANCE
     // =========================================================================
     console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log("STEP 5: Akhiri shift");
+    console.log("STEP 5: Catat pemakaian, downtime, maintenance");
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+    // Fetch consumable & sparepart IDs from DB (seed creates consistent data)
+    const { execSync } = require("child_process");
+    const getIds = (table) => {
+      const out = execSync(`docker exec mes_dev_postgres psql -U mes_user -d mes_dev -t -c "SELECT id, code, name FROM ${table} ORDER BY code;"`, { encoding: "utf8" });
+      return out.trim().split("\n").map(line => {
+        const parts = line.trim().split("|").map(s => s.trim());
+        return { id: parts[0], code: parts[1], name: parts[2] };
+      });
+    };
+    const consumables = getIds("consumable_item");
+    const spareparts = getIds("sparepart");
+
+    // Log consumption — bobbin + lem
+    if (boxData?.boxId && consumables.length >= 4) {
+      const bobbin = consumables.find(c => c.code?.includes("BOBBIN"));
+      const lem = consumables.find(c => c.code?.includes("LEM"));
+      if (bobbin && lem) {
+        for (const item of [{ id: bobbin.id, name: bobbin.name, qty: 3 }, { id: lem.id, name: lem.name, qty: 2 }]) {
+          const cr = await context.request.post(`${BASE}/api/v1/boxes/${boxData?.boxId}/consumption`, {
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+            data: { consumableItemId: item.id, quantity: item.qty, note: `Test ${item.name}` },
+          });
+          console.log(`  ✓ Consumable: ${item.name} x${item.qty} [${cr.status()}]`);
+        }
+      }
+    }
+
+    // Log downtime — 2 events
+    for (const dt of [{ cat: "GANTI_MATERIAL", dur: 10, desc: "Ganti bobbin habis" }, { cat: "KENDALA_MESIN", dur: 15, desc: "Motor macet" }]) {
+      const dr = await context.request.post(`${BASE}/api/v1/shifts/${shiftId}/downtime`, {
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        data: { category: dt.cat, durationMinutes: dt.dur, description: dt.desc, linkedBoxId: boxData.boxId },
+      });
+      console.log(`  ✓ Downtime: ${dt.cat} ${dt.dur} menit [${dr.status()}]`);
+    }
+
+    // Log maintenance — 2 events
+    if (spareparts.length >= 2) {
+      for (const sp of [{ id: spareparts[0].id, name: spareparts[0].name, qty: 1, note: "Ganti pisau aus" }, { id: spareparts[1].id, name: spareparts[1].name, qty: 2, note: "Ganti nylon sobek" }]) {
+        const mr = await context.request.post(`${BASE}/api/v1/shifts/${shiftId}/maintenance`, {
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+          data: { sparepartId: sp.id, quantity: sp.qty, note: sp.note },
+        });
+        console.log(`  ✓ Maintenance: ${sp.name} x${sp.qty} [${mr.status()}]`);
+      }
+    }
+
+    // =========================================================================
+    // STEP 6: END SHIFT
+    // =========================================================================
+    console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    console.log("STEP 6: Akhiri shift");
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
     const endRes = await context.request.patch(`${BASE}/api/v1/shifts/${shiftId}/end`, {
@@ -164,7 +219,7 @@ async function main() {
     // STEP 6: APPROVE (SUPERVISOR)
     // =========================================================================
     console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log("STEP 6: Approve shift (Supervisor)");
+    console.log("STEP 7: Approve shift (Supervisor)");
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
     const supLogin = await context.request.post(`${BASE}/api/v1/auth/login`, {
@@ -188,7 +243,7 @@ async function main() {
     // STEP 7: LAPORAN
     // =========================================================================
     console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log("STEP 7: Laporan per shift");
+    console.log("STEP 8: Laporan per shift");
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
     if (supToken) {
