@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
-import { Power, PowerOff, Key } from "lucide-react";
+import { Power, PowerOff, Key, Pencil } from "lucide-react";
 
 const API = "/api/v1";
 function getToken() { return typeof window !== "undefined" ? localStorage.getItem("accessToken") : null; }
@@ -35,6 +35,7 @@ export default function UsersPage() {
 
   // Dialog states
   const [showAdd, setShowAdd] = useState(false);
+  const [showEdit, setShowEdit] = useState<any>(null);
   const [showAssign, setShowAssign] = useState<any>(null);
   const [showPassword, setShowPassword] = useState<any>(null);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -64,6 +65,17 @@ export default function UsersPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const handleEditUser = async () => {
+    if (!showEdit) return;
+    setSaving(true); setError("");
+    try {
+      await apiFetch(`/users/${showEdit.id}`, { method: "PATCH", body: JSON.stringify({ fullName: form.fullName, email: form.email, username: form.username }) });
+      setSuccess("User berhasil diupdate.");
+      setShowEdit(null); setForm({}); load();
+    } catch (e: any) { setError(e.message); }
+    finally { setSaving(false); }
+  };
 
   const handleAdd = async () => {
     setSaving(true); setError(""); setFieldErrors({});
@@ -210,6 +222,9 @@ export default function UsersPage() {
                   </td>
                   <td className="py-3">
                     <div className="flex gap-2">
+                      <Button size="sm" variant="ghost" onClick={() => { setShowEdit(u); setForm({ fullName: u.fullName, email: u.email ?? "", username: u.username }); setError(""); }} title="Edit User">
+                        <Pencil className="size-4" />
+                      </Button>
                       <Button size="sm" variant="ghost" onClick={() => { setShowPassword(u); setForm({}); setError(""); }} title="Ganti Password">
                         <Key className="size-4" />
                       </Button>
@@ -250,6 +265,16 @@ export default function UsersPage() {
           <Button size="lg" className="w-full" onClick={handleAdd} disabled={saving || !form.username || !form.password}>
             {saving ? "Menyimpan..." : "Simpan User"}
           </Button>
+        </div>
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={!!showEdit} onClose={() => setShowEdit(null)} title={`Edit User: ${showEdit?.username ?? ""}`}>
+        <div className="space-y-3">
+          <Input label="Username" value={form.username ?? ""} onChange={e => setForm({...form, username: e.target.value})} />
+          <Input label="Nama Lengkap" value={form.fullName ?? ""} onChange={e => setForm({...form, fullName: e.target.value})} />
+          <Input label="Email" value={form.email ?? ""} onChange={e => setForm({...form, email: e.target.value})} />
+          <Button size="lg" className="w-full" onClick={handleEditUser} disabled={saving}>{saving ? "Menyimpan..." : "Update User"}</Button>
         </div>
       </Dialog>
 

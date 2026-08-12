@@ -6,7 +6,7 @@ import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import db from "@/db";
 import { user } from "@/db/schema";
 
-const patchSchema = z.object({ isActive: z.boolean().optional(), fullName: z.string().optional(), email: z.string().optional() });
+const patchSchema = z.object({ username: z.string().optional(), isActive: z.boolean().optional(), fullName: z.string().optional(), email: z.string().optional() });
 
 export const PATCH = withAuth(
   async (request: Request, ctx: AuthContext, { params }: { params: Promise<{ id: string }> }) => {

@@ -79,8 +79,10 @@ export default function MasterDataPage() {
         machine: "/machines",
         product: "/products",
         supplier: "/tsg-suppliers",
+        shiftTemplate: "/shift-templates",
       };
-      await apiFetch(endpoints[type]!, { method: "POST", body: JSON.stringify(form) });
+      const body = type === "shiftTemplate" ? { ...form, durationMinutes: parseInt(form.durationMinutes || "660"), plantId: form.plantId || "3b775285-6b60-4ffa-ad7b-5558fc9f3da2" } : form;
+      await apiFetch(endpoints[type]!, { method: "POST", body: JSON.stringify(body) });
       setShowAdd(null);
       setForm({});
       loadData();
@@ -108,8 +110,10 @@ export default function MasterDataPage() {
       const endpoints: Record<string, string> = {
         plant: `/plants/${form.id}`, machine: `/machines/${form.id}`,
         product: `/products/${form.id}`, supplier: `/tsg-suppliers/${form.id}`,
+        shiftTemplate: `/shift-templates/${form.id}`,
       };
-      await apiFetch(endpoints[type]!, { method: "PATCH", body: JSON.stringify(form) });
+      const body = type === "shiftTemplate" ? { ...form, durationMinutes: parseInt(form.durationMinutes || "660") } : form;
+      await apiFetch(endpoints[type]!, { method: "PATCH", body: JSON.stringify(body) });
       setShowAdd(null); setForm({}); loadData();
     } catch (e: any) { alert(e.message); }
   };
