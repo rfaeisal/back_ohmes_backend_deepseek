@@ -85,7 +85,7 @@ export default function LoginPage() {
               label="Username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="andi.kecer"
+              placeholder="Masukkan username"
               autoFocus
               inputMode="text"
             />
@@ -97,11 +97,11 @@ export default function LoginPage() {
               placeholder="••••••••"
             />
             <Input
-              label="Kode OTP (Super Admin)"
+              label="Kode OTP"
               type="text"
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
-              placeholder="000000 (dev) — kosongkan untuk operator biasa"
+              placeholder="Masukkan kode OTP"
             />
           </div>
 
