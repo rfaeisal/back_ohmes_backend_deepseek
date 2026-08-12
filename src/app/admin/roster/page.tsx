@@ -44,7 +44,7 @@ export default function RosterPage() {
   const [assignments, setAssignments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [selectedCell, setSelectedCell] = useState<{ userId: string; date: string } | null>(null);
+  const [activeTemplate, setActiveTemplate] = useState<string>("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -65,18 +65,21 @@ export default function RosterPage() {
     return assignments.find((a: any) => a.userId === userId && a.date === date);
   };
 
-  const assignShift = (userId: string, date: string, templateId: string) => {
+  const toggleCell = (userId: string, date: string) => {
+    if (!activeTemplate) return;
     const existing = assignments.findIndex((a: any) => a.userId === userId && a.date === date);
     const next = [...assignments];
-    if (templateId === "") {
-      if (existing >= 0) next.splice(existing, 1);
-    } else if (existing >= 0) {
-      next[existing] = { ...next[existing], shiftTemplateId: templateId };
+    if (existing >= 0) {
+      // If same template → remove assignment. If different → switch.
+      if (next[existing]!.shiftTemplateId === activeTemplate) {
+        next.splice(existing, 1);
+      } else {
+        next[existing] = { ...next[existing]!, shiftTemplateId: activeTemplate };
+      }
     } else {
-      next.push({ userId, date, shiftTemplateId: templateId, shiftRoleId: "ketua_kecer" });
+      next.push({ userId, date, shiftTemplateId: activeTemplate, shiftRoleId: "ketua_kecer" });
     }
     setAssignments(next);
-    setSelectedCell(null);
   };
 
   const handleSave = async () => {
@@ -140,26 +143,14 @@ export default function RosterPage() {
                   </td>
                   {dates.map((d, i) => {
                     const a = getAssignment(u.id, formatDate(d));
-                    const isSelected = selectedCell?.userId === u.id && selectedCell?.date === formatDate(d);
+                    const tpl = templates.find((t: any) => t.id === a?.shiftTemplateId);
                     return (
-                      <td key={i} className="py-2 text-center cursor-pointer" onClick={() => setSelectedCell({ userId: u.id, date: formatDate(d) })}>
-                        {isSelected ? (
-                          <select
-                            className="w-full rounded border border-primary-300 px-1 py-1 text-xs bg-primary-50"
-                            value={a?.shiftTemplateId ?? ""}
-                            onChange={e => assignShift(u.id, formatDate(d), e.target.value)}
-                            autoFocus
-                            onBlur={() => setSelectedCell(null)}
-                          >
-                            <option value="">—</option>
-                            {templates.map((t: any) => (
-                              <option key={t.id} value={t.id}>{t.name} ({t.start_time?.slice(0,5)})</option>
-                            ))}
-                          </select>
-                        ) : a ? (
-                          <Badge variant="info" className="cursor-pointer text-xs">{templates.find((t: any) => t.id === a.shiftTemplateId)?.name ?? "?"}</Badge>
+                      <td key={i} className={`py-2 text-center cursor-pointer transition-colors ${activeTemplate ? 'hover:bg-primary-50' : ''}`}
+                        onClick={() => toggleCell(u.id, formatDate(d))}>
+                        {a ? (
+                          <Badge variant="info" className="text-xs">{tpl?.name ?? "?"}</Badge>
                         ) : (
-                          <span className="text-gray-300">—</span>
+                          <span className="text-gray-300">{activeTemplate ? "Klik untuk isi" : "—"}</span>
                         )}
                       </td>
                     );
@@ -171,13 +162,19 @@ export default function RosterPage() {
         </div>
       </Card>
 
-      <div className="mt-4 flex gap-2 flex-wrap">
-        <p className="text-sm text-gray-500 w-full">Shift Templates:</p>
-        {templates.map((t: any) => (
-          <Badge key={t.id} variant="outline">
-            {t.name}: {t.start_time?.slice(0, 5)} ({Math.floor(t.duration_minutes / 60)}j {t.duration_minutes % 60}m)
-          </Badge>
-        ))}
+      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+        <p className="text-sm font-semibold text-gray-700 mb-3">🎯 Pilih shift template dulu, lalu klik di tabel:</p>
+        <div className="flex gap-2 flex-wrap">
+          <Button size="sm" variant={activeTemplate === "" ? "primary" : "outline"} onClick={() => setActiveTemplate("")}>
+            ✋ Lepas (hapus assignment)
+          </Button>
+          {templates.map((t: any) => (
+            <Button key={t.id} size="sm" variant={activeTemplate === t.id ? "primary" : "outline"} onClick={() => setActiveTemplate(t.id)}>
+              {t.name} ({t.start_time?.slice(0,5)} — {Math.floor(t.duration_minutes/60)}j)
+            </Button>
+          ))}
+        </div>
+        {activeTemplate && <p className="text-xs text-primary-600 mt-2">Klik sel di tabel untuk assign shift. Klik lagi sel yang sudah ada untuk hapus.</p>}
       </div>
     </div>
   );

@@ -41,10 +41,13 @@ export const GET = withAuth(async (request: Request) => {
 
   // Get existing roster — for now return empty assignments
   // In production, fetch from shift_roster table
+  // Drizzle execute returns array-like; cast to get rows
+  const userRows = Array.isArray(users) ? users : [];
+  const templateRows = Array.isArray(templates) ? templates : [];
   return NextResponse.json({
     weekStart,
-    users: (users as any).rows ?? [],
-    templates: (templates as any).rows ?? [],
+    users: userRows,
+    templates: templateRows,
     assignments: [],
   }, { status: 200 });
 });
