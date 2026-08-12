@@ -58,17 +58,15 @@ export const POST = withAuth(async (request: Request) => {
   if (!parsed.success) return NextResponse.json({ error: { code: "VALIDATION_ERROR" } }, { status: 400 });
 
   const { weekStart, assignments } = parsed.data;
-  // Delete old + insert new dalam transaksi
-  await db.transaction(async (tx) => {
-    await tx.execute(sql`DELETE FROM shift_roster WHERE week_start = ${weekStart}::date`);
-    for (const a of assignments) {
-      const roleId = a.shiftRoleId || "f57ef947-862f-4cc1-bb95-2d89e8963c11";
-      await tx.execute(sql`
-        INSERT INTO shift_roster (user_id, date, shift_template_id, shift_role_id, week_start)
-        VALUES (${a.userId}::uuid, ${a.date}::date, ${a.shiftTemplateId}::uuid, ${roleId}::uuid, ${weekStart}::date)
-      `);
-    }
-  });
+  // Delete old + insert new
+  await db.execute(sql`DELETE FROM shift_roster WHERE week_start = ${weekStart}::date`);
+  for (const a of assignments) {
+    const roleId = a.shiftRoleId || "f57ef947-862f-4cc1-bb95-2d89e8963c11";
+    await db.execute(sql`
+      INSERT INTO shift_roster (user_id, date, shift_template_id, shift_role_id, week_start)
+      VALUES (${a.userId}::uuid, ${a.date}::date, ${a.shiftTemplateId}::uuid, ${roleId}::uuid, ${weekStart}::date)
+    `);
+  }
 
   return NextResponse.json({ success: true, saved: assignments.length }, { status: 201 });
 });

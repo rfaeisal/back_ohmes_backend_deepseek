@@ -11,7 +11,7 @@ export default function TabletLayout({ children }: { children: React.ReactNode }
     const loadUserInfo = async () => {
       try {
         const token = localStorage.getItem("accessToken");
-        if (!token && !window.location.pathname.includes("/login")) { window.location.href = "/tablet/login"; return; }
+        if (!token) { if (!window.location.pathname.includes("/login")) window.location.href = "/tablet/login"; return; }
         // Decode JWT payload
         const payload = JSON.parse(atob(token.split(".")[1]!));
         const plantIds = payload.plantIds ?? [];
