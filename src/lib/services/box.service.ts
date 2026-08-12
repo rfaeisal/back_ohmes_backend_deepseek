@@ -13,6 +13,7 @@ import {
   tsgInventory,
   batch,
   hlpPack,
+  tsgReceivingBox,
 } from "@/db/schema";
 import { machineTemplate } from "@/db/schema/master-product";
 import { calculateYieldPct, getYieldIndicator, calculateBeratPerBatangGram, calculateTotalBatang } from "@/lib/calc";
@@ -134,7 +135,6 @@ export async function openBox(input: OpenBoxInput) {
     }
 
     // Get boxCode & weight dari receiving
-    const { tsgReceivingBox } = await import("@/db/schema/wms-inbound");
     const [receivingBox] = await db
       .select({ boxCode: tsgReceivingBox.boxCode, weightKg: tsgReceivingBox.weightKg })
       .from(tsgReceivingBox)
@@ -196,6 +196,11 @@ export async function weighBox(input: WeighBoxInput) {
     throw new ServiceError("INVALID_WEIGHT", "Berat output harus > 0.");
   }
 
+  const tsgWeight = Number(box.tsgWeightKg);
+  if (tsgWeight <= 0) {
+    throw new ServiceError("BOX_WEIGHT_INVALID", "Data berat TSG boks tidak valid (0 atau kosong). Pastikan boks dibuka dari inventory yang valid.");
+  }
+
   // Dapatkan machine template untuk yield range
   const [shift] = await db
     .select({ productId: shiftReport.productId })
@@ -224,7 +229,7 @@ export async function weighBox(input: WeighBoxInput) {
   // Kalkulasi yield
   const yieldPct = calculateYieldPct(
     input.outputWeightKg,
-    Number(box.tsgWeightKg)
+    tsgWeight
   );
   const indicator = getYieldIndicator(yieldPct, { min: yieldMin, max: yieldMax });
 
