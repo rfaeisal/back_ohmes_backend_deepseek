@@ -11,10 +11,11 @@ function getToken() { return typeof window !== "undefined" ? localStorage.getIte
 
 async function apiFetch(path: string, options?: RequestInit) {
   const token = getToken();
-  const res = await fetch(`${API}${path}`, {
+  const url = `${API}${path}${path.includes("?") ? "&" : "?"}_t=${Date.now()}`;
+  const res = await fetch(url, {
     ...options,
     cache: "no-store",
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options?.headers || {}) },
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-cache, no-store, must-revalidate", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options?.headers || {}) },
   });
   if (res.status === 401 && options?.method) { localStorage.removeItem("accessToken"); window.location.href = "/tablet/login"; return { users: [], templates: [], assignments: [] }; }
   if (!res.ok) return { users: [], templates: [], assignments: [] };
@@ -52,7 +53,7 @@ export default function RosterPage() {
   const load = useCallback(async (silent?: boolean) => {
     if (!silent) setLoading(true);
     const ws = formatDate(weekStart);
-    const data = await apiFetch(`/shift-roster?weekStart=${ws}&t=${Date.now()}`);
+    const data = await apiFetch(`/shift-roster?weekStart=${ws}`);
     setUsers(data.users ?? []);
     setTemplates(data.templates ?? []);
     setAssignments(data.assignments ?? []);
