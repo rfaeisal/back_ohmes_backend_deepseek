@@ -70,8 +70,11 @@ export default function MonthlyPrintRoster() {
         table { border-collapse: collapse; width: 100%; font-size: 10px; }
         th, td { border: 1px solid #ddd; padding: 3px 5px; text-align: center; }
         th { background: #f5f5f5; font-weight: 600; }
-        .shift-p { background: #dbeafe; font-size: 9px; padding: 1px 3px; border-radius: 2px; display: inline-block; margin: 1px; }
-        .shift-s { background: #dcfce7; font-size: 9px; padding: 1px 3px; border-radius: 2px; display: inline-block; margin: 1px; }
+        .shift-0 { background: #dbeafe; font-size: 9px; padding: 1px 3px; border-radius: 2px; display: inline-block; margin: 1px; }
+        .shift-1 { background: #dcfce7; font-size: 9px; padding: 1px 3px; border-radius: 2px; display: inline-block; margin: 1px; }
+        .shift-2 { background: #fef3c7; font-size: 9px; padding: 1px 3px; border-radius: 2px; display: inline-block; margin: 1px; }
+        .shift-3 { background: #fce7f3; font-size: 9px; padding: 1px 3px; border-radius: 2px; display: inline-block; margin: 1px; }
+        .shift-4 { background: #e0e7ff; font-size: 9px; padding: 1px 3px; border-radius: 2px; display: inline-block; margin: 1px; }
       `}</style>
 
       <div className="no-print p-4 flex gap-3 items-center bg-gray-50 border-b">
@@ -102,11 +105,9 @@ export default function MonthlyPrintRoster() {
                       <td key={i}>
                         {dayAssignments.map((a: any, j: number) => {
                           const tpl = templates.find((t: any) => t.id === a.shiftTemplateId);
-                          const name = tpl?.name || "?";
-                          const isPagi = name.toLowerCase().includes("pagi");
-                          const isSore = name.toLowerCase().includes("sore");
+                          const idx = templates.findIndex((t: any) => t.id === a.shiftTemplateId);
                           return (
-                          <span key={j} className={isPagi ? "shift-p" : isSore ? "shift-s" : "shift-p"} title={name}>
+                          <span key={j} className={`shift-${idx % 5}`} title={tpl?.name || "?"}>
                             {tpl?.code || "✓"}
                           </span>
                         )})}

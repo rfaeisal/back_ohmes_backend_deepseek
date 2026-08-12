@@ -150,7 +150,7 @@ export default function RosterPage() {
                           <div className="flex flex-col gap-0.5 items-center">
                             {cellAssignments.map((a: any, j: number) => {
                               const tpl = templates.find((t: any) => t.id === a.shiftTemplateId);
-                              const colors = ["info", "success", "warning", "error"];
+                              const colors = ["info", "success", "warning", "error", "neutral"];
                               const colorIdx = templates.findIndex((t: any) => t.id === a.shiftTemplateId) % colors.length;
                               return <Badge key={j} variant={colors[colorIdx] as any} className="text-xs">{tpl?.name ?? "?"}</Badge>;
                             })}
