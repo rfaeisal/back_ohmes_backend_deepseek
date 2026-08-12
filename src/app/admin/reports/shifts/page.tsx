@@ -228,7 +228,8 @@ export default function ShiftReportPage() {
                 <div className="flex flex-wrap gap-2">
                   {selected.members.map((m: any) => (
                     <span key={m.id} className="bg-gray-100 rounded-full px-3 py-1 text-sm">
-                      👤 {m.userId?.slice(0, 6)}
+                      👤 {m.userName || m.userId?.slice(0, 8)}
+                      {m.roleName && <span className="text-gray-400 ml-1">· {m.roleName}</span>}
                       {m.leaveMinutes > 0 && <span className="text-red-500 ml-1">({m.leaveMinutes}m izin)</span>}
                     </span>
                   ))}
