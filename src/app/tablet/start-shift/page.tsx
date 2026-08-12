@@ -31,6 +31,7 @@ function StartShiftForm() {
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [selectedProduct, setSelectedProduct] = useState("");
   const [selectedTeam, setSelectedTeam] = useState<string[]>([]);
+  const [rosterMembers, setRosterMembers] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -52,6 +53,25 @@ function StartShiftForm() {
       }
       if (u.status === "fulfilled" && u.value.data?.length > 0) setUsers(u.value.data);
       if (r.status === "fulfilled" && r.value.data?.length > 0) setShiftRoles(r.value.data);
+
+      // Load roster for today
+      const today = new Date().toISOString().slice(0, 10);
+      try {
+        const token = getToken();
+        const rosterRes = await fetch(`${API}/shift-roster?weekStart=${today}&_t=${Date.now()}`, {
+          cache: "no-store",
+          headers: { Authorization: `Bearer ${token}` || "" },
+        });
+        if (rosterRes.ok) {
+          const rosterData = await rosterRes.json();
+          const todayAssignments = (rosterData.assignments || [])
+            .filter((a: any) => a.date === today)
+            .map((a: any) => a.userId);
+          const uniqueUsers = [...new Set(todayAssignments)] as string[];
+          setRosterMembers(uniqueUsers);
+          setSelectedTeam(uniqueUsers);
+        }
+      } catch {}
     } catch { /* gunakan mock */ }
   }, []);
 
@@ -76,8 +96,25 @@ function StartShiftForm() {
           shiftRoleId: shiftRoles.find((r: any) => r.code === "ketua_kecer")?.id ?? shiftRoles[0]?.id ?? userId,
         })),
       };
-      const res = await apiFetch("/shifts/start", { method: "POST", body: JSON.stringify(body) });
+      const token = getToken();
+      const res = await fetch(`${API}/shifts/start`, { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body) }).then(r => r.json());
       if (res.shiftId) {
+        // Sync roster changes (operator may have added/removed members)
+        if (rosterMembers.length > 0 || selectedTeam.length > 0) {
+          const today = new Date().toISOString().slice(0, 10);
+          const assignments = selectedTeam.map((userId) => ({
+            userId, date: today,
+            shiftTemplateId: selectedTemplate || templates[0]?.id,
+            shiftRoleId: shiftRoles.find((r: any) => r.code === "ketua_kecer")?.id ?? "f57ef947-862f-4cc1-bb95-2d89e8963c11",
+          }));
+          try {
+            await fetch(`${API}/shift-roster`, {
+              method: "POST", cache: "no-store",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ weekStart: today, assignments }),
+            });
+          } catch {}
+        }
         router.push(`/tablet/shift/${res.shiftId}`);
       }
     } catch (e: any) {
@@ -154,20 +191,28 @@ function StartShiftForm() {
       {/* Team Picker */}
       <Card className="mb-6">
         <CardTitle>Anggota Tim</CardTitle>
-        <CardSubtitle>{selectedTeam.length} orang dipilih</CardSubtitle>
+        <CardSubtitle>
+          {selectedTeam.length} orang dipilih
+          {rosterMembers.length > 0 && <span className="ml-2 text-xs text-primary-600">({rosterMembers.length} dari roster)</span>}
+        </CardSubtitle>
         <div className="mt-3 grid grid-cols-2 gap-2">
-          {users.length > 0 ? users.map((u: any) => (
+          {users.length > 0 ? users.map((u: any) => {
+            const isFromRoster = rosterMembers.includes(u.id);
+            const isSelected = selectedTeam.includes(u.id);
+            return (
             <button
               key={u.id}
               onClick={() => toggleMember(u.id)}
               className={`rounded-lg border-2 p-3 text-left transition-colors ${
-                selectedTeam.includes(u.id) ? "border-primary-500 bg-primary-50" : "border-gray-200 hover:border-gray-300"
+                isSelected ? "border-primary-500 bg-primary-50" : "border-gray-200 hover:border-gray-300"
               }`}
             >
-              <span className="font-medium">{u.fullName}</span>
+              <span className="font-medium">{u.fullName ?? u.full_name}</span>
               <span className="text-xs text-gray-400 ml-2">@{u.username}</span>
+              {isFromRoster && <span className="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">📋 Roster</span>}
             </button>
-          )) : (
+            );
+          }) : (
             <p className="text-sm text-gray-400 col-span-2">Data user diambil dari server saat login...</p>
           )}
         </div>
