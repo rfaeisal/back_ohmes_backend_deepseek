@@ -26,26 +26,22 @@ export default function MonthlyPrintRoster() {
       } catch {}
       setTemplates(templateList);
 
-      // Fetch all weeks in month (compute Monday of each week)
+      // Fetch all roster data for current month using sql
       const allAssignments: any[] = [];
       const usersSet = new Set<string>();
-      for (let w = 0; w < 6; w++) {
-        const d = new Date(firstDay); d.setDate(d.getDate() + w * 7);
-        // Adjust to Monday (JS getDay: 0=Sun, 1=Mon)
-        const dayOfWeek = d.getDay();
-        const monday = new Date(d); monday.setDate(d.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-        const ws = monday.toISOString().slice(0, 10);
-        try {
-          const res = await fetch(`${API}/shift-roster?weekStart=${ws}&_t=${Date.now()}`, {
-            cache: "no-store", headers: { Authorization: `Bearer ${token}` },
-          });
-          if (res.ok) {
-            const data = await res.json();
-            allAssignments.push(...(data.assignments || []));
-            (data.users || []).forEach((u: any) => usersSet.add(JSON.stringify(u)));
-          }
-        } catch {}
-      }
+      try {
+        const from = firstDay.toISOString().slice(0, 10);
+        const lastDay = new Date(firstDay.getFullYear(), firstDay.getMonth() + 1, 0);
+        const to = lastDay.toISOString().slice(0, 10);
+        const res = await fetch(`${API}/shift-roster/month?from=${from}&to=${to}&_t=${Date.now()}`, {
+          cache: "no-store", headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          allAssignments.push(...(data.assignments || []));
+          (data.users || []).forEach((u: any) => usersSet.add(JSON.stringify(u)));
+        }
+      } catch {}
 
       const users = [...usersSet].map((s: string) => JSON.parse(s));
       const monthName = firstDay.toLocaleDateString("id-ID", { month: "long", year: "numeric" });

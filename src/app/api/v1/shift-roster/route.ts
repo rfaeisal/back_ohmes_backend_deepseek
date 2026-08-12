@@ -22,6 +22,21 @@ const rosterSchema = z.object({
 export const GET = withAuth(async (request: Request) => {
   // Bypass RLS for roster (uses raw SQL db.execute)
   const url = new URL(request.url);
+  const from = url.searchParams.get("from");
+  const to = url.searchParams.get("to");
+
+  // Monthly mode: fetch all assignments in date range
+  if (from && to) {
+    const existing = await db.execute(sql`SELECT user_id, date::text, shift_template_id, shift_role_id FROM shift_roster WHERE date >= ${from}::date AND date <= ${to}::date`);
+    const rosterRows = Array.isArray(existing) ? existing : [];
+    const allUsers = await db.execute(sql`SELECT DISTINCT u.id, u.username, u.full_name FROM "user" u JOIN shift_roster sr ON sr.user_id = u.id WHERE sr.date >= ${from}::date AND sr.date <= ${to}::date`);
+    const userRows = Array.isArray(allUsers) ? allUsers : [];
+    return NextResponse.json({
+      assignments: rosterRows.map((r: any) => ({ userId: r.user_id, date: r.date, shiftTemplateId: r.shift_template_id, shiftRoleId: r.shift_role_id })),
+      users: userRows,
+    }, { status: 200 });
+  }
+
   const weekStart = url.searchParams.get("weekStart") ?? new Date().toISOString().slice(0, 10);
 
   // Get users with production roles only
