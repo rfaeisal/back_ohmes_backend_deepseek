@@ -1,4 +1,5 @@
 // GET + POST /api/v1/shift-roster — Roster mingguan
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withAuth } from "@/lib/auth/middleware";

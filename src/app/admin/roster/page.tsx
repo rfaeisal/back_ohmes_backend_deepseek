@@ -52,7 +52,7 @@ export default function RosterPage() {
   const load = useCallback(async (silent?: boolean) => {
     if (!silent) setLoading(true);
     const ws = formatDate(weekStart);
-    const data = await apiFetch(`/shift-roster?weekStart=${ws}&_=${Date.now()}`);
+    const data = await apiFetch(`/shift-roster?weekStart=${ws}&t=${Date.now()}`);
     setUsers(data.users ?? []);
     setTemplates(data.templates ?? []);
     setAssignments(data.assignments ?? []);
