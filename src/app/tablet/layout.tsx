@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 
 export default function TabletLayout({ children }: { children: React.ReactNode }) {
-  const [plantInfo, setPlantInfo] = useState("PLT-MLG-01 · Pabrik Malang 1");
+  const [plantInfo, setPlantInfo] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -16,10 +16,9 @@ export default function TabletLayout({ children }: { children: React.ReactNode }
         const payload = JSON.parse(atob(token.split(".")[1]!));
         const plantIds = payload.plantIds ?? [];
         const isPriv = payload.isPrivileged ?? false;
-        const roleIds = payload.roleIds ?? [];
 
-        // Admin check: SUPERADMIN or HQ roles
-        setIsAdmin(isPriv || roleIds.length > 0);
+        // Admin link hanya untuk SUPERADMIN
+        setIsAdmin(isPriv);
 
         // Fetch plant info
         if (plantIds.length > 0) {
@@ -31,8 +30,6 @@ export default function TabletLayout({ children }: { children: React.ReactNode }
             const plants = data.data ?? [];
             if (plants.length === 1) {
               setPlantInfo(`${plants[0].code} · ${plants[0].name}`);
-            } else if (plants.length > 1) {
-              setPlantInfo(`${plants.length} pabrik`);
             }
           }
         }
@@ -50,15 +47,14 @@ export default function TabletLayout({ children }: { children: React.ReactNode }
             <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800">Pilot</span>
           </div>
           <div className="flex items-center gap-3 text-sm text-gray-500">
-            <span>{plantInfo}</span>
+            {plantInfo && <span>{plantInfo}</span>}
             {isAdmin && (
-              <>
-                <span className="text-gray-300">|</span>
-                <a href="/admin" className="text-gray-600 hover:underline font-medium">⚙️ Admin</a>
-              </>
+              <Link href="/admin" className="text-gray-600 hover:underline font-medium">⚙️ Admin</Link>
             )}
-            <span className="text-gray-300">|</span>
-            <a href="/tablet/login" className="text-red-600 hover:underline font-medium">Logout</a>
+            <Link href="/tablet/login" className="text-red-600 hover:underline font-medium"
+              onClick={(e) => { e.preventDefault(); localStorage.removeItem("accessToken"); localStorage.removeItem("refreshToken"); window.location.href = "/tablet/login"; }}>
+              Logout
+            </Link>
           </div>
         </div>
       </header>
