@@ -107,7 +107,7 @@ export default function MonthlyPrintRoster() {
                           const idx = templates.findIndex((t: any) => t.id === a.shiftTemplateId);
                           return (
                           <span key={j} className={`shift-${idx % 5}`} title={tpl?.name || "?"}>
-                            {tpl?.code || "✓"}
+                            {tpl?.name || "✓"}
                           </span>
                         )})}
                       </td>
