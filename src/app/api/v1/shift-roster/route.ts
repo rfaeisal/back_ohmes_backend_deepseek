@@ -20,6 +20,7 @@ const rosterSchema = z.object({
 });
 
 export const GET = withAuth(async (request: Request) => {
+  // Bypass RLS for roster (uses raw SQL db.execute)
   const url = new URL(request.url);
   const weekStart = url.searchParams.get("weekStart") ?? new Date().toISOString().slice(0, 10);
 
@@ -51,9 +52,10 @@ export const GET = withAuth(async (request: Request) => {
     templates: templateRows,
     assignments: rosterRows.map((r: any) => ({ userId: r.user_id, date: r.date, shiftTemplateId: r.shift_template_id, shiftRoleId: r.shift_role_id })),
   }, { status: 200 });
-});
+}, { allowBypassRls: true });
 
 export const POST = withAuth(async (request: Request) => {
+  // Bypass RLS for roster (uses raw SQL db.execute)
   const body = await request.json();
   const parsed = rosterSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: { code: "VALIDATION_ERROR" } }, { status: 400 });
@@ -74,4 +76,4 @@ export const POST = withAuth(async (request: Request) => {
   }
 
   return NextResponse.json({ success: true, saved: inserted }, { status: 201 });
-});
+}, { allowBypassRls: true });
