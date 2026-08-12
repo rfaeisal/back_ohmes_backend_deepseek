@@ -7,27 +7,34 @@ const API = "/api/v1";
 function getToken() { return typeof window !== "undefined" ? localStorage.getItem("accessToken") : null; }
 
 export default function MonthlyPrintRoster() {
-  const [monthData, setMonthData] = useState<any>({ users: [], assignments: [] });
+  const [monthData, setMonthData] = useState<any>(null);
+  const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       const token = getToken();
       if (!token) { window.location.href = "/tablet/login"; return; }
-      // Get first day of current month
       const now = new Date();
       const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      // Fetch templates
+      let templateList: any[] = [];
+      try {
+        const tRes = await fetch(`${API}/shift-templates`, { headers: { Authorization: `Bearer ${token}` } });
+        if (tRes.ok) { const d = await tRes.json(); templateList = d.data || []; }
+      } catch {}
+      setTemplates(templateList);
 
       // Fetch all weeks in month
       const allAssignments: any[] = [];
       const usersSet = new Set<string>();
-      for (let w = 0; w < 5; w++) {
+      for (let w = 0; w < 6; w++) {
         const d = new Date(firstDay); d.setDate(d.getDate() + w * 7);
         const ws = d.toISOString().slice(0, 10);
         try {
           const res = await fetch(`${API}/shift-roster?weekStart=${ws}&_t=${Date.now()}`, {
-            cache: "no-store",
-            headers: { Authorization: `Bearer ${token}` },
+            cache: "no-store", headers: { Authorization: `Bearer ${token}` },
           });
           if (res.ok) {
             const data = await res.json();
@@ -39,7 +46,6 @@ export default function MonthlyPrintRoster() {
 
       const users = [...usersSet].map((s: string) => JSON.parse(s));
       const monthName = firstDay.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
-
       setMonthData({ monthName, users, assignments: allAssignments, year: firstDay.getFullYear(), month: firstDay.getMonth() });
       setLoading(false);
       setTimeout(() => window.print(), 1000);
@@ -94,11 +100,16 @@ export default function MonthlyPrintRoster() {
                     const dayAssignments = assignments.filter((a: any) => a.userId === u.id && a.date === date);
                     return (
                       <td key={i}>
-                        {dayAssignments.map((a: any, j: number) => (
-                          <span key={j} className={a.shiftTemplateId?.includes("pagi") ? "shift-p" : "shift-s"}>
-                            {a.shiftTemplateId?.includes("pagi") ? "P" : a.shiftTemplateId?.includes("sore") ? "S" : "✓"}
+                        {dayAssignments.map((a: any, j: number) => {
+                          const tpl = templates.find((t: any) => t.id === a.shiftTemplateId);
+                          const name = tpl?.name || "?";
+                          const isPagi = name.toLowerCase().includes("pagi");
+                          const isSore = name.toLowerCase().includes("sore");
+                          return (
+                          <span key={j} className={isPagi ? "shift-p" : isSore ? "shift-s" : "shift-p"} title={name}>
+                            {tpl?.code || "✓"}
                           </span>
-                        ))}
+                        )})}
                       </td>
                     );
                   })}
