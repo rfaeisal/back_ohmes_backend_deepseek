@@ -66,7 +66,27 @@ export default function AuditPage() {
                 <tr key={log.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 text-sm font-mono text-gray-500">{new Date(log.createdAt).toLocaleString("id-ID")}</td>
                   <td className="py-3 font-mono text-sm">{log.action}</td>
-                  <td className="py-3 text-sm text-gray-500">{log.entityTable}/{log.entityId?.slice(0,8)}</td>
+                  <td className="py-3 text-sm">
+                    {log.entityTable === "shift_report" ? (
+                      <a
+                        href={`/admin/reports/shifts`}
+                        className="text-blue-600 hover:underline font-mono"
+                        title={`Trace shift ${log.entityId}`}
+                      >
+                        Shift · {log.entityId?.slice(0, 8)}
+                      </a>
+                    ) : log.entityTable === "user" ? (
+                      <a
+                        href={`/admin/users`}
+                        className="text-blue-600 hover:underline font-mono"
+                        title={`Trace user ${log.entityId}`}
+                      >
+                        User · {log.entityId?.slice(0, 8)}
+                      </a>
+                    ) : (
+                      <span className="font-mono text-gray-500">{log.entityTable}/{log.entityId?.slice(0, 8)}</span>
+                    )}
+                  </td>
                   <td className="py-3 text-sm">
                     {log.actorUsername ? (
                       <span className="font-medium">@{log.actorUsername}</span>
