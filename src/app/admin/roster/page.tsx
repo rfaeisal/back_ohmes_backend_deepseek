@@ -178,7 +178,7 @@ export default function RosterPage() {
             const variants = ["primary", "secondary", "danger"];
             return (
             <Button key={t.id} size="sm" variant={(activeTemplate === t.id ? variants[i % variants.length] : "outline") as any} onClick={() => setActiveTemplate(t.id)}>
-              {t.name} ({t.start_time?.slice(0,5)} — {Math.floor(t.duration_minutes/60)}j)
+              {t.name} ({t.startTime?.slice(0,5) || t.start_time?.slice(0,5)} — {Math.floor((t.durationMinutes || t.duration_minutes || 0)/60)}j)
             </Button>
           )})}
         </div>

@@ -123,7 +123,7 @@ export default function MonthlyPrintRoster() {
           <div className="flex gap-4 flex-wrap">
             {templates.map((t: any, i: number) => (
               <span key={t.id} className={`shift-${i % 5} px-2 py-1 rounded`}>
-                {t.name} ({t.code}): {t.start_time?.slice(0,5)} — {Math.floor(t.duration_minutes/60)}j {t.duration_minutes%60}m
+                {t.name} ({t.code}): {t.startTime?.slice(0,5) || t.start_time?.slice(0,5)} — {Math.floor((t.durationMinutes || t.duration_minutes || 0)/60)}j {(t.durationMinutes || t.duration_minutes || 0)%60}m
               </span>
             ))}
           </div>
