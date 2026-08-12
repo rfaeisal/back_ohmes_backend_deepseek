@@ -115,6 +115,7 @@ export default function RosterPage() {
             <Button size="sm" variant="outline" onClick={nextWeek}><ChevronRight className="size-4" /></Button>
           </div>
           <Button onClick={handleSave} disabled={saving}>{saving ? "Menyimpan..." : "💾 Simpan Roster"}</Button>
+          <Button variant="outline" onClick={() => window.open("/admin/roster/print", "_blank")}>🖨 Cetak Bulanan</Button>
         </div>
       </div>
 
