@@ -10,6 +10,8 @@ function getToken() { return typeof window !== "undefined" ? localStorage.getIte
 
 export default function TsgStockReport() {
   const [inventory, setInventory] = useState<any[]>([]);
+  const [allInventory, setAllInventory] = useState<any[]>([]);
+  const [typeFilter, setTypeFilter] = useState("");
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -19,10 +21,18 @@ export default function TsgStockReport() {
       const res = await fetch(`${API}/tsg-inventory/available?limit=500`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.status === 401) { localStorage.removeItem("accessToken"); window.location.href = "/tablet/login"; return; }
       const data = await res.json();
-      setInventory((data.data ?? []).map((item: any) => ({ ...item, id: item.inventoryId ?? item.id })));
+      const items = (data.data ?? []).map((item: any) => ({ ...item, id: item.inventoryId ?? item.id }));
+      setAllInventory(items);
+      setInventory(items);
     } catch {}
     setLoading(false);
   }, []);
+
+  useEffect(() => {
+    let filtered = allInventory;
+    if (typeFilter) filtered = filtered.filter(i => i.tsgType === typeFilter);
+    setInventory(filtered);
+  }, [typeFilter, allInventory]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -49,7 +59,12 @@ export default function TsgStockReport() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div><h1 className="text-3xl font-bold text-gray-900">Laporan Stok TSG</h1><p className="text-gray-500">Inventory TSG saat ini — tersedia di gudang</p></div>
-        <Button onClick={handleExport} disabled={inventory.length === 0}>📥 Export CSV</Button>
+        <div className="flex gap-3">
+          <select className="rounded-lg border px-3 py-2 text-sm bg-white" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+            <option value="">Semua Jenis</option><option value="REGULER">Reguler</option><option value="MILD">Mild</option><option value="PUTIHAN">Putihan</option>
+          </select>
+          <Button onClick={handleExport} disabled={inventory.length === 0}>📥 Export CSV</Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-4 gap-4 mb-6">
