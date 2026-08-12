@@ -402,15 +402,13 @@ export default function MasterDataPage() {
                 {(() => { const sp = (form.startTime || "00:00").split(":"); const sh = parseInt(sp[0]||"0"); const ep = (form.endTime || "00:00").split(":"); const eh = parseInt(ep[0]||"0"); return (eh < sh) ? <Badge variant="warning">Lintas Hari</Badge> : null; })()}
               </div>
             )}
-            {!form.id && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Pabrik</label>
-                <select className="w-full rounded-lg border px-4 py-3 bg-white" value={form.plantId ?? ""} onChange={e => setForm({...form, plantId: e.target.value})}>
-                  <option value="">Pilih Pabrik</option>
-                  {plants.map((p: any) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-                </select>
-              </div>
-            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Pabrik</label>
+              <select className="w-full rounded-lg border px-4 py-3 bg-white" value={form.plantId ?? ""} onChange={e => setForm({...form, plantId: e.target.value})}>
+                <option value="">Pilih Pabrik</option>
+                {plants.map((p: any) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+              </select>
+            </div>
           </>)}
           {showAdd === "supplier" && (<>
             {!form.id && <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="SUP-JAWA-03" />}
