@@ -67,7 +67,13 @@ export default function AuditPage() {
                   <td className="py-3 text-sm font-mono text-gray-500">{new Date(log.createdAt).toLocaleString("id-ID")}</td>
                   <td className="py-3 font-mono text-sm">{log.action}</td>
                   <td className="py-3 text-sm text-gray-500">{log.entityTable}/{log.entityId?.slice(0,8)}</td>
-                  <td className="py-3 text-sm">{log.actorUserId?.slice(0,8) ?? "-"}</td>
+                  <td className="py-3 text-sm">
+                    {log.actorUsername ? (
+                      <span className="font-medium">@{log.actorUsername}</span>
+                    ) : (
+                      <span className="text-gray-400">{log.actorUserId?.slice(0,8) ?? "-"}</span>
+                    )}
+                  </td>
                   <td className="py-3">
                     {log.isPrivileged ? <Badge variant="error">PRIVILEGED</Badge> : <Badge variant="neutral">NORMAL</Badge>}
                   </td>

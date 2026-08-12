@@ -320,7 +320,26 @@ export async function getAuditLog(params: {
     .orderBy(desc(auditLog.createdAt))
     .limit(limit);
 
-  return { data: logs, total: logs.length };
+  // Resolve actor usernames
+  const actorIds = [...new Set(logs.map((l) => l.actorUserId).filter(Boolean))];
+  const usernameMap = new Map<string, string>();
+  if (actorIds.length > 0) {
+    const actorIdList = actorIds.map((id) => `'${id}'`).join(",");
+    const actors = await db.execute(
+      sql`SELECT id, username FROM "user" WHERE id IN (${sql.raw(actorIdList)})`
+    );
+    for (const a of (Array.isArray(actors) ? actors : []) as any[]) {
+      usernameMap.set(a.id, a.username);
+    }
+  }
+
+  return {
+    data: logs.map((log) => ({
+      ...log,
+      actorUsername: usernameMap.get(log.actorUserId) ?? null,
+    })),
+    total: logs.length,
+  };
 }
 
 // =============================================================================
