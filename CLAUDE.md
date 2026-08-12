@@ -1,139 +1,109 @@
 # CLAUDE.md — Konteks untuk Claude Code
 
-Panduan untuk Claude Code (dan LLM assistant lain) yang bekerja di repo ini. Berisi konteks bootstrap, konvensi kode, dan aturan wajib.
+Proyek MES + WMS Hummer — **Fase 0–6 Complete** (Agustus 2026).
 
 ---
 
-## Konteks Proyek
+## Status Terkini
 
-Sistem MES + WMS multi-cabang untuk pabrik rokok Hummer. **Belum ada source code** — masih fase dokumentasi. Coding Fase 0 (foundation) belum dimulai.
-
-Dokumentasi lengkap:
-- [`README.md`](./README.md) — entry point repo
-- [`docs/README.md`](./docs/README.md) — indeks dokumentasi lengkap (20+ file)
-- [`docs/catatan-diskusi.md`](./docs/catatan-diskusi.md) — log diskusi + rasionale keputusan
-
-**Baca dulu sebelum coding**: [`docs/03-architecture.md`](./docs/03-architecture.md), [`docs/04-data-model.md`](./docs/04-data-model.md), [`docs/09-fase-1-pilot-spec.md`](./docs/09-fase-1-pilot-spec.md).
+- ✅ 22 halaman UI, 60+ API endpoint, 43 tabel DB
+- ✅ Deploy Vercel + Neon PostgreSQL 16
+- ✅ 6 test users (admin, kecer, supervisor, citra.gudang, dodi.auditor, erik.koordinator)
+- ✅ 8 boks TSG sample di inventory (REGULER, MILD, PUTIHAN)
+- ✅ Roster mingguan + cetak bulanan
+- ✅ Laporan stok TSG, laporan receiving, laporan per shift
+- ✅ Label print (waterproof BOPP 100x60mm)
+- ✅ Auth JWT + OTP bypass + session management
 
 ---
 
-## Tech Stack (Ditentukan, Jangan Diganti Tanpa Diskusi)
+## Tech Stack (Wajib)
 
-- **Framework**: Next.js 15 (App Router + RSC + Route Handlers).
-- **Language**: TypeScript strict mode.
-- **Database**: PostgreSQL 16.
-- **ORM**: **Drizzle** (BUKAN Prisma — ADR-002 di `docs/03-architecture.md`).
-- **Auth**: JWT + refresh token dengan 2FA untuk SUPERADMIN (BUKAN NextAuth default).
-- **UI**: Tailwind CSS + Shadcn/UI.
-- **Deployment**: Vercel single region Singapore.
-- **Package manager**: pnpm.
+- Next.js 15 (App Router) · TypeScript strict · Drizzle ORM · PostgreSQL 16
+- Tailwind CSS + Shadcn/UI (custom wrapper) + Lucide icons
+- JWT auth (jose) + bcrypt · Zod validation
+- Vitest · Playwright · GitHub Actions
 
 ---
 
 ## Konvensi Wajib
 
-### Multi-Tenant + RLS
-- **Semua tabel operasional wajib `plantId` NOT NULL**. Tanpa pengecualian.
-- **RLS PostgreSQL** sebagai final gate. Session variable `app.current_plant_ids` di-inject dari JWT + `user_assignment`.
-- Client **tidak pernah** kirim `plantId` untuk filter. Nilai diambil dari session scope resolver.
-
-### API-First
-- **Semua operasi lewat REST endpoint** `/api/v1/*` (bukan Server Actions saja).
-- Web dan mobile Flutter konsumsi endpoint yang sama.
-- **Idempotency-Key header wajib** di semua POST/PATCH.
-
-### Kalkulasi Server-Side
-- Yield, berat per batang, dan semua kalkulasi produksi = **server-side**.
-- Client tidak boleh hitung sendiri (operator tidak boleh bisa manipulasi via DevTools).
-
-### Aturan Bisnis Kunci
-- **Ganti produk di tengah shift tidak diizinkan** — harus end shift + start baru.
-- **TSG box wajib dari inventory AVAILABLE** — bukan free-text.
-- **FIFO enforcement** untuk TSG inventory (override butuh permission + audit log).
-- **Shift APPROVED = LOCKED immutable** — perubahan hanya via CORRECTION (HQ_AUDITOR).
-- **Handoff eksplisit** saat end shift dengan boks aktif belum habis.
-- **Single-session mobile**: 1 user hanya 1 sesi mobile aktif. Pindah device via SUPERADMIN revoke.
-- **SUPERADMIN max 3 aktif** per system.
-- **Audit log** untuk semua mutasi.
-- **Soft delete** (`deletedAt`) di semua tabel operasional.
-
-### Compliance
-- Retensi data 10 tahun (cukai).
-- Setiap privileged action (SUPERADMIN) → audit `is_privileged=true` + broadcast self-policing.
-
-### Naming
-- **Nama tabel/entity**: `PascalCase` di doc/TS, `snake_case` di SQL.
-- **Nama field**: `camelCase` di TS/Drizzle, `snake_case` di SQL.
-- **Role code**: `SNAKE_UPPER` (`OPERATOR_KECER`).
-- **Permission**: `dot.case` (`shift.approve`).
-- **URI QR**: `ohmes://{type}/{plantId}/{entityId}`.
-
-### Bahasa Dokumentasi
-- **Bahasa Indonesia** untuk semua dokumen di `docs/`.
-- Istilah teknis (API, RLS, JWT) dibiarkan bahasa Inggris.
-- Komentar kode boleh Inggris atau Indonesia — konsisten dalam satu file.
+1. **TypeScript strict** — `any` = red flag
+2. **Zod validation** di semua POST/PATCH boundary
+3. **RLS** — semua tabel operasional wajib `plantId`
+4. **API-first** — REST `/api/v1/*`, bukan Server Actions
+5. **Kalkulasi server-side** — yield, berat/batang TIDAK di client
+6. **Shift APPROVED = LOCKED** — perubahan via CORRECTION
+7. **Audit log** — `writeAudit()` untuk semua mutasi
+8. **Soft delete** — `deletedAt` di semua tabel
+9. **Naming**: PascalCase doc/TS, snake_case SQL, camelCase field, dot.case permission
+10. **Bahasa**: Indonesia untuk docs, Inggris/Indonesia bebas untuk komentar kode
 
 ---
 
-## Directive untuk Claude Code
+## Struktur Proyek
 
-### Sebelum Menulis Kode
-1. **Baca dokumentasi relevan** — jangan bikin skema/endpoint baru tanpa cek `04-data-model.md` dan `06-api-spec.md`.
-2. **Cek permission matrix** di `docs/05-rbac-matrix.md` sebelum implement endpoint.
-3. **Kalau ragu**, cek `docs/catatan-diskusi.md` untuk rasionale historis.
-
-### Saat Menulis Kode
-1. **Wajib TypeScript strict**. `any` = red flag.
-2. **Wajib zod validation** di boundary API.
-3. **Wajib audit log** untuk mutasi.
-4. **Wajib RLS-aware** — set session variable sebelum query.
-5. **Wajib idempotency** — POST/PATCH implement idempotency-key store.
-6. **Jangan hardcode konstanta** yang harus dari master data (mis. yield range — ambil dari `machine_template`).
-7. **Jangan skip test** — cover happy path + edge case + RLS negative test.
-
-### Setelah Menulis Kode
-1. **Update dokumentasi** kalau ada perubahan skema/endpoint/rule.
-2. **Update `docs/mobile-team/`** kalau ada perubahan yang affect mobile API contract.
-3. **Update CHANGELOG** untuk release notes.
-4. **Test di CI** sebelum merge.
-
-### Jangan Lakukan
-- ❌ Jangan skip RLS "sementara buat testing" — bikin bug production.
-- ❌ Jangan bikin endpoint `/admin/*` tanpa cek permission properly.
-- ❌ Jangan hitung yield di client.
-- ❌ Jangan UPDATE tabel LOCKED — pakai CORRECTION flow.
-- ❌ Jangan bypass single-session mobile enforcement.
-- ❌ Jangan simpan secret di code — pakai env vars (lihat `.env.example`).
-- ❌ Jangan commit `settings.local.json` atau `.env` (sudah di-gitignore).
-
----
-
-## Skills / Slash Commands Rekomendasi
-
-Kalau tim developer pakai Claude Code, skills yang berguna:
-- `/init` — kalau perlu re-baseline CLAUDE.md.
-- `/code-review` sebelum PR merge.
-- `/simplify` untuk refactor code yang berbelit.
-- `/security-review` sebelum deploy production.
+```
+src/
+├── app/
+│   ├── (tablet)/          # Tablet UI (7 halaman)
+│   │   ├── login/         # Login → redirect by role
+│   │   ├── shift/[id]/    # Shift aktif — produksi recording
+│   │   ├── gudang/        # WMS Inbound
+│   │   ├── start-shift/   # Mulai shift + roster auto-pick
+│   │   └── labels/        # Cetak label standalone
+│   ├── admin/             # Admin dashboard (14 halaman)
+│   │   ├── roster/        # Roster mingguan + cetak bulanan
+│   │   ├── reports/       # Laporan (tsg-receiving, tsg-stock, shifts)
+│   │   └── sessions/      # Manajemen sesi
+│   ├── api/v1/            # 60+ REST endpoints
+│   └── print-labels/      # Print label standalone
+├── components/ui/         # Button, Card, Badge, Input, Dialog (shadcn wrappers)
+├── db/
+│   ├── schema/            # 8 file Drizzle (30+ tabel)
+│   ├── seed.ts            # Idempotent seed
+│   └── migrations/        # SQL + RLS policies
+├── lib/
+│   ├── auth/              # JWT, session, scope-resolver, middleware
+│   ├── calc/              # Yield, berat/batang, waste, OEE
+│   ├── services/          # 13 service modules
+│   ├── rls/               # PostgreSQL RLS context
+│   └── utils/             # cn(), error format, pagination
+└── middleware.ts           # CORS + rate limiting
+```
 
 ---
 
-## Referensi Cepat
+## Business Rules Penting
 
-| Butuh info tentang... | Buka |
-|---|---|
-| Istilah domain (TSG, HLP, Kecer, dsb.) | [`docs/00-glossary.md`](./docs/00-glossary.md) |
-| Skema data + RLS policy | [`docs/04-data-model.md`](./docs/04-data-model.md) |
-| Endpoint + contoh payload | [`docs/06-api-spec.md`](./docs/06-api-spec.md) |
-| Permission per role | [`docs/05-rbac-matrix.md`](./docs/05-rbac-matrix.md) |
-| Setup local dev | [`SETUP.md`](./SETUP.md) |
-| Deployment | [`docs/14-deployment-infra.md`](./docs/14-deployment-infra.md) |
-| Test | [`docs/15-testing-strategy.md`](./docs/15-testing-strategy.md) |
-| Runbook incident | [`docs/17-operations-runbook.md`](./docs/17-operations-runbook.md) |
-| Backup / DR | [`docs/18-backup-recovery.md`](./docs/18-backup-recovery.md) |
-| Migrasi dari paper | [`docs/19-data-migration.md`](./docs/19-data-migration.md) |
-| Error code catalog | [`docs/20-api-error-catalog.md`](./docs/20-api-error-catalog.md) |
+- **TSG dari inventory**: operator wajib pilih dari inventory AVAILABLE (FIFO)
+- **FIFO override**: perlu permission + audit alasan
+- **Ganti produk mid-shift**: TIDAK DIIZINKAN — harus end shift + start baru
+- **Shift handoff**: boks aktif wajib timbang saat end shift
+- **SUPERADMIN**: max 3, JWT 5 menit, 2FA, OTP bypass `OTP_BYPASS_CODE`
+- **Single-session mobile**: 409 SESSION_EXISTS, revoke via SUPERADMIN
+- **Token expired**: 401 redirect hanya untuk POST/PATCH (bukan GET background)
 
 ---
 
-*Update CLAUDE.md kalau ada konvensi/aturan baru yang harus di-enforce.*
+## Known Issues & Gotchas
+
+1. **Drizzle `db.execute()`** — pakai type cast untuk raw SQL: `::uuid`, `::date`
+2. **Shadcn CSS** — pastikan `--primary`, `--secondary` dalam HSL di `globals.css`
+3. **`useSearchParams()`** — wajib dibungkus `<Suspense>`
+4. **Roster shiftRoleId** — harus UUID, bukan string "ketua_kecer"
+5. **Next.js fetch cache** — tambah `cache: "no-store"` + `_t=Date.now()` untuk client fetch
+6. **Print CSS** — `print-color-adjust: exact` agar warna tetap muncul
+7. **Admin layout** — ada auth guard (`useEffect` cek token, redirect `/tablet/login`)
+
+---
+
+## Setup Cepat
+
+```bash
+docker compose -f docker-compose.dev.yml up -d  # PostgreSQL
+cp .env.example .env
+pnpm install && pnpm db:migrate && pnpm db:seed
+pnpm seed:superadmin --username admin --email admin@hummer.example
+pnpm dev  # → http://localhost:3001
+```
