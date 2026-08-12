@@ -13,6 +13,8 @@ import {
   shiftWaste,
   shiftHandoff,
   tsgBoxProcess,
+  downtimeLog,
+  maintenanceEvent,
 } from "@/db/schema";
 import { machine, shiftTemplate, product } from "@/db/schema/master-product";
 import { calculateShiftYield } from "@/lib/calc";
@@ -437,6 +439,37 @@ export async function getShiftDetail(shiftId: string) {
   const boxes = await db.select().from(tsgBoxProcess).where(eq(tsgBoxProcess.shiftReportId, shiftId)).orderBy(tsgBoxProcess.boxNumber);
   const handoffs = await db.select().from(shiftHandoff).where(eq(shiftHandoff.fromShiftId, shiftId));
 
+  // Consumption, downtime, maintenance (pakai raw SQL — kolom snake_case)
+  const consumptionsRaw = await db.execute(
+    sql`SELECT tbc.*, ci.name as item_name FROM tsg_box_consumption tbc LEFT JOIN consumable_item ci ON ci.id = tbc.consumable_item_id WHERE tbc.tsg_box_id IN (SELECT id FROM tsg_box_process WHERE shift_report_id = ${shiftId}::uuid)`
+  );
+
+  const downtimes = await db.select().from(downtimeLog).where(eq(downtimeLog.shiftReportId, shiftId));
+
+  const maintenancesRaw = await db.execute(
+    sql`SELECT me.*, sp.name as item_name FROM maintenance_event me LEFT JOIN sparepart sp ON sp.id = me.sparepart_id WHERE me.shift_report_id = ${shiftId}::uuid`
+  );
+
+  const consumptions = Array.isArray(consumptionsRaw)
+    ? consumptionsRaw.map((r: any) => ({
+        id: r.id, boxId: r.tsg_box_id || r.box_id, consumableItemId: r.consumable_item_id,
+        quantity: r.quantity, note: r.note, itemName: r.item_name,
+      }))
+    : ((consumptionsRaw as any)?.rows || []).map((r: any) => ({
+        id: r.id, boxId: r.tsg_box_id || r.box_id, consumableItemId: r.consumable_item_id,
+        quantity: r.quantity, note: r.note, itemName: r.item_name,
+      }));
+
+  const maintenances = Array.isArray(maintenancesRaw)
+    ? maintenancesRaw.map((r: any) => ({
+        id: r.id, sparepartId: r.sparepart_id, quantity: r.quantity,
+        note: r.note, itemName: r.item_name,
+      }))
+    : ((maintenancesRaw as any)?.rows || []).map((r: any) => ({
+        id: r.id, sparepartId: r.sparepart_id, quantity: r.quantity,
+        note: r.note, itemName: r.item_name,
+      }));
+
   const yieldPct = calculateShiftYield({
     boxes: boxes.filter((b) => b.outputWeightKg && b.tsgWeightKg).map((b) => ({
       outputWeightKg: Number(b.outputWeightKg), tsgWeightKg: Number(b.tsgWeightKg),
@@ -452,6 +485,9 @@ export async function getShiftDetail(shiftId: string) {
     wastes,
     boxes,
     handoffs,
+    consumptions,
+    downtimes,
+    maintenances,
     yieldPct,
   };
 }

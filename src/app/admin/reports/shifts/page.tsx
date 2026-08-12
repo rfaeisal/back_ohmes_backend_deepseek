@@ -237,6 +237,51 @@ export default function ShiftReportPage() {
               </div>
             )}
 
+            {/* Consumption */}
+            {selected.consumptions?.length > 0 && (
+              <div>
+                <p className="font-semibold text-sm mb-2">Pemakaian Bahan ({selected.consumptions.length})</p>
+                <div className="space-y-1">
+                  {selected.consumptions.map((c: any) => (
+                    <div key={c.id} className="flex justify-between text-sm bg-gray-50 rounded p-2">
+                      <span>{c.itemName || c.consumableItemId?.slice(0, 8)}</span>
+                      <span className="text-gray-500">{c.quantity} {c.itemUnit || ''}{c.note ? ` · ${c.note}` : ''}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Downtime */}
+            {selected.downtimes?.length > 0 && (
+              <div>
+                <p className="font-semibold text-sm mb-2">Downtime ({selected.downtimes.length})</p>
+                <div className="space-y-1">
+                  {selected.downtimes.map((d: any) => (
+                    <div key={d.id} className="flex justify-between text-sm bg-yellow-50 rounded p-2">
+                      <span className="font-medium">{d.category?.replace(/_/g, ' ')}</span>
+                      <span className="text-gray-500">{d.durationMinutes} menit{d.description ? ` · ${d.description}` : ''}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Maintenance */}
+            {selected.maintenances?.length > 0 && (
+              <div>
+                <p className="font-semibold text-sm mb-2">Maintenance ({selected.maintenances.length})</p>
+                <div className="space-y-1">
+                  {selected.maintenances.map((m: any) => (
+                    <div key={m.id} className="flex justify-between text-sm bg-blue-50 rounded p-2">
+                      <span>{m.itemName || m.sparepartId?.slice(0, 8)}</span>
+                      <span className="text-gray-500">{m.quantity} {m.itemUnit || 'unit'}{m.note ? ` · ${m.note}` : ''}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Notes */}
             {selected.notes && (
               <div className="bg-gray-50 rounded p-3 text-sm">
