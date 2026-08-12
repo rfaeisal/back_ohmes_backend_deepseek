@@ -143,7 +143,9 @@ export default function RosterPage() {
                           <div className="flex flex-col gap-0.5 items-center">
                             {cellAssignments.map((a: any, j: number) => {
                               const tpl = templates.find((t: any) => t.id === a.shiftTemplateId);
-                              return <Badge key={j} variant="info" className="text-xs">{tpl?.name ?? "?"}</Badge>;
+                              const colors = ["info", "success", "warning", "error"];
+                              const colorIdx = templates.findIndex((t: any) => t.id === a.shiftTemplateId) % colors.length;
+                              return <Badge key={j} variant={colors[colorIdx] as any} className="text-xs">{tpl?.name ?? "?"}</Badge>;
                             })}
                           </div>
                         ) : (
@@ -165,11 +167,13 @@ export default function RosterPage() {
           <Button size="sm" variant={activeTemplate === "" ? "primary" : "outline"} onClick={() => setActiveTemplate("")}>
             ✋ Lepas (hapus assignment)
           </Button>
-          {templates.map((t: any) => (
-            <Button key={t.id} size="sm" variant={activeTemplate === t.id ? "primary" : "outline"} onClick={() => setActiveTemplate(t.id)}>
+          {templates.map((t: any, i: number) => {
+            const variants = ["primary", "secondary", "danger"];
+            return (
+            <Button key={t.id} size="sm" variant={(activeTemplate === t.id ? variants[i % variants.length] : "outline") as any} onClick={() => setActiveTemplate(t.id)}>
               {t.name} ({t.start_time?.slice(0,5)} — {Math.floor(t.duration_minutes/60)}j)
             </Button>
-          ))}
+          )})}
         </div>
         {activeTemplate && <p className="text-xs text-primary-600 mt-2">Klik sel di tabel untuk assign shift. Klik lagi sel yang sudah ada untuk hapus.</p>}
       </div>
