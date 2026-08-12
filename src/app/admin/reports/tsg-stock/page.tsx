@@ -12,6 +12,8 @@ export default function TsgStockReport() {
   const [inventory, setInventory] = useState<any[]>([]);
   const [allInventory, setAllInventory] = useState<any[]>([]);
   const [typeFilter, setTypeFilter] = useState("");
+  const [plantFilter, setPlantFilter] = useState("");
+  const [plants, setPlants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -28,11 +30,14 @@ export default function TsgStockReport() {
     setLoading(false);
   }, []);
 
+  useEffect(() => { (async () => { const t = getToken(); const r = await fetch(`${API}/plants`, { headers: { Authorization: `Bearer ${t}` } }); if (r.ok) setPlants((await r.json()).data ?? []); })(); }, []);
+
   useEffect(() => {
     let filtered = allInventory;
     if (typeFilter) filtered = filtered.filter(i => i.tsgType === typeFilter);
+    if (plantFilter) filtered = filtered.filter(i => i.plantId === plantFilter);
     setInventory(filtered);
-  }, [typeFilter, allInventory]);
+  }, [typeFilter, plantFilter, allInventory]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -60,6 +65,10 @@ export default function TsgStockReport() {
       <div className="flex items-center justify-between mb-6">
         <div><h1 className="text-3xl font-bold text-gray-900">Laporan Stok TSG</h1><p className="text-gray-500">Inventory TSG saat ini — tersedia di gudang</p></div>
         <div className="flex gap-3">
+          <select className="rounded-lg border px-3 py-2 text-sm bg-white" value={plantFilter} onChange={e => setPlantFilter(e.target.value)}>
+            <option value="">Semua Pabrik</option>
+            {plants.map((p: any) => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
+          </select>
           <select className="rounded-lg border px-3 py-2 text-sm bg-white" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
             <option value="">Semua Jenis</option><option value="REGULER">Reguler</option><option value="MILD">Mild</option><option value="PUTIHAN">Putihan</option>
           </select>
