@@ -1,8 +1,9 @@
 // =============================================================================
-// Seed Data — Fase 0 Foundation
+// Seed Data — Fase 0–6 Foundation
 // =============================================================================
-// Seed data untuk 1 company, 1 region, 1 pilot plant, 3 machines,
-// 1 product (Hummer STD), 3 shift templates, 2 suppliers, roles + permissions.
+// Seed data untuk development: 1 company, 1 region, 1 pilot plant, 3 machines,
+// 1 product (Hummer STD), 2 shift templates, 2 suppliers, 13 roles + permissions,
+// 7 test users, 8 sample TSG boxes di inventory.
 //
 // Usage: pnpm db:seed
 // =============================================================================
@@ -20,6 +21,7 @@ import {
   permission,
   rolePermission,
   authPolicy,
+  userAssignment,
 } from "@/db/schema/identity";
 import {
   product,
@@ -32,7 +34,8 @@ import {
   shiftTemplate,
   rejectReason,
 } from "@/db/schema/master-product";
-import { tsgSupplier } from "@/db/schema/wms-inbound";
+import { tsgSupplier, tsgReceiving, tsgReceivingBox, tsgInventory } from "@/db/schema/wms-inbound";
+import { hashPassword } from "@/lib/auth";
 
 async function seed() {
   console.log("🌱 Seeding database...\n");
@@ -68,13 +71,15 @@ async function seed() {
     .insert(plant)
     .values({
       regionId: reg!.id,
-      code: "PLT-MLG-01",
-      name: "Pabrik Malang 1",
+      code: "PLT-PMK-01",
+      name: "Pabrik Kadur 1",
       timezone: "Asia/Jakarta",
-      address: "Jl. Industri No. 1, Malang",
+      address: "Jl. Industri No. 1, Kadur",
     })
     .returning();
   console.log(`  ✓ Plant: ${plt!.code}\n`);
+
+  const plantId = plt!.id;
 
   // ===========================================================================
   // 2. ROLES
@@ -170,7 +175,7 @@ async function seed() {
   console.log("🔗 Role-Permission assignments...");
 
   const rolePerms: Record<string, string[]> = {
-    SUPERADMIN: permissionsData, // All permissions
+    SUPERADMIN: permissionsData,
     HQ_ADMIN: [
       "shift.reopen", "shift.view", "shift.export",
       "batch.view", "hlp.pack",
@@ -285,7 +290,51 @@ async function seed() {
   console.log("  ✓ Role-permission assignments done\n");
 
   // ===========================================================================
-  // 5. MASTER DATA
+  // 5. TEST USERS
+  // ===========================================================================
+  console.log("👥 Test Users...");
+  const testUsers: Array<{
+    username: string; fullName: string; password: string; email: string;
+    roleCode: string; scopeType: "GLOBAL" | "COMPANY" | "REGION" | "PLANT"; scopeId: string;
+  }> = [
+    { username: "admin", fullName: "admin", password: process.env.SUPERADMIN_DEFAULT_PASSWORD || "CHANGE_ME_admin", email: "admin@hummer.example", roleCode: "SUPERADMIN", scopeType: "GLOBAL", scopeId: "00000000-0000-0000-0000-000000000000" },
+    { username: "kecer", fullName: "Pak Kecer", password: "12345678", email: "kecer@gmail.com", roleCode: "OPERATOR_KECER", scopeType: "PLANT", scopeId: plantId },
+    { username: "supervisor", fullName: "Pak Supervisor", password: "supervisor123", email: "paksuper@gmail.com", roleCode: "SHIFT_SUPERVISOR", scopeType: "PLANT", scopeId: plantId },
+    { username: "gudangin", fullName: "Mbak Gudang", password: "gudang123", email: "mbakgudang@gmail.com", roleCode: "GUDANG_INBOUND", scopeType: "PLANT", scopeId: plantId },
+    { username: "gudangout", fullName: "Mbok Gudang", password: "gudang123", email: "mbokgudang@gmail.com", roleCode: "GUDANG_OUTBOUND", scopeType: "PLANT", scopeId: plantId },
+    { username: "erik.koordinator", fullName: "Erik Koordinator", password: "koordinator123", email: "erik@hummer.example", roleCode: "AREA_COORDINATOR", scopeType: "REGION", scopeId: reg!.id },
+    { username: "hqauditor", fullName: "Pak HQ Auditor", password: "auditor123", email: "pakhqauditor@gmail.com", roleCode: "HQ_AUDITOR", scopeType: "COMPANY", scopeId: comp!.id },
+  ];
+
+  for (const tu of testUsers) {
+    const passwordHash = await hashPassword(tu.password);
+    const [newUser] = await db
+      .insert(user)
+      .values({
+        username: tu.username,
+        fullName: tu.fullName,
+        email: tu.email,
+        passwordHash,
+        isActive: true,
+      })
+      .returning();
+
+    const roleId = roleMap.get(tu.roleCode)!;
+    await db.insert(userAssignment).values({
+      userId: newUser!.id,
+      scopeType: tu.scopeType,
+      scopeId: tu.scopeId,
+      roleId,
+      assignedBy: newUser!.id,
+    });
+  }
+  console.log(`  ✓ ${testUsers.length} test users created`);
+  console.log(`  Passwords: kecer/12345678, supervisor/supervisor123, gudangin/gudang123`);
+  console.log(`             gudangout/gudang123, erik.koordinator/koordinator123, hqauditor/auditor123`);
+  console.log(`  Admin:    SUPERADMIN_DEFAULT_PASSWORD env var (default: CHANGE_ME_admin)\n`);
+
+  // ===========================================================================
+  // 6. MASTER DATA
   // ===========================================================================
   console.log("🏭 Master Data...");
 
@@ -302,20 +351,18 @@ async function seed() {
 
   // PlantProduct
   await db.insert(plantProduct).values({
-    plantId: plt!.id,
+    plantId: plantId,
     productId: prd!.id,
   });
 
   // Machines
   const machinesData = [
-    { plantId: plt!.id, code: "MKR-01", name: "Maker 1", type: "MAKER" as const },
-    { plantId: plt!.id, code: "MKR-02", name: "Maker 2", type: "MAKER" as const },
-    { plantId: plt!.id, code: "HLP-01", name: "HLP 1", type: "HLP" as const },
+    { plantId: plantId, code: "MKR-01", name: "Maker 1", type: "MAKER" as const },
+    { plantId: plantId, code: "MKR-02", name: "Maker 2", type: "MAKER" as const },
+    { plantId: plantId, code: "HLP-01", name: "HLP 1", type: "HLP" as const },
   ];
-  const machineMap = new Map<string, string>();
   for (const m of machinesData) {
-    const [inserted] = await db.insert(machine).values(m).returning();
-    machineMap.set(m.code, inserted!.id);
+    await db.insert(machine).values(m);
   }
   console.log(`  ✓ ${machinesData.length} machines`);
 
@@ -366,8 +413,8 @@ async function seed() {
 
   // Shift Templates
   const shiftTemplatesData = [
-    { plantId: plt!.id, code: "shift_siang", name: "Shift Siang", startTime: "05:30", durationMinutes: 660, displayOrder: 1 },
-    { plantId: plt!.id, code: "shift_malam", name: "Shift Malam", startTime: "16:30", durationMinutes: 780, displayOrder: 2 },
+    { plantId: plantId, code: "shift_pagi", name: "Pagi", startTime: "07:00", durationMinutes: 480, displayOrder: 1 },
+    { plantId: plantId, code: "shift_sore", name: "Sore", startTime: "15:00", durationMinutes: 480, displayOrder: 2 },
   ];
   for (const st of shiftTemplatesData) {
     await db.insert(shiftTemplate).values(st);
@@ -387,7 +434,7 @@ async function seed() {
   console.log(`  ✓ ${rejectReasonsData.length} reject reasons\n`);
 
   // ===========================================================================
-  // 6. WMS INBOUND MASTER — Suppliers
+  // 7. WMS INBOUND MASTER — Suppliers
   // ===========================================================================
   console.log("🚛 WMS Inbound — Suppliers...");
   const suppliersData = [
@@ -400,52 +447,50 @@ async function seed() {
   console.log(`  ✓ ${suppliersData.length} suppliers\n`);
 
   // ===========================================================================
-  // 7. WMS INBOUND — Sample Receiving Data
+  // 8. WMS INBOUND — Sample Receiving Data
   // ===========================================================================
   console.log("📦 WMS Inbound — Sample Receiving...");
-  const { tsgReceiving, tsgReceivingBox, tsgInventory } = await import("@/db/schema/wms-inbound");
-
-  const sampleReceivings = [
-    {
-      supplierId: suppliersData[0] ? undefined : undefined,
-      boxes: [
-        { code: "TSG-20260811-001", weight: "29.75", type: "REGULER" as const },
-        { code: "TSG-20260811-002", weight: "30.10", type: "REGULER" as const },
-        { code: "TSG-20260811-003", weight: "29.80", type: "MILD" as const },
-        { code: "TSG-20260811-004", weight: "30.25", type: "MILD" as const },
-        { code: "TSG-20260811-005", weight: "29.90", type: "REGULER" as const },
-      ],
-      docRef: "SJ-081-2026",
-      receivedAt: new Date("2026-08-11T05:00:00+07:00"),
-    },
-    {
-      supplierId: undefined,
-      boxes: [
-        { code: "TSG-20260811-101", weight: "28.50", type: "PUTIHAN" as const },
-        { code: "TSG-20260811-102", weight: "29.15", type: "PUTIHAN" as const },
-        { code: "TSG-20260811-103", weight: "28.80", type: "PUTIHAN" as const },
-      ],
-      docRef: "SJ-045-2026",
-      receivedAt: new Date("2026-08-11T06:30:00+07:00"),
-    },
-  ];
 
   const [sup1] = await db.select({ id: tsgSupplier.id }).from(tsgSupplier).where(eq(tsgSupplier.code, "SUP-JAWA-01")).limit(1);
   const [sup2] = await db.select({ id: tsgSupplier.id }).from(tsgSupplier).where(eq(tsgSupplier.code, "SUP-JAWA-02")).limit(1);
   const [adminUser] = await db.select({ id: user.id }).from(user).where(eq(user.username, "admin")).limit(1);
 
   if (sup1 && sup2 && adminUser) {
-    (sampleReceivings[0] as any).supplierId = sup1.id;
-    (sampleReceivings[1] as any).supplierId = sup2.id;
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, ""); // e.g. "20260812"
+
+    const sampleReceivings = [
+      {
+        supplierId: sup1.id,
+        boxes: [
+          { code: `TSG-${today}-001`, weight: "29.75", type: "REGULER" as const },
+          { code: `TSG-${today}-002`, weight: "30.10", type: "REGULER" as const },
+          { code: `TSG-${today}-003`, weight: "29.80", type: "MILD" as const },
+          { code: `TSG-${today}-004`, weight: "30.25", type: "MILD" as const },
+          { code: `TSG-${today}-005`, weight: "29.90", type: "REGULER" as const },
+        ],
+        docRef: "SJ-081-2026",
+        receivedAt: new Date(),
+      },
+      {
+        supplierId: sup2.id,
+        boxes: [
+          { code: `TSG-${today}-101`, weight: "28.50", type: "PUTIHAN" as const },
+          { code: `TSG-${today}-102`, weight: "29.15", type: "PUTIHAN" as const },
+          { code: `TSG-${today}-103`, weight: "28.80", type: "PUTIHAN" as const },
+        ],
+        docRef: "SJ-045-2026",
+        receivedAt: new Date(),
+      },
+    ];
 
     let seq = 0;
     for (const recv of sampleReceivings) {
       seq++;
       const totalWeight = recv.boxes.reduce((s, b) => s + parseFloat(b.weight), 0);
       const [header] = await db.insert(tsgReceiving).values({
-        plantId: plt!.id,
+        plantId: plantId,
         supplierId: recv.supplierId as any,
-        receivingCode: `RCV-20260811-0${seq}`,
+        receivingCode: `RCV-${today}-0${seq}`,
         receivedAt: recv.receivedAt,
         receivedBy: adminUser.id,
         totalBoxCount: recv.boxes.length,
@@ -457,7 +502,7 @@ async function seed() {
         const box = recv.boxes[i]!;
         const [rb] = await db.insert(tsgReceivingBox).values({
           receivingId: header!.id,
-          plantId: plt!.id,
+          plantId: plantId,
           boxCode: box.code,
           weightKg: box.weight,
           boxSeq: i + 1,
@@ -466,7 +511,7 @@ async function seed() {
         } as any).returning();
 
         await db.insert(tsgInventory).values({
-          plantId: plt!.id,
+          plantId: plantId,
           boxId: rb!.id,
           tsgType: box.type as any,
           status: "AVAILABLE",
@@ -479,10 +524,23 @@ async function seed() {
   // ===========================================================================
   // DONE
   // ===========================================================================
-  console.log("✅ Seed complete! Jalankan 'pnpm seed:superadmin' untuk membuat SUPERADMIN pertama.\n");
-  console.log("   Login dengan SUPERADMIN di /api/v1/auth/login");
-  console.log("   Plant ID pilot: ", plt!.id);
-  console.log("   Product ID:     ", prd!.id);
+  console.log("✅ Seed complete!\n");
+  console.log("   Test accounts:");
+  console.log("   ┌──────────────────┬──────────────────┬─────────────────────┐");
+  console.log("   │ Username         │ Password         │ Role                │");
+  console.log("   ├──────────────────┼──────────────────┼─────────────────────┤");
+  console.log("   │ kecer            │ 12345678         │ OPERATOR_KECER      │");
+  console.log("   │ supervisor       │ supervisor123    │ SHIFT_SUPERVISOR    │");
+  console.log("   │ gudangin         │ gudang123        │ GUDANG_INBOUND      │");
+  console.log("   │ gudangout        │ gudang123        │ GUDANG_OUTBOUND     │");
+  console.log("   │ erik.koordinator │ koordinator123   │ AREA_COORDINATOR    │");
+  console.log("   │ hqauditor        │ auditor123       │ HQ_AUDITOR          │");
+  console.log("   │ admin            │ (env var)        │ SUPERADMIN          │");
+  console.log("   └──────────────────┴──────────────────┴─────────────────────┘");
+  console.log("");
+  console.log(`   Plant: ${plt!.code} (${plt!.id})`);
+  console.log(`   Product: ${prd!.code} (${prd!.id})`);
+  console.log("   OTP bypass: 000000 (development)\n");
 }
 
 seed()
