@@ -12,6 +12,7 @@ function getToken() { return typeof window !== "undefined" ? localStorage.getIte
 async function apiFetch(path: string) {
   const token = getToken();
   const res = await fetch(`${API}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (res.status === 401) { localStorage.removeItem("accessToken"); window.location.href = "/tablet/login"; return { data: [] }; }
   if (!res.ok) return { data: [] };
   return res.json();
 }

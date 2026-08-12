@@ -70,6 +70,7 @@ export default function GudangInboundPage() {
           boxes: validBoxes.map(b => ({ boxCode: b.code, weightKg: parseFloat(b.weight), tsgType: b.type })),
         }),
       });
+      if (res.status === 401) { localStorage.removeItem("accessToken"); window.location.href = "/tablet/login"; throw new Error("Sesi berakhir"); }
       if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || "Gagal menyimpan"); }
       setShowReceiving(false);
       setReceivingBoxes([{ code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }]);
