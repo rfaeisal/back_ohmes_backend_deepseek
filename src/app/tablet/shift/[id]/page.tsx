@@ -60,7 +60,7 @@ export default function ShiftActivePage() {
         apiFetch("/tsg-inventory/available?limit=50"),
       ]);
       setShiftData(detail);
-      setApiInventory(inv.data ?? []);
+      setApiInventory((inv.data ?? []).map((item: any) => ({ ...item, id: item.inventoryId ?? item.id })));
       // Set completed boxes from API
       if (detail?.boxes) {
         const completed = detail.boxes.filter((b: any) => b.completedAt).map((b: any) => ({
