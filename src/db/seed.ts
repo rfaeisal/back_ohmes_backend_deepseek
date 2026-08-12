@@ -299,11 +299,11 @@ async function seed() {
   }> = [
     { username: "admin", fullName: "admin", password: process.env.SUPERADMIN_DEFAULT_PASSWORD || "CHANGE_ME_admin", email: "admin@hummer.example", roleCode: "SUPERADMIN", scopeType: "GLOBAL", scopeId: "00000000-0000-0000-0000-000000000000" },
     { username: "kecer", fullName: "Pak Kecer", password: "12345678", email: "kecer@gmail.com", roleCode: "OPERATOR_KECER", scopeType: "PLANT", scopeId: plantId },
-    { username: "supervisor", fullName: "Pak Supervisor", password: "supervisor123", email: "paksuper@gmail.com", roleCode: "SHIFT_SUPERVISOR", scopeType: "PLANT", scopeId: plantId },
-    { username: "gudangin", fullName: "Mbak Gudang", password: "gudang123", email: "mbakgudang@gmail.com", roleCode: "GUDANG_INBOUND", scopeType: "PLANT", scopeId: plantId },
-    { username: "gudangout", fullName: "Mbok Gudang", password: "gudang123", email: "mbokgudang@gmail.com", roleCode: "GUDANG_OUTBOUND", scopeType: "PLANT", scopeId: plantId },
-    { username: "erik.koordinator", fullName: "Erik Koordinator", password: "koordinator123", email: "erik@hummer.example", roleCode: "AREA_COORDINATOR", scopeType: "REGION", scopeId: reg!.id },
-    { username: "hqauditor", fullName: "Pak HQ Auditor", password: "auditor123", email: "pakhqauditor@gmail.com", roleCode: "HQ_AUDITOR", scopeType: "COMPANY", scopeId: comp!.id },
+    { username: "supervisor", fullName: "Pak Supervisor", password: "12345678", email: "paksuper@gmail.com", roleCode: "SHIFT_SUPERVISOR", scopeType: "PLANT", scopeId: plantId },
+    { username: "gudangin", fullName: "Mbak Gudang", password: "12345678", email: "mbakgudang@gmail.com", roleCode: "GUDANG_INBOUND", scopeType: "PLANT", scopeId: plantId },
+    { username: "gudangout", fullName: "Mbok Gudang", password: "12345678", email: "mbokgudang@gmail.com", roleCode: "GUDANG_OUTBOUND", scopeType: "PLANT", scopeId: plantId },
+    { username: "erik.koordinator", fullName: "Erik Koordinator", password: "12345678", email: "erik@hummer.example", roleCode: "AREA_COORDINATOR", scopeType: "REGION", scopeId: reg!.id },
+    { username: "hqauditor", fullName: "Pak HQ Auditor", password: "12345678", email: "pakhqauditor@gmail.com", roleCode: "HQ_AUDITOR", scopeType: "COMPANY", scopeId: comp!.id },
   ];
 
   for (const tu of testUsers) {
@@ -329,9 +329,7 @@ async function seed() {
     });
   }
   console.log(`  ✓ ${testUsers.length} test users created`);
-  console.log(`  Passwords: kecer/12345678, supervisor/supervisor123, gudangin/gudang123`);
-  console.log(`             gudangout/gudang123, erik.koordinator/koordinator123, hqauditor/auditor123`);
-  console.log(`  Admin:    SUPERADMIN_DEFAULT_PASSWORD env var (default: CHANGE_ME_admin)\n`);
+  console.log(`  Passwords: semua 12345678 (admin: SUPERADMIN_DEFAULT_PASSWORD env var)\n`);
 
   // ===========================================================================
   // 6. MASTER DATA
@@ -530,11 +528,11 @@ async function seed() {
   console.log("   │ Username         │ Password         │ Role                │");
   console.log("   ├──────────────────┼──────────────────┼─────────────────────┤");
   console.log("   │ kecer            │ 12345678         │ OPERATOR_KECER      │");
-  console.log("   │ supervisor       │ supervisor123    │ SHIFT_SUPERVISOR    │");
-  console.log("   │ gudangin         │ gudang123        │ GUDANG_INBOUND      │");
-  console.log("   │ gudangout        │ gudang123        │ GUDANG_OUTBOUND     │");
-  console.log("   │ erik.koordinator │ koordinator123   │ AREA_COORDINATOR    │");
-  console.log("   │ hqauditor        │ auditor123       │ HQ_AUDITOR          │");
+  console.log("   │ supervisor       │ 12345678         │ SHIFT_SUPERVISOR    │");
+  console.log("   │ gudangin         │ 12345678         │ GUDANG_INBOUND      │");
+  console.log("   │ gudangout        │ 12345678         │ GUDANG_OUTBOUND     │");
+  console.log("   │ erik.koordinator │ 12345678         │ AREA_COORDINATOR    │");
+  console.log("   │ hqauditor        │ 12345678         │ HQ_AUDITOR          │");
   console.log("   │ admin            │ (env var)        │ SUPERADMIN          │");
   console.log("   └──────────────────┴──────────────────┴─────────────────────┘");
   console.log("");
