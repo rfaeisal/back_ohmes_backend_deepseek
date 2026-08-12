@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { LayoutDashboard, ClipboardCheck, MapPin, TrendingUp, Wrench, Users, Settings, ScrollText, Shield, Printer, FileText, FileBarChart, Factory, LogOut, Smartphone, Calendar, Package } from "lucide-react";
 
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  useEffect(() => { const t = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null; if (!t) window.location.href = "/tablet/login"; }, []);
   return (
     <div className="flex min-h-screen bg-gray-50">
       <aside className="w-60 bg-gray-900 text-white flex flex-col shrink-0 no-print">
