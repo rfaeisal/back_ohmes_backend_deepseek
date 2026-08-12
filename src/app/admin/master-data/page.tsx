@@ -41,6 +41,8 @@ export default function MasterDataPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [shiftTemplates, setShiftTemplates] = useState<any[]>([]);
+  const [regions, setRegions] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -52,18 +54,22 @@ export default function MasterDataPage() {
     setLoading(true);
     setError("");
     try {
-      const [p, m, pr, s, st] = await Promise.allSettled([
+      const [p, m, pr, s, st, r, c] = await Promise.allSettled([
         apiFetch("/plants"),
         apiFetch("/machines"),
         apiFetch("/products"),
         apiFetch("/tsg-suppliers"),
         apiFetch("/shift-templates"),
+        apiFetch("/regions"),
+        apiFetch("/companies"),
       ]);
       if (p.status === "fulfilled") setPlants(p.value.data ?? []);
       if (m.status === "fulfilled") setMachines(m.value.data ?? []);
       if (pr.status === "fulfilled") setProducts(pr.value.data ?? []);
       if (s.status === "fulfilled") setSuppliers(s.value.data ?? []);
       if (st.status === "fulfilled") setShiftTemplates(st.value.data ?? []);
+      if (r.status === "fulfilled") setRegions(r.value.data ?? []);
+      if (c.status === "fulfilled") setCompanies(c.value.data ?? []);
     } catch {
       setError("Gagal memuat data. Pastikan sudah login.");
     } finally {
@@ -81,6 +87,7 @@ export default function MasterDataPage() {
         product: "/products",
         supplier: "/tsg-suppliers",
         shiftTemplate: "/shift-templates",
+        region: "/regions",
       };
       const body = type === "shiftTemplate" ? { ...form, durationMinutes: parseInt(form.durationMinutes || "660"), plantId: form.plantId || "3b775285-6b60-4ffa-ad7b-5558fc9f3da2" } : form;
       await apiFetch(endpoints[type]!, { method: "POST", body: JSON.stringify(body) });
@@ -112,6 +119,7 @@ export default function MasterDataPage() {
         plant: `/plants/${form.id}`, machine: `/machines/${form.id}`,
         product: `/products/${form.id}`, supplier: `/tsg-suppliers/${form.id}`,
         shiftTemplate: `/shift-templates/${form.id}`,
+        region: `/regions/${form.id}`,
       };
       const body = type === "shiftTemplate" ? { ...form, durationMinutes: parseInt(form.durationMinutes || "660") } : form;
       await apiFetch(endpoints[type]!, { method: "PATCH", body: JSON.stringify(body) });
@@ -128,6 +136,7 @@ export default function MasterDataPage() {
         product: `/products/${id}`,
         supplier: `/tsg-suppliers/${id}`,
         shiftTemplate: `/shift-templates/${id}`,
+        region: `/regions/${id}`,
       };
       if (type === "shiftTemplate" && !confirm("Hapus shift template?")) return;
       await apiFetch(endpoints[type]!, { method: "DELETE" });
@@ -150,6 +159,7 @@ export default function MasterDataPage() {
         </div>
         <div className="flex gap-2">
           <Button size="sm" onClick={() => { setForm({}); setShowAdd("plant"); }}>+ Pabrik</Button>
+          <Button size="sm" onClick={() => { setForm({}); setShowAdd("region"); }}>+ Area</Button>
           <Button size="sm" onClick={() => { setForm({}); setShowAdd("machine"); }}>+ Mesin</Button>
           <Button size="sm" onClick={() => { setForm({}); setShowAdd("product"); }}>+ Produk</Button>
           <Button size="sm" onClick={() => { setForm({}); setShowAdd("supplier"); }}>+ Supplier</Button>
@@ -181,6 +191,32 @@ export default function MasterDataPage() {
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => { setForm(p); setShowAdd("plant"); }}><Pencil className="size-4" /></Button>
                     <Button size="sm" variant="ghost" onClick={() => handleDelete("plant", p.id)}><Trash2 className="size-4 text-red-500" /></Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* Regions Table */}
+      <Card className="mb-6">
+        <CardTitle>Area / Region ({regions.length})</CardTitle>
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="border-b border-gray-200">
+              <tr><th className="pb-3 text-sm font-semibold text-gray-600">Kode</th><th className="pb-3 text-sm font-semibold text-gray-600">Nama</th><th className="pb-3 text-sm font-semibold text-gray-600">Aksi</th></tr>
+            </thead>
+            <tbody>
+              {regions.length === 0 ? (
+                <tr><td colSpan={3} className="py-6 text-center text-gray-400">Belum ada area</td></tr>
+              ) : regions.map((r: any) => (
+                <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="py-3 font-mono font-medium">{r.code}</td>
+                  <td className="py-3">{r.name}</td>
+                  <td className="py-3 flex gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => { setForm(r); setShowAdd("region"); }}><Pencil className="size-4" /></Button>
+                    <Button size="sm" variant="ghost" onClick={() => handleDelete("region", r.id)}><Trash2 className="size-4 text-red-500" /></Button>
                   </td>
                 </tr>
               ))}
@@ -299,6 +335,19 @@ export default function MasterDataPage() {
       {/* Add Dialog */}
       <Dialog open={!!showAdd} onClose={() => setShowAdd(null)} title={`${form.id ? "Edit" : "Tambah"} ${showAdd === "plant" ? "Pabrik" : showAdd === "machine" ? "Mesin" : showAdd === "product" ? "Produk" : showAdd === "supplier" ? "Supplier" : "Shift Template"}`}>
         <div className="space-y-3">
+          {showAdd === "region" && (<>
+            {!form.id && <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="AREA-JATIM" />}
+            <Input label="Nama" value={form.name ?? ""} onChange={e => setForm({...form, name: e.target.value})} placeholder="Area Jawa Timur" />
+            {!form.id && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                <select className="w-full rounded-lg border px-4 py-3 bg-white" value={form.companyId ?? ""} onChange={e => setForm({...form, companyId: e.target.value})}>
+                  <option value="">Pilih Company</option>
+                  {(companies ?? []).map((c: any) => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
+                </select>
+              </div>
+            )}
+          </>)}
           {showAdd === "plant" && (<>
             {!form.id && <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="PLT-MLG-02" />}
             <Input label="Nama" value={form.name ?? ""} onChange={e => setForm({...form, name: e.target.value})} placeholder="Pabrik Malang 2" />
