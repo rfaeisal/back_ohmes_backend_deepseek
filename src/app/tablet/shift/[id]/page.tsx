@@ -37,12 +37,6 @@ interface BoxData {
   indicator?: "NORMAL" | "WARNING";
 }
 
-const MOCK_INVENTORY = [
-  { id: "inv_001", boxCode: "TSG-20260808-042", weightKg: 29.70, ageInDays: 3, location: "RAK-A-01" },
-  { id: "inv_002", boxCode: "TSG-20260809-011", weightKg: 30.05, ageInDays: 2, location: "RAK-A-02" },
-  { id: "inv_003", boxCode: "TSG-20260810-005", weightKg: 29.85, ageInDays: 1, location: "RAK-A-01" },
-];
-
 // =============================================================================
 // Page Component
 // =============================================================================
@@ -91,8 +85,7 @@ export default function ShiftActivePage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Use API inventory if available, otherwise mock
-  const inventoryList = apiInventory.length > 0 ? apiInventory : MOCK_INVENTORY;
+  const inventoryList = apiInventory;
 
   // State
   const [activeBox, setActiveBox] = useState<BoxData | null>(null);

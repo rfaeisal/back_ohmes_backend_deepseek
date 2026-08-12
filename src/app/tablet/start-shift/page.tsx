@@ -18,22 +18,14 @@ async function apiFetch(path: string, options?: RequestInit) {
   return res.json();
 }
 
-// Mock fallback data
-const MOCK_TEMPLATES = [
-  { id: "tpl_siang", code: "shift_siang", name: "Shift Siang", startTime: "05:30", durationMinutes: 660 },
-  { id: "tpl_malam", code: "shift_malam", name: "Shift Malam", startTime: "16:30", durationMinutes: 780 },
-];
-const MOCK_PRODUCTS = [{ id: "prd_hmr_std", code: "PRD-HMR-STD", brand: "Hummer", variant: "STD" }];
-const MOCK_USERS: any[] = [];
-
 function StartShiftForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const machineId = searchParams.get("machine") ?? "MKR-01";
+  const machineId = searchParams.get("machine") ?? "";
 
-  const [templates, setTemplates] = useState(MOCK_TEMPLATES);
-  const [products, setProducts] = useState(MOCK_PRODUCTS);
-  const [users, setUsers] = useState(MOCK_USERS);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [shiftRoles, setShiftRoles] = useState<any[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [selectedProduct, setSelectedProduct] = useState("");
@@ -52,11 +44,11 @@ function StartShiftForm() {
       if (t.status === "fulfilled" && t.value.data?.length > 0) {
         setTemplates(t.value.data);
         setSelectedTemplate(t.value.data[0].id);
-      } else { setSelectedTemplate(MOCK_TEMPLATES[0]!.id); }
+      }
       if (p.status === "fulfilled" && p.value.data?.length > 0) {
         setProducts(p.value.data);
         setSelectedProduct(p.value.data[0].id);
-      } else { setSelectedProduct(MOCK_PRODUCTS[0]!.id); }
+      }
       if (u.status === "fulfilled" && u.value.data?.length > 0) setUsers(u.value.data);
       if (r.status === "fulfilled" && r.value.data?.length > 0) setShiftRoles(r.value.data);
     } catch { /* gunakan mock */ }
