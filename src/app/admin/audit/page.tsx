@@ -68,23 +68,17 @@ export default function AuditPage() {
                   <td className="py-3 font-mono text-sm">{log.action}</td>
                   <td className="py-3 text-sm">
                     {log.entityTable === "shift_report" ? (
-                      <a
-                        href={`/admin/reports/shifts`}
-                        className="text-blue-600 hover:underline font-mono"
-                        title={`Trace shift ${log.entityId}`}
-                      >
-                        Shift · {log.entityId?.slice(0, 8)}
-                      </a>
+                      <span title={`ID: ${log.entityId}`}>
+                        Shift Produksi <span className="text-gray-400 font-mono">({log.entityId?.slice(0, 8)})</span>
+                      </span>
                     ) : log.entityTable === "user" ? (
-                      <a
-                        href={`/admin/users`}
-                        className="text-blue-600 hover:underline font-mono"
-                        title={`Trace user ${log.entityId}`}
-                      >
-                        User · {log.entityId?.slice(0, 8)}
-                      </a>
+                      <span title={`ID: ${log.entityId}`}>
+                        Pengguna <span className="text-gray-400 font-mono">({log.entityId?.slice(0, 8)})</span>
+                      </span>
                     ) : (
-                      <span className="font-mono text-gray-500">{log.entityTable}/{log.entityId?.slice(0, 8)}</span>
+                      <span title={`ID: ${log.entityId}`}>
+                        {log.entityTable} <span className="text-gray-400 font-mono">({log.entityId?.slice(0, 8)})</span>
+                      </span>
                     )}
                   </td>
                   <td className="py-3 text-sm">
