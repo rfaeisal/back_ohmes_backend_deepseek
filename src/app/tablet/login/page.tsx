@@ -54,7 +54,7 @@ export default function LoginPage() {
       if (isAdmin) router.push("/admin");
       else if (isSupervisor) router.push("/admin/approvals");
       else if (isCoordinator) router.push("/admin/area-dashboard");
-      else if (isGudang) router.push("/tablet/gudang");
+      else if (isGudang) router.push("/admin/gudang");
       else router.push("/tablet");
     } catch {
       setError("Tidak bisa terhubung ke server.");
