@@ -12,6 +12,8 @@ const NAV_ITEMS: Array<{ href: string; label: string; icon: any; permissions?: s
   { href: "/admin/corrections", label: "Correction", icon: Wrench, permissions: ["shift.correct"] },
   { href: "/admin/users", label: "Users & Role", icon: Users, permissions: ["user.assign_scope"] },
   { href: "/admin/master-data", label: "Master Data", icon: Settings, permissions: ["masterdata.machine.edit", "masterdata.product.edit", "masterdata.plant.edit"] },
+  { href: "/admin/master-consumables", label: "Master Consumable", icon: Package, permissions: ["masterdata.consumable.edit"] },
+  { href: "/admin/master-spareparts", label: "Master Sparepart", icon: Wrench, permissions: ["masterdata.sparepart.edit"] },
   { href: "/admin/audit", label: "Audit Log", icon: ScrollText, permissions: ["audit.read"] },
   { href: "/admin/reports/shifts", label: "Laporan Per Shift", icon: FileText, permissions: ["shift.view"] },
   { href: "/admin/reports/tsg-usage", label: "Penggunaan TSG", icon: BarChart3, permissions: ["shift.view"] },
