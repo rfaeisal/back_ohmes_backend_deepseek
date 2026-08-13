@@ -37,7 +37,7 @@ export default function GudangInboundPage() {
   // Material & sparepart receiving
   const [showMaterialReceiving, setShowMaterialReceiving] = useState(false);
   const [matType, setMatType] = useState<"CONSUMABLE" | "SPAREPART">("CONSUMABLE");
-  const [matItems, setMatItems] = useState<Array<{ itemId: string; qty: string }>>([{ itemId: "", qty: "" }]);
+  const [matItems, setMatItems] = useState<Array<{ itemId: string; qty: string; price: string }>>([{ itemId: "", qty: "", price: "" }]);
   const [matDocRef, setMatDocRef] = useState("");
   const [matNotes, setMatNotes] = useState("");
   const [matError, setMatError] = useState("");
@@ -74,7 +74,7 @@ export default function GudangInboundPage() {
           materialType: matType,
           supplierDocRef: matDocRef || undefined,
           notes: matNotes || undefined,
-          items: validItems.map((i) => ({ itemId: i.itemId, quantity: parseFloat(i.qty) })),
+          items: validItems.map((i) => ({ itemId: i.itemId, quantity: parseFloat(i.qty), unitPrice: i.price ? parseFloat(i.price) : undefined })),
         }),
       });
       if (res.status === 401) { localStorage.removeItem("accessToken"); window.location.href = "/tablet/login"; throw new Error("Sesi berakhir"); }
@@ -163,7 +163,7 @@ export default function GudangInboundPage() {
           <Button size="xl" onClick={() => { loadSuppliers(); setLocationCode(""); setReceivingBoxes([{ code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }]); setReceivingError(""); setShowReceiving(true); }}>
             🚛 Terima TSG Baru
           </Button>
-          <Button size="xl" variant="outline" onClick={() => { loadSuppliers(); setMatType("CONSUMABLE"); setMatItems([{ itemId: "", qty: "" }]); setMatDocRef(""); setMatNotes(""); setMatError(""); setShowMaterialReceiving(true); }}>
+          <Button size="xl" variant="outline" onClick={() => { loadSuppliers(); setMatType("CONSUMABLE"); setMatItems([{ itemId: "", qty: "", price: "" }]); setMatDocRef(""); setMatNotes(""); setMatError(""); setShowMaterialReceiving(true); }}>
             📦 Terima Material & Sparepart
           </Button>
         </div>
@@ -315,7 +315,7 @@ export default function GudangInboundPage() {
             {(["CONSUMABLE", "SPAREPART"] as const).map((t) => (
               <button
                 key={t}
-                onClick={() => { setMatType(t); setMatItems([{ itemId: "", qty: "" }]); loadMaterialItems(t); }}
+                onClick={() => { setMatType(t); setMatItems([{ itemId: "", qty: "", price: "" }]); loadMaterialItems(t); }}
                 className={`flex-1 rounded-lg border-2 px-4 py-2 text-sm font-medium transition-colors ${
                   matType === t ? "border-primary-500 bg-primary-50 text-primary-700" : "border-gray-200 text-gray-500 hover:border-gray-300"
                 }`}
@@ -361,7 +361,14 @@ export default function GudangInboundPage() {
                       value={item.qty}
                       onChange={e => { const next = [...matItems]; next[i] = { ...next[i]!, qty: e.target.value }; setMatItems(next); }}
                       placeholder="Qty"
-                      className="w-28"
+                      className="w-24"
+                    />
+                    <Input
+                      type="number"
+                      value={item.price}
+                      onChange={e => { const next = [...matItems]; next[i] = { ...next[i]!, price: e.target.value }; setMatItems(next); }}
+                      placeholder="Harga/unit"
+                      className="w-32"
                     />
                     {matItems.length > 1 && (
                       <button className="text-red-400 hover:text-red-600" onClick={() => setMatItems(matItems.filter((_, j) => j !== i))}>✕</button>
@@ -370,7 +377,7 @@ export default function GudangInboundPage() {
                 );
               })}
             </div>
-            <Button variant="outline" size="sm" className="mt-2" onClick={() => setMatItems([...matItems, { itemId: "", qty: "" }])}>
+            <Button variant="outline" size="sm" className="mt-2" onClick={() => setMatItems([...matItems, { itemId: "", qty: "", price: "" }])}>
               + Tambah Item
             </Button>
           </div>

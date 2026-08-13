@@ -22,3 +22,7 @@ CREATE POLICY p_sc_delete ON shift_consumption FOR DELETE USING (plant_id = ANY(
 
 -- Penanda material yang boleh dicatat saat Akhiri Shift
 ALTER TABLE consumable_item ADD COLUMN allow_at_end_shift boolean NOT NULL DEFAULT false;
+
+-- Harga beli per unit di receiving material/sparepart (untuk rekap biaya)
+ALTER TABLE consumable_receiving_item ADD COLUMN unit_price numeric(14,2);
+ALTER TABLE sparepart_receiving_item ADD COLUMN unit_price numeric(14,2);

@@ -79,6 +79,7 @@ export const consumableReceivingItem = pgTable(
       .notNull()
       .references(() => consumableItem.id),
     quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull(),
+    unitPrice: decimal("unit_price", { precision: 14, scale: 2 }), // harga beli per unit
     seq: integer("seq").notNull(), // urutan baris dalam penerimaan
   },
   (t) => ({
@@ -104,6 +105,7 @@ export const sparepartReceivingItem = pgTable(
       .notNull()
       .references(() => sparepart.id),
     quantity: integer("quantity").notNull(),
+    unitPrice: decimal("unit_price", { precision: 14, scale: 2 }), // harga beli per unit
     seq: integer("seq").notNull(), // urutan baris dalam penerimaan
   },
   (t) => ({

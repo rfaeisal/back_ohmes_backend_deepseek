@@ -30,7 +30,7 @@ export interface CreateMaterialReceivingInput {
   receivedBy: string;
   supplierDocRef?: string;
   notes?: string;
-  items: Array<{ itemId: string; quantity: number }>;
+  items: Array<{ itemId: string; quantity: number; unitPrice?: number }>;
 }
 
 // =============================================================================
@@ -95,6 +95,7 @@ export async function createMaterialReceiving(input: CreateMaterialReceivingInpu
           plantId: input.plantId,
           consumableItemId: item.itemId,
           quantity: String(item.quantity),
+          unitPrice: item.unitPrice != null ? String(item.unitPrice) : null,
           seq: i + 1,
         });
       } else {
@@ -103,6 +104,7 @@ export async function createMaterialReceiving(input: CreateMaterialReceivingInpu
           plantId: input.plantId,
           sparepartId: item.itemId,
           quantity: Math.round(item.quantity),
+          unitPrice: item.unitPrice != null ? String(item.unitPrice) : null,
           seq: i + 1,
         });
       }
@@ -164,6 +166,7 @@ export async function listMaterialReceiving(params: {
           id: consumableReceivingItem.id,
           itemId: consumableReceivingItem.consumableItemId,
           quantity: consumableReceivingItem.quantity,
+          unitPrice: consumableReceivingItem.unitPrice,
           itemName: consumableItem.name,
           itemUnit: consumableItem.unit,
         })
@@ -178,6 +181,7 @@ export async function listMaterialReceiving(params: {
           id: sparepartReceivingItem.id,
           itemId: sparepartReceivingItem.sparepartId,
           quantity: sparepartReceivingItem.quantity,
+          unitPrice: sparepartReceivingItem.unitPrice,
           itemName: sparepart.name,
           itemUnit: sparepart.unit,
         })
@@ -203,6 +207,7 @@ export async function getMaterialStock(plantId: string, materialType: MaterialTy
       .select({
         itemId: consumableReceivingItem.consumableItemId,
         total: sql<number>`COALESCE(SUM(${consumableReceivingItem.quantity}::decimal), 0)`.mapWith(Number),
+        totalValue: sql<number>`COALESCE(SUM(${consumableReceivingItem.quantity}::decimal * COALESCE(${consumableReceivingItem.unitPrice}::decimal, 0)), 0)`.mapWith(Number),
       })
       .from(consumableReceivingItem)
       .innerJoin(materialReceiving, eq(consumableReceivingItem.receivingId, materialReceiving.id))
@@ -232,7 +237,7 @@ export async function getMaterialStock(plantId: string, materialType: MaterialTy
       .from(consumableItem)
       .orderBy(consumableItem.code);
 
-    const receivedMap = new Map(receivedRows.map((r) => [r.itemId, r.total]));
+    const receivedMap = new Map(receivedRows.map((r) => [r.itemId, { total: r.total, totalValue: r.totalValue }]));
     const usedMap = new Map(boxUsedRows.map((r) => [r.itemId, r.total]));
     // Gabungkan pemakaian shift-level
     for (const r of shiftUsedRows) {
@@ -240,8 +245,10 @@ export async function getMaterialStock(plantId: string, materialType: MaterialTy
     }
 
     return items.map((it) => {
-      const masuk = receivedMap.get(it.id) ?? 0;
+      const masuk = receivedMap.get(it.id)?.total ?? 0;
       const terpakai = usedMap.get(it.id) ?? 0;
+      const sisa = Math.round((masuk - terpakai) * 100) / 100;
+      const avgPrice = masuk > 0 ? (receivedMap.get(it.id)?.totalValue ?? 0) / masuk : 0;
       return {
         itemId: it.id,
         code: it.code,
@@ -249,7 +256,9 @@ export async function getMaterialStock(plantId: string, materialType: MaterialTy
         unit: it.unit,
         masuk,
         terpakai,
-        sisa: Math.round((masuk - terpakai) * 100) / 100,
+        sisa,
+        avgPrice: Math.round(avgPrice * 100) / 100,
+        nilaiStok: Math.round(sisa * avgPrice * 100) / 100,
       };
     });
   }
@@ -260,6 +269,7 @@ export async function getMaterialStock(plantId: string, materialType: MaterialTy
     .select({
       itemId: sparepartReceivingItem.sparepartId,
       total: sql<number>`COALESCE(SUM(${sparepartReceivingItem.quantity}), 0)`.mapWith(Number),
+      totalValue: sql<number>`COALESCE(SUM(${sparepartReceivingItem.quantity} * COALESCE(${sparepartReceivingItem.unitPrice}::decimal, 0)), 0)`.mapWith(Number),
     })
     .from(sparepartReceivingItem)
     .innerJoin(materialReceiving, eq(sparepartReceivingItem.receivingId, materialReceiving.id))
@@ -280,12 +290,14 @@ export async function getMaterialStock(plantId: string, materialType: MaterialTy
     .from(sparepart)
     .orderBy(sparepart.code);
 
-  const receivedMap = new Map(receivedRows.map((r) => [r.itemId, r.total]));
+  const receivedMap = new Map(receivedRows.map((r) => [r.itemId, { total: r.total, totalValue: r.totalValue }]));
   const usedMap = new Map(usedRows.map((r) => [r.itemId, r.total]));
 
   return items.map((it) => {
-    const masuk = receivedMap.get(it.id) ?? 0;
+    const masuk = receivedMap.get(it.id)?.total ?? 0;
     const terpakai = usedMap.get(it.id) ?? 0;
+    const sisa = masuk - terpakai;
+    const avgPrice = masuk > 0 ? (receivedMap.get(it.id)?.totalValue ?? 0) / masuk : 0;
     return {
       itemId: it.id,
       code: it.code,
@@ -293,9 +305,52 @@ export async function getMaterialStock(plantId: string, materialType: MaterialTy
       unit: it.unit,
       masuk,
       terpakai,
-      sisa: masuk - terpakai,
+      sisa,
+      avgPrice: Math.round(avgPrice * 100) / 100,
+      nilaiStok: Math.round(sisa * avgPrice * 100) / 100,
     };
   });
+}
+
+
+// =============================================================================
+// Helper — harga rata-rata tertimbang per item (untuk rekap biaya)
+// =============================================================================
+
+async function getWeightedAvgPrices(plantId: string | undefined, materialType: MaterialType): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  if (!plantId) return map;
+
+  if (materialType === "CONSUMABLE") {
+    const rows = await db
+      .select({
+        itemId: consumableReceivingItem.consumableItemId,
+        total: sql<number>`COALESCE(SUM(${consumableReceivingItem.quantity}::decimal), 0)`.mapWith(Number),
+        totalValue: sql<number>`COALESCE(SUM(${consumableReceivingItem.quantity}::decimal * COALESCE(${consumableReceivingItem.unitPrice}::decimal, 0)), 0)`.mapWith(Number),
+      })
+      .from(consumableReceivingItem)
+      .innerJoin(materialReceiving, eq(consumableReceivingItem.receivingId, materialReceiving.id))
+      .where(eq(materialReceiving.plantId, plantId))
+      .groupBy(consumableReceivingItem.consumableItemId);
+    for (const r of rows) {
+      if (r.total > 0) map.set(r.itemId, r.totalValue / r.total);
+    }
+  } else {
+    const rows = await db
+      .select({
+        itemId: sparepartReceivingItem.sparepartId,
+        total: sql<number>`COALESCE(SUM(${sparepartReceivingItem.quantity}), 0)`.mapWith(Number),
+        totalValue: sql<number>`COALESCE(SUM(${sparepartReceivingItem.quantity} * COALESCE(${sparepartReceivingItem.unitPrice}::decimal, 0)), 0)`.mapWith(Number),
+      })
+      .from(sparepartReceivingItem)
+      .innerJoin(materialReceiving, eq(sparepartReceivingItem.receivingId, materialReceiving.id))
+      .where(eq(materialReceiving.plantId, plantId))
+      .groupBy(sparepartReceivingItem.sparepartId);
+    for (const r of rows) {
+      if (r.total > 0) map.set(r.itemId, r.totalValue / r.total);
+    }
+  }
+  return map;
 }
 
 // =============================================================================
@@ -364,10 +419,13 @@ export async function getMaterialUsage(params: {
       }
     }
 
+    const priceMap = await getWeightedAvgPrices(params.plantId, params.materialType);
+
     return items
       .filter((it) => rowMap.has(it.id))
       .map((it) => {
         const r = rowMap.get(it.id)!;
+        const avgPrice = priceMap.get(it.id) ?? 0;
         return {
           itemId: it.id,
           code: it.code,
@@ -376,6 +434,8 @@ export async function getMaterialUsage(params: {
           totalUsed: Math.round(r.total * 100) / 100,
           eventCount: r.eventCount,
           lastUsed: r.lastUsed,
+          avgPrice: Math.round(avgPrice * 100) / 100,
+          biaya: Math.round(r.total * avgPrice * 100) / 100,
         };
       });
   }
@@ -406,10 +466,13 @@ export async function getMaterialUsage(params: {
 
   const rowMap = new Map(rows.map((r) => [r.itemId, r]));
 
+  const priceMap = await getWeightedAvgPrices(params.plantId, params.materialType);
+
   return items
     .filter((it) => rowMap.has(it.id))
     .map((it) => {
       const r = rowMap.get(it.id)!;
+      const avgPrice = priceMap.get(it.id) ?? 0;
       return {
         itemId: it.id,
         code: it.code,
@@ -418,6 +481,8 @@ export async function getMaterialUsage(params: {
         totalUsed: r.total,
         eventCount: r.eventCount,
         lastUsed: r.lastUsed,
+        avgPrice: Math.round(avgPrice * 100) / 100,
+        biaya: Math.round(r.total * avgPrice * 100) / 100,
       };
     });
 }

@@ -42,6 +42,8 @@ export default function MaterialUsageReport() {
 
   useEffect(() => { load(); }, [load]);
 
+  const totalBiaya = items.reduce((s, i) => s + (i.biaya ?? 0), 0);
+
   const handleExport = () => {
     const headers = ["Kode", "Nama", "Unit", "Total Terpakai", "Jumlah Event", "Terakhir Dipakai"];
     const rows = items.map((i) => [
@@ -88,10 +90,11 @@ export default function MaterialUsageReport() {
       </Card>
 
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <Card><p className="text-xs text-gray-500">Item Terpakai</p><p className="text-3xl font-bold text-blue-700">{summary?.totalItems ?? 0}</p></Card>
         <Card><p className="text-xs text-gray-500">Total Quantity</p><p className="text-3xl font-bold text-green-700">{summary?.totalUsed ?? 0}</p></Card>
         <Card><p className="text-xs text-gray-500">Total Event</p><p className="text-3xl font-bold text-yellow-700">{summary?.totalEvents ?? 0}</p></Card>
+        <Card><p className="text-xs text-gray-500">Total Biaya Pemakaian</p><p className="text-3xl font-bold text-purple-700">Rp {totalBiaya.toLocaleString("id-ID")}</p></Card>
       </div>
 
       <Card>
@@ -105,14 +108,16 @@ export default function MaterialUsageReport() {
                 <th className="pb-3 text-sm font-semibold text-gray-600">Unit</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600 text-right">Total Terpakai</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600 text-right">Event</th>
+                <th className="pb-3 text-sm font-semibold text-gray-600 text-right">Harga Rata²</th>
+                <th className="pb-3 text-sm font-semibold text-gray-600 text-right">Biaya</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Terakhir Dipakai</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="py-6 text-center text-gray-400">Memuat...</td></tr>
+                <tr><td colSpan={8} className="py-6 text-center text-gray-400">Memuat...</td></tr>
               ) : items.length === 0 ? (
-                <tr><td colSpan={6} className="py-6 text-center text-gray-400">Belum ada pemakaian pada periode ini.</td></tr>
+                <tr><td colSpan={8} className="py-6 text-center text-gray-400">Belum ada pemakaian pada periode ini.</td></tr>
               ) : items.map((item) => (
                 <tr key={item.itemId} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 font-mono text-sm">{item.code}</td>
@@ -120,6 +125,8 @@ export default function MaterialUsageReport() {
                   <td className="py-3 text-sm text-gray-500">{item.unit}</td>
                   <td className="py-3 text-right font-bold">{item.totalUsed}</td>
                   <td className="py-3 text-right"><Badge variant="neutral">{item.eventCount}×</Badge></td>
+                  <td className="py-3 text-right text-sm text-gray-500">{item.avgPrice > 0 ? `Rp ${item.avgPrice.toLocaleString("id-ID")}` : "-"}</td>
+                  <td className="py-3 text-right text-sm font-medium">{item.biaya > 0 ? `Rp ${item.biaya.toLocaleString("id-ID")}` : "-"}</td>
                   <td className="py-3 text-sm text-gray-500">{item.lastUsed ? new Date(item.lastUsed).toLocaleString("id-ID") : "-"}</td>
                 </tr>
               ))}

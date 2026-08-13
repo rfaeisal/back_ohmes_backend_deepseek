@@ -20,6 +20,7 @@ const receivingSchema = z.object({
       z.object({
         itemId: z.string().uuid(),
         quantity: z.number().min(0.01, "Quantity harus > 0"),
+        unitPrice: z.number().min(0).optional(), // harga beli per unit
       })
     )
     .min(1, "Minimal 1 item"),

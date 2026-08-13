@@ -35,6 +35,7 @@ export default function MaterialStockReport() {
   const totalTerpakai = items.reduce((s, i) => s + i.terpakai, 0);
   const totalSisa = items.reduce((s, i) => s + i.sisa, 0);
   const habis = items.filter((i) => i.sisa <= 0).length;
+  const totalNilai = items.reduce((s, i) => s + (i.nilaiStok ?? 0), 0);
 
   const handleExport = () => {
     const headers = ["Kode", "Nama", "Unit", "Masuk", "Terpakai", "Sisa"];
@@ -72,11 +73,12 @@ export default function MaterialStockReport() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <Card><p className="text-xs text-gray-500">Total Item</p><p className="text-3xl font-bold text-blue-700">{items.length}</p></Card>
         <Card><p className="text-xs text-gray-500">Total Masuk</p><p className="text-3xl font-bold text-green-700">{totalMasuk}</p></Card>
         <Card><p className="text-xs text-gray-500">Total Terpakai</p><p className="text-3xl font-bold text-yellow-700">{totalTerpakai}</p></Card>
         <Card><p className="text-xs text-gray-500">Total Sisa</p><p className="text-3xl font-bold text-primary-700">{totalSisa}</p></Card>
+        <Card><p className="text-xs text-gray-500">Total Nilai Stok</p><p className="text-3xl font-bold text-purple-700">Rp {totalNilai.toLocaleString("id-ID")}</p></Card>
       </div>
 
       {habis > 0 && (
@@ -97,13 +99,15 @@ export default function MaterialStockReport() {
                 <th className="pb-3 text-sm font-semibold text-gray-600 text-right">Masuk</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600 text-right">Terpakai</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600 text-right">Sisa</th>
+                <th className="pb-3 text-sm font-semibold text-gray-600 text-right">Harga Rata²</th>
+                <th className="pb-3 text-sm font-semibold text-gray-600 text-right">Nilai Stok</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="py-6 text-center text-gray-400">Memuat...</td></tr>
+                <tr><td colSpan={8} className="py-6 text-center text-gray-400">Memuat...</td></tr>
               ) : items.length === 0 ? (
-                <tr><td colSpan={6} className="py-6 text-center text-gray-400">Belum ada data. Terima material dulu di halaman Gudang.</td></tr>
+                <tr><td colSpan={8} className="py-6 text-center text-gray-400">Belum ada data. Terima material dulu di halaman Gudang.</td></tr>
               ) : items.map((item) => (
                 <tr key={item.itemId} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 font-mono text-sm">{item.code}</td>
@@ -120,6 +124,8 @@ export default function MaterialStockReport() {
                       <Badge variant="success">{item.sisa}</Badge>
                     )}
                   </td>
+                  <td className="py-3 text-sm text-right">{item.avgPrice > 0 ? `Rp ${item.avgPrice.toLocaleString("id-ID")}` : "-"}</td>
+                  <td className="py-3 text-sm text-right font-medium">{item.nilaiStok > 0 ? `Rp ${item.nilaiStok.toLocaleString("id-ID")}` : "-"}</td>
                 </tr>
               ))}
             </tbody>

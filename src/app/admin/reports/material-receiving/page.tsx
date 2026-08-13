@@ -50,6 +50,7 @@ export default function MaterialReceivingReport() {
   const totalReceivings = receivings.length;
   const totalItems = receivings.reduce((s, r) => s + (r.items?.length ?? 0), 0);
   const totalSuppliers = new Set(receivings.map((r) => r.supplierId)).size;
+  const totalValue = receivings.reduce((s: number, r) => s + (r.items ?? []).reduce((x: number, it: any) => x + (it.unitPrice != null ? Number(it.quantity) * Number(it.unitPrice) : 0), 0), 0);
 
   const handleExport = () => {
     const headers = ["Kode", "Jenis", "Supplier", "Tanggal", "Surat Jalan", "Catatan"];
@@ -101,10 +102,11 @@ export default function MaterialReceivingReport() {
       </Card>
 
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <Card><p className="text-xs text-gray-500">Total Penerimaan</p><p className="text-3xl font-bold text-blue-700">{totalReceivings}</p></Card>
         <Card><p className="text-xs text-gray-500">Total Item Diterima</p><p className="text-3xl font-bold text-green-700">{totalItems}</p></Card>
         <Card><p className="text-xs text-gray-500">Supplier</p><p className="text-3xl font-bold text-yellow-700">{totalSuppliers}</p></Card>
+        <Card><p className="text-xs text-gray-500">Total Nilai Pembelian</p><p className="text-3xl font-bold text-primary-700">Rp {totalValue.toLocaleString("id-ID")}</p></Card>
       </div>
 
       <Card>
@@ -145,7 +147,13 @@ export default function MaterialReceivingReport() {
                           {(r.items ?? []).map((it: any, i: number) => (
                             <div key={i} className="flex justify-between text-sm bg-white rounded px-3 py-2 border">
                               <span>{it.itemName}</span>
-                              <span className="font-mono">{it.quantity} {it.itemUnit}</span>
+                              <span className="font-mono">
+                                {it.quantity} {it.itemUnit}
+                                {it.unitPrice != null && <> × Rp {Number(it.unitPrice).toLocaleString("id-ID")}</>}
+                                {it.unitPrice != null && (
+                                  <> = <strong>Rp {Math.round(Number(it.quantity) * Number(it.unitPrice)).toLocaleString("id-ID")}</strong></>
+                                )}
+                              </span>
                             </div>
                           ))}
                         </div>
