@@ -46,6 +46,12 @@ export {
   tsgTypeEnum,
 } from "./wms-inbound";
 export {
+  materialReceiving,
+  consumableReceivingItem,
+  sparepartReceivingItem,
+  materialTypeEnum,
+} from "./material";
+export {
   finishedGoodsReceiving,
   carton,
   cartonContent,
