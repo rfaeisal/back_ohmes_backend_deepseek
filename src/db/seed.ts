@@ -210,10 +210,12 @@ async function seed() {
       "shift.view", "shift.export", "batch.view",
       "dashboard.plant.view", "dashboard.area.view",
       "report.export_operational", "audit.read",
+      "tsg.inventory.view", "tsg.receiving.view",
     ],
     AREA_QA: [
       "shift.view", "batch.view",
       "dashboard.plant.view", "dashboard.area.view",
+      "tsg.inventory.view", "tsg.receiving.view",
     ],
     PLANT_MANAGER: [
       "shift.start", "shift.member.assign", "shift.box.open", "shift.box.weigh",
