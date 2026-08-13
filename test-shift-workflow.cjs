@@ -160,7 +160,7 @@ async function main() {
 
     // Log consumption — bobbin + lem
     if (boxData?.boxId && consumables.length >= 4) {
-      const bobbin = consumables.find(c => c.code?.includes("BOBBIN"));
+      const bobbin = consumables.find(c => c.code?.includes("BOBIN"));
       const lem = consumables.find(c => c.code?.includes("LEM"));
       if (bobbin && lem) {
         for (const item of [{ id: bobbin.id, name: bobbin.name, qty: 3 }, { id: lem.id, name: lem.name, qty: 2 }]) {

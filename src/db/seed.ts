@@ -378,7 +378,7 @@ async function seed() {
 
   // Consumable Items
   const consumablesData = [
-    { code: "item_BOBBIN_HMR", name: "Bobbin Hummer", unit: "roll", productId: prd!.id },
+    { code: "item_BOBIN_BLK", name: "Bobbin", unit: "roll", productId: prd!.id },
     { code: "item_FILTER_HMR", name: "Filter Hummer", unit: "roll", productId: prd!.id },
     { code: "item_TIPPING_HMR", name: "Tipping Hummer", unit: "roll", productId: prd!.id },
     { code: "item_LEM_HMR", name: "Lem Hummer", unit: "kg", productId: prd!.id },

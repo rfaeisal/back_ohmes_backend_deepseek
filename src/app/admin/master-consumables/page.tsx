@@ -133,7 +133,7 @@ export default function MasterConsumablesPage() {
 
       <Dialog open={showForm} onClose={() => setShowForm(false)} title={editing ? "Edit Item" : "Tambah Item"}>
         <div className="space-y-4">
-          <Input label="Kode" value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="item_BOBBIN_HMR" />
+          <Input label="Kode" value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="item_BOBIN_BLK" />
           <Input label="Nama" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Bobbin Hummer" />
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>

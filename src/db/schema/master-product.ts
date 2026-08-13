@@ -116,7 +116,7 @@ export const machineTemplate = pgTable(
 
 export const consumableItem = pgTable("consumable_item", {
   id: uuid("id").primaryKey().defaultRandom(),
-  code: text("code").notNull().unique(), // 'item_BOBBIN_HMR'
+  code: text("code").notNull().unique(), // 'item_BOBIN_BLK'
   name: text("name").notNull(), // 'Bobbin Hummer'
   unit: text("unit").notNull().default("roll"), // 'roll', 'kg', 'unit'
   productId: uuid("product_id").references(() => product.id), // NULL = universal
