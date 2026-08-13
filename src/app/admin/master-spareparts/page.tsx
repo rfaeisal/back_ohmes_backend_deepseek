@@ -5,6 +5,7 @@ import { Card, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
+import { UNIT_OPTIONS } from "@/lib/constants/units";
 import { Pencil, Trash2 } from "lucide-react";
 
 const API = "/api/v1";
@@ -118,7 +119,12 @@ export default function MasterSparepartsPage() {
         <div className="space-y-4">
           <Input label="Kode" value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="sp_PISAU_FILTER" />
           <Input label="Nama" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Pisau Filter" />
-          <Input label="Unit" value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })} placeholder="unit / meter / pcs" />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+            <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white" value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })}>
+              {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </div>
           <Button className="w-full" onClick={handleSave} disabled={saving}>
             {saving ? "Menyimpan..." : "Simpan"}
           </Button>

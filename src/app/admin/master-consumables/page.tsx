@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
+import { UNIT_OPTIONS } from "@/lib/constants/units";
 import { Pencil, Trash2 } from "lucide-react";
 
 const API = "/api/v1";
@@ -134,7 +135,12 @@ export default function MasterConsumablesPage() {
         <div className="space-y-4">
           <Input label="Kode" value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="item_BOBBIN_HMR" />
           <Input label="Nama" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Bobbin Hummer" />
-          <Input label="Unit" value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })} placeholder="roll / kg / pcs" />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+            <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white" value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })}>
+              {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Produk (opsional)</label>
             <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white" value={form.productId} onChange={e => setForm({ ...form, productId: e.target.value })}>
