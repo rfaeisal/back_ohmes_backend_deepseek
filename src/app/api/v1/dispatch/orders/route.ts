@@ -47,7 +47,8 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
     }
     throw err;
   }
-});
+},
+  { requiredPermission: "dispatch.order.create" });
 
 export const GET = withAuth(async (request: Request, ctx: AuthContext) => {
   const url = new URL(request.url);
@@ -61,4 +62,5 @@ export const GET = withAuth(async (request: Request, ctx: AuthContext) => {
     .limit(50);
 
   return NextResponse.json({ data: orders }, { status: 200 });
-});
+},
+  { requiredPermission: "dispatch.order.view" });

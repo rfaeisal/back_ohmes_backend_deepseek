@@ -16,6 +16,8 @@ export interface JwtPayload {
   roleIds: string[];
   plantIds: string[];
   isPrivileged: boolean;
+  /** Kode permission yang di-resolve saat login/refresh dari role_permission */
+  permissions?: string[];
   impersonatorId?: string;
 }
 

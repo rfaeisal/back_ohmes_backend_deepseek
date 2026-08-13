@@ -15,10 +15,12 @@ export const PATCH = withAuth(async (request: Request, _ctx: any, { params }: { 
   if (!parsed.success) return NextResponse.json({ error: { code: "VALIDATION_ERROR" } }, { status: 400 });
   await db.update(machine).set(parsed.data).where(eq(machine.id, id));
   return NextResponse.json({ success: true }, { status: 200 });
-});
+},
+  { requiredPermission: "masterdata.machine.edit" });
 
 export const DELETE = withAuth(async (_req: Request, _ctx: any, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   await db.update(machine).set({ deletedAt: new Date(), isActive: false }).where(eq(machine.id, id));
   return NextResponse.json({ success: true }, { status: 200 });
-});
+},
+  { requiredPermission: "masterdata.machine.edit" });

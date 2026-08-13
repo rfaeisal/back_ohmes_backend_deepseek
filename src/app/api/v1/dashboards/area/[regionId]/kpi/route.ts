@@ -10,5 +10,6 @@ export const GET = withAuth(
     const date = url.searchParams.get("date") ?? undefined;
     const kpi = await getAreaKpi(regionId, date);
     return NextResponse.json(kpi, { status: 200 });
-  }
+  },
+  { requiredPermission: "dashboard.area.view" }
 );

@@ -30,5 +30,6 @@ export const POST = withAuth(
       }
       throw err;
     }
-  }
+  },
+  { requiredPermission: "finishedgoods.receive" }
 );

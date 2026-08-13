@@ -35,5 +35,6 @@ export const PATCH = withAuth(
       }
       throw err;
     }
-  }
+  },
+  { requiredPermission: "shift.box.weigh" }
 );

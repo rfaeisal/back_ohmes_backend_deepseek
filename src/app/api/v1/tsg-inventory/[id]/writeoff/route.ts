@@ -34,5 +34,6 @@ export const PATCH = withAuth(
       }
       throw err;
     }
-  }
+  },
+  { requiredPermission: "tsg.inventory.writeoff" }
 );

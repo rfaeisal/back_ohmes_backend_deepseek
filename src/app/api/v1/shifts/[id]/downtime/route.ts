@@ -27,5 +27,6 @@ export const POST = withAuth(
       if (err instanceof ServiceError) return NextResponse.json({ error: { code: err.code, message: err.message }, requestId: ctx.requestId }, { status: 409 });
       throw err;
     }
-  }
+  },
+  { requiredPermission: "shift.downtime.log" }
 );

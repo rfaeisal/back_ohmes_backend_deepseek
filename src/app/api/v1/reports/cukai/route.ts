@@ -34,7 +34,8 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
     { jobId: job.jobId, status: job.status },
     { status: 202 }
   );
-});
+},
+  { requiredPermission: "report.export_cukai" });
 
 export const GET = withAuth(async (request: Request, ctx: AuthContext) => {
   const url = new URL(request.url);
@@ -55,4 +56,5 @@ export const GET = withAuth(async (request: Request, ctx: AuthContext) => {
   }
 
   return NextResponse.json(job, { status: 200 });
-});
+},
+  { requiredPermission: "report.export_cukai" });

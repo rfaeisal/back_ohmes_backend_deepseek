@@ -46,5 +46,6 @@ export const POST = withAuth(
       }
       throw err;
     }
-  }
+  },
+  { requiredPermission: "shift.approve" }
 );

@@ -61,4 +61,6 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
     }
     throw err;
   }
-}, { allowBypassRls: true });
+},
+  { allowBypassRls: true,
+  requiredPermission: "super.impersonate" });

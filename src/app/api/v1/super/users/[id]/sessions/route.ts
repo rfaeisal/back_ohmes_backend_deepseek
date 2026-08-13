@@ -16,5 +16,5 @@ export const GET = withAuth(
     const sessions = await getSuperUserSessions(targetUserId);
     return NextResponse.json({ data: sessions }, { status: 200 });
   },
-  { allowBypassRls: true }
-);
+  { allowBypassRls: true,
+  requiredPermission: "super.session.view" });

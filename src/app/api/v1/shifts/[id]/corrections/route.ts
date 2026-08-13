@@ -8,5 +8,6 @@ export const GET = withAuth(
     const { id: shiftId } = await params;
     const result = await getShiftCorrections(shiftId);
     return NextResponse.json(result, { status: 200 });
-  }
+  },
+  { requiredPermission: "shift.view" }
 );

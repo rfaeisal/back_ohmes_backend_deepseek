@@ -54,5 +54,6 @@ export const POST = withAuth(
       }
       throw err;
     }
-  }
+  },
+  { requiredPermission: "shift.handoff.create" }
 );

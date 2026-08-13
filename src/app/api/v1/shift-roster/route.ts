@@ -91,4 +91,6 @@ export const POST = withAuth(async (request: Request) => {
   }
 
   return NextResponse.json({ success: true, saved: inserted }, { status: 201 });
-}, { allowBypassRls: true });
+},
+  { allowBypassRls: true,
+  requiredPermission: "shift.member.assign" });

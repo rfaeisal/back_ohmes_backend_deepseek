@@ -37,4 +37,5 @@ export const GET = withAuth(async (request: Request) => {
     inventoryAge,
     consumption,
   }, { status: 200 });
-});
+},
+  { requiredPermission: "dashboard.hq.view" });

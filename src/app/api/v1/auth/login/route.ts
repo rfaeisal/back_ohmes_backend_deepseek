@@ -7,9 +7,9 @@
 
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import db from "@/db";
-import { user, role, userAssignment } from "@/db/schema/identity";
+import { user, role, userAssignment, rolePermission, permission } from "@/db/schema/identity";
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -192,7 +192,19 @@ export async function POST(request: Request) {
     }
 
     // -----------------------------------------------------------------------
-    // 5. Build JWT payload
+    // 5. Resolve permission codes dari role_permission
+    // -----------------------------------------------------------------------
+    const permissionCodes = resolvedScope.roleIds.length > 0
+      ? (await db
+          .select({ code: permission.code })
+          .from(rolePermission)
+          .innerJoin(permission, eq(rolePermission.permissionId, permission.id))
+          .where(inArray(rolePermission.roleId, resolvedScope.roleIds)))
+          .map((p) => p.code)
+      : [];
+
+    // -----------------------------------------------------------------------
+    // 6. Build JWT payload
     // -----------------------------------------------------------------------
     const jwtPayload: JwtPayload = {
       userId: foundUser.id,
@@ -201,6 +213,7 @@ export async function POST(request: Request) {
       roleIds: resolvedScope.roleIds,
       plantIds: resolvedScope.plantIds,
       isPrivileged: resolvedScope.isPrivileged,
+      permissions: permissionCodes,
     };
 
     // -----------------------------------------------------------------------

@@ -24,10 +24,12 @@ export const PATCH = withAuth(async (request: Request, _ctx: any, { params }: { 
     await db.update(plant).set(update).where(eq(plant.id, id));
   }
   return NextResponse.json({ success: true }, { status: 200 });
-});
+},
+  { requiredPermission: "masterdata.plant.edit" });
 
 export const DELETE = withAuth(async (_req: Request, _ctx: any, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   await db.update(plant).set({ deletedAt: new Date() }).where(eq(plant.id, id));
   return NextResponse.json({ success: true }, { status: 200 });
-});
+},
+  { requiredPermission: "masterdata.plant.edit" });

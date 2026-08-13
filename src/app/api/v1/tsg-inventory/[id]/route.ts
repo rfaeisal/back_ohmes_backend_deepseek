@@ -15,4 +15,5 @@ export const PATCH = withAuth(async (request: Request, _ctx: any, { params }: { 
   if (!parsed.success) return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Input tidak valid." } }, { status: 400 });
   await db.update(tsgInventory).set({ locationCode: parsed.data.locationCode ?? null }).where(eq(tsgInventory.id, id));
   return NextResponse.json({ success: true }, { status: 200 });
-});
+},
+  { requiredPermission: "tsg.inventory.allocate" });

@@ -21,7 +21,8 @@ export const PATCH = withAuth(
     } catch (e: any) {
       return NextResponse.json({ error: { code: "UPDATE_FAILED", message: e.message } }, { status: 400 });
     }
-  }
+  },
+  { requiredPermission: "user.create" }
 );
 
 export const DELETE = withAuth(
@@ -33,5 +34,6 @@ export const DELETE = withAuth(
     } catch (e: any) {
       return NextResponse.json({ error: { code: "DELETE_FAILED", message: e.message } }, { status: 400 });
     }
-  }
+  },
+  { requiredPermission: "user.create" }
 );

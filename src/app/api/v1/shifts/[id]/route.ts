@@ -22,5 +22,6 @@ export const GET = withAuth(
       }
       throw err;
     }
-  }
+  },
+  { requiredPermission: "shift.view" }
 );

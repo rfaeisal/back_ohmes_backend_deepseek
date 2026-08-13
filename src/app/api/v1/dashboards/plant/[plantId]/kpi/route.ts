@@ -77,5 +77,6 @@ export const GET = withAuth(
       },
       { status: 200 }
     );
-  }
+  },
+  { requiredPermission: "dashboard.plant.view" }
 );

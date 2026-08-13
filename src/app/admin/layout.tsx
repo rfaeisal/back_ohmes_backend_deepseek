@@ -4,30 +4,31 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LayoutDashboard, ClipboardCheck, MapPin, TrendingUp, Wrench, Users, Settings, ScrollText, Shield, Printer, FileText, FileBarChart, Factory, LogOut, Smartphone, Calendar, Package, BarChart3, Menu, X } from "lucide-react";
 
-const NAV_ITEMS = [
+const NAV_ITEMS: Array<{ href: string; label: string; icon: any; permissions?: string[] }> = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
-  { href: "/admin/approvals", label: "Approval Shift", icon: ClipboardCheck },
-  { href: "/admin/area-dashboard", label: "Dashboard Area", icon: MapPin },
-  { href: "/admin/analytics", label: "HQ Analytics", icon: TrendingUp },
-  { href: "/admin/corrections", label: "Correction", icon: Wrench },
-  { href: "/admin/users", label: "Users & Role", icon: Users },
-  { href: "/admin/master-data", label: "Master Data", icon: Settings },
-  { href: "/admin/audit", label: "Audit Log", icon: ScrollText },
-  { href: "/admin/reports/shifts", label: "Laporan Per Shift", icon: FileText },
-  { href: "/admin/reports/tsg-usage", label: "Penggunaan TSG", icon: BarChart3 },
-  { href: "/admin/reports/tsg-stock", label: "Stok TSG", icon: Package },
-  { href: "/admin/reports/tsg-receiving", label: "Laporan TSG Masuk", icon: FileBarChart },
-  { href: "/admin/gudang", label: "Gudang Inbound", icon: Factory },
-  { href: "/admin/labels", label: "Cetak Label", icon: Printer },
-  { href: "/admin/roster", label: "Roster Mingguan", icon: Calendar },
-  { href: "/admin/sessions", label: "Manajemen Sesi", icon: Smartphone },
-  { href: "/admin/super", label: "SUPERADMIN Tools", icon: Shield },
+  { href: "/admin/approvals", label: "Approval Shift", icon: ClipboardCheck, permissions: ["shift.approve"] },
+  { href: "/admin/area-dashboard", label: "Dashboard Area", icon: MapPin, permissions: ["dashboard.area.view"] },
+  { href: "/admin/analytics", label: "HQ Analytics", icon: TrendingUp, permissions: ["dashboard.hq.view"] },
+  { href: "/admin/corrections", label: "Correction", icon: Wrench, permissions: ["shift.correct"] },
+  { href: "/admin/users", label: "Users & Role", icon: Users, permissions: ["user.assign_scope"] },
+  { href: "/admin/master-data", label: "Master Data", icon: Settings, permissions: ["masterdata.machine.edit", "masterdata.product.edit", "masterdata.plant.edit"] },
+  { href: "/admin/audit", label: "Audit Log", icon: ScrollText, permissions: ["audit.read"] },
+  { href: "/admin/reports/shifts", label: "Laporan Per Shift", icon: FileText, permissions: ["shift.view"] },
+  { href: "/admin/reports/tsg-usage", label: "Penggunaan TSG", icon: BarChart3, permissions: ["shift.view"] },
+  { href: "/admin/reports/tsg-stock", label: "Stok TSG", icon: Package, permissions: ["tsg.inventory.view"] },
+  { href: "/admin/reports/tsg-receiving", label: "Laporan TSG Masuk", icon: FileBarChart, permissions: ["tsg.receiving.view"] },
+  { href: "/admin/gudang", label: "Gudang Inbound", icon: Factory, permissions: ["tsg.receiving.create"] },
+  { href: "/admin/labels", label: "Cetak Label", icon: Printer, permissions: ["tsg.receiving.create"] },
+  { href: "/admin/roster", label: "Roster Mingguan", icon: Calendar, permissions: ["shift.member.assign"] },
+  { href: "/admin/sessions", label: "Manajemen Sesi", icon: Smartphone, permissions: ["super.session.view"] },
+  { href: "/admin/super", label: "SUPERADMIN Tools", icon: Shield, permissions: ["super.impersonate"] },
   { href: "/tablet", label: "← Tablet Operator", icon: Smartphone },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isPrivileged, setIsPrivileged] = useState(false);
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
 
   useEffect(() => {
     const t = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
@@ -35,8 +36,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     try {
       const payload = JSON.parse(atob(t.split(".")[1]!));
       setIsPrivileged(payload.isPrivileged ?? false);
+      setUserPermissions(payload.permissions ?? []);
     } catch {}
   }, []);
+
+  const canSee = (item: { permissions?: string[] }) =>
+    !item.permissions ||
+    isPrivileged ||
+    item.permissions.some((p) => userPermissions.includes(p));
 
   // Close sidebar on route change (for mobile)
   const closeSidebar = () => setSidebarOpen(false);
@@ -54,7 +61,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </button>
       </div>
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {NAV_ITEMS.filter((item) => item.href !== "/admin/super" || isPrivileged).map((item) => {
+        {NAV_ITEMS.filter(canSee).map((item) => {
           const Icon = item.icon;
           return (
             <Link key={item.href} href={item.href}

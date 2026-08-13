@@ -87,9 +87,17 @@ export function withAuth(
       // 3. Permission check (opsional)
       if (options?.requiredPermission) {
         // SUPERADMIN with isPrivileged always has all permissions
-        if (!payload.isPrivileged) {
-          // TODO: Cek permission via role_permission lookup
-          // Untuk sekarang, accept semua authenticated request
+        if (!payload.isPrivileged && !(payload.permissions ?? []).includes(options.requiredPermission)) {
+          return NextResponse.json(
+            {
+              error: {
+                code: "FORBIDDEN",
+                message: `Permission '${options.requiredPermission}' diperlukan.`,
+              },
+              requestId,
+            },
+            { status: 403 }
+          );
         }
       }
 

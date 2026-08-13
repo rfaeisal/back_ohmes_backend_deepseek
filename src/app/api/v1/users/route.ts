@@ -13,6 +13,7 @@ const createSchema = z.object({
   email: z.string().email().optional(),
 });
 
+// GET — reference data untuk team picker, roster, dsb (auth-only, RLS-scoped)
 export const GET = withAuth(async (_req: Request, _ctx: AuthContext) => {
   const users = await db.select({
     id: user.id, username: user.username, fullName: user.fullName,
@@ -43,4 +44,5 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
   } catch (e: any) {
     return NextResponse.json({ error: { code: "CREATE_FAILED", message: e.message }, requestId: ctx.requestId }, { status: 400 });
   }
-});
+},
+  { requiredPermission: "user.create" });

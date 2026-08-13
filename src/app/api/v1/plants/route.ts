@@ -17,4 +17,5 @@ export const POST = withAuth(async (request: Request) => {
   if (!parsed.success) return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Input tidak valid." } }, { status: 400 });
   const [item] = await db.insert(plant).values({ ...parsed.data, timezone: "Asia/Jakarta" }).returning();
   return NextResponse.json(item, { status: 201 });
-});
+},
+  { requiredPermission: "masterdata.plant.edit" });

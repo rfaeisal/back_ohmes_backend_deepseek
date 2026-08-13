@@ -77,17 +77,14 @@ export async function expandScope(
  */
 export function hasPermission(
   payload: JwtPayload,
-  _requiredPermission: string
+  requiredPermission: string
 ): boolean {
   // SUPERADMIN with isPrivileged always has all permissions
   if (payload.isPrivileged) {
     return true;
   }
 
-  // For now, permission evaluation is done at the service layer
-  // with a DB lookup through role_permission.
-  // This function handles the JWT-level check only.
-  return true; // Deferred to service layer
+  return (payload.permissions ?? []).includes(requiredPermission);
 }
 
 /**

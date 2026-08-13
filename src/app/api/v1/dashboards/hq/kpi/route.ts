@@ -8,4 +8,5 @@ export const GET = withAuth(async (request: Request) => {
   const date = url.searchParams.get("date") ?? undefined;
   const kpi = await getHqRollup(date);
   return NextResponse.json(kpi, { status: 200 });
-});
+},
+  { requiredPermission: "dashboard.hq.view" });

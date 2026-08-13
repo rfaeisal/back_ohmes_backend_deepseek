@@ -17,4 +17,5 @@ export const GET = withAuth(async (request: Request, ctx: AuthContext) => {
   const items = await getAvailableInventory(plantId, limit);
 
   return NextResponse.json({ data: items }, { status: 200 });
-});
+},
+  { requiredPermission: "tsg.inventory.view" });

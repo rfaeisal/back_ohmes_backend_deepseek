@@ -22,7 +22,8 @@ export const GET = withAuth(async (_req: Request, _ctx: AuthContext) => {
   }).from(userAssignment).innerJoin(role, eq(userAssignment.roleId, role.id))
     .where(isNull(userAssignment.revokedAt)).limit(500);
   return NextResponse.json({ data: items }, { status: 200 });
-});
+},
+  { requiredPermission: "user.assign_scope" });
 
 export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
   try {
@@ -48,4 +49,5 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
   } catch (e: any) {
     return NextResponse.json({ error: { code: "ASSIGN_FAILED", message: e.message }, requestId: ctx.requestId }, { status: 400 });
   }
-});
+},
+  { requiredPermission: "user.assign_scope" });

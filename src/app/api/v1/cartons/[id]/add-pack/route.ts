@@ -31,5 +31,6 @@ export const POST = withAuth(
       }
       throw err;
     }
-  }
+  },
+  { requiredPermission: "cartoning.add_pack" }
 );

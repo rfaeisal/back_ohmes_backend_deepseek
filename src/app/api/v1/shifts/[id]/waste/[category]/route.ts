@@ -61,5 +61,6 @@ export const PATCH = withAuth(
       }
       throw err;
     }
-  }
+  },
+  { requiredPermission: "shift.waste.settle" }
 );

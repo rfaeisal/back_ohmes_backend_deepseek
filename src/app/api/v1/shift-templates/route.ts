@@ -19,4 +19,5 @@ export const POST = withAuth(async (request: Request) => {
   if (!parsed.success) return NextResponse.json({ error: { code: "VALIDATION_ERROR" } }, { status: 400 });
   const [item] = await db.insert(shiftTemplate).values({ ...parsed.data, isActive: true, displayOrder: 0 }).returning();
   return NextResponse.json(item, { status: 201 });
-});
+},
+  { requiredPermission: "masterdata.shift-template.edit" });

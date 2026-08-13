@@ -41,5 +41,5 @@ export const POST = withAuth(
       throw err;
     }
   },
-  { allowBypassRls: true }
-);
+  { allowBypassRls: true,
+  requiredPermission: "super.reset_password" });

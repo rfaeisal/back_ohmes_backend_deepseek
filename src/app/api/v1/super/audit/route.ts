@@ -19,4 +19,6 @@ export const GET = withAuth(async (request: Request, ctx: AuthContext) => {
   });
 
   return NextResponse.json(result, { status: 200 });
-}, { allowBypassRls: true });
+},
+  { allowBypassRls: true,
+  requiredPermission: "super.audit.read_all" });

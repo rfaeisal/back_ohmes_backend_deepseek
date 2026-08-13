@@ -14,4 +14,5 @@ export const GET = withAuth(async (request: Request, _ctx: AuthContext) => {
   });
 
   return NextResponse.json(result, { status: 200 });
-});
+},
+  { requiredPermission: "audit.read" });

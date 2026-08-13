@@ -21,6 +21,7 @@ export default function TabletHome() {
   const [machines, setMachines] = useState<any[]>([]);
   const [activeShifts, setActiveShifts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [canGudang, setCanGudang] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -35,7 +36,18 @@ export default function TabletHome() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    // Cek permission gudang dari JWT
+    try {
+      const t = localStorage.getItem("accessToken");
+      if (t) {
+        const payload = JSON.parse(atob(t.split(".")[1]!));
+        const perms: string[] = payload.permissions ?? [];
+        setCanGudang(payload.isPrivileged || perms.includes("tsg.receiving.create"));
+      }
+    } catch {}
+  }, [load]);
 
   return (
     <div>
@@ -112,17 +124,19 @@ export default function TabletHome() {
 
       {/* Quick Links */}
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Link href="/admin/gudang">
-          <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
-            <div className="flex items-center gap-4">
-              <span className="text-3xl">🚛</span>
-              <div>
-                <CardTitle>Gudang Inbound</CardTitle>
-                <CardSubtitle>Terima TSG dari supplier · Inventory FIFO</CardSubtitle>
+        {canGudang && (
+          <Link href="/admin/gudang">
+            <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
+              <div className="flex items-center gap-4">
+                <span className="text-3xl">🚛</span>
+                <div>
+                  <CardTitle>Gudang Inbound</CardTitle>
+                  <CardSubtitle>Terima TSG dari supplier · Inventory FIFO</CardSubtitle>
+                </div>
               </div>
-            </div>
-          </Card>
-        </Link>
+            </Card>
+          </Link>
+        )}
         <Link href="/tablet/dashboard">
           <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
             <div className="flex items-center gap-4">

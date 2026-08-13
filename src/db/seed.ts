@@ -240,6 +240,7 @@ async function seed() {
       "shift.approve", "shift.reopen", "shift.view",
       "hlp.pack", "batch.view",
       "dashboard.plant.view", "audit.read",
+      "tsg.inventory.view", "tsg.receiving.view",
     ],
     OPERATOR_KECER: [
       "shift.start", "shift.member.assign", "shift.box.open", "shift.box.weigh",

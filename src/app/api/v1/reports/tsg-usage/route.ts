@@ -103,5 +103,6 @@ export const GET = withAuth(
       summary: { totalShifts, totalBoxes, totalTsgKg, totalOutputKg, avgYieldPct },
       shifts,
     }, { status: 200 });
-  }
+  },
+  { requiredPermission: "shift.view" }
 );

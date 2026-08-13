@@ -20,5 +20,6 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
     const [item] = await db.insert(tsgSupplier).values(parsed.data).returning();
     return NextResponse.json(item, { status: 201 });
   } catch (e: any) { return NextResponse.json({ error: { code: "CREATE_FAILED", message: e.message } }, { status: 400 }); }
-});
+},
+  { requiredPermission: "masterdata.tsg-supplier.edit" });
 

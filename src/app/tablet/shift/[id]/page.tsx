@@ -536,12 +536,12 @@ export default function ShiftActivePage() {
                 placeholder="0.00 kg"
                 className="flex-1"
                 value={wasteForm[cat]?.kg ?? ""}
-                onChange={(e) => setWasteForm(prev => ({ ...prev, [cat]: { ...prev[cat], kg: e.target.value } }))}
+                onChange={(e) => setWasteForm(prev => ({ ...prev, [cat]: { ...(prev[cat] ?? { kg: "", status: "PENDING" }), kg: e.target.value } }))}
               />
               <select
                 className="rounded-lg border border-gray-300 px-3 py-3 text-sm"
                 value={wasteForm[cat]?.status ?? "PENDING"}
-                onChange={(e) => setWasteForm(prev => ({ ...prev, [cat]: { ...prev[cat], status: e.target.value } }))}
+                onChange={(e) => setWasteForm(prev => ({ ...prev, [cat]: { ...(prev[cat] ?? { kg: "", status: "PENDING" }), status: e.target.value } }))}
               >
                 <option>PENDING</option>
                 <option>LUNAS</option>

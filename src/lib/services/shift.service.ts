@@ -14,7 +14,6 @@ import {
   shiftHandoff,
   tsgBoxProcess,
   downtimeLog,
-  maintenanceEvent,
 } from "@/db/schema";
 import { machine, shiftTemplate, product } from "@/db/schema/master-product";
 import { calculateShiftYield } from "@/lib/calc";

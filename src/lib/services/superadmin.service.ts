@@ -329,14 +329,14 @@ export async function getAuditLog(params: {
       sql`SELECT id, username FROM "user" WHERE id IN (${sql.raw(actorIdList)})`
     );
     for (const a of (Array.isArray(actors) ? actors : []) as any[]) {
-      usernameMap.set(a.id, a.username);
+      if (a.id) usernameMap.set(String(a.id), String(a.username));
     }
   }
 
   return {
     data: logs.map((log) => ({
       ...log,
-      actorUsername: usernameMap.get(log.actorUserId) ?? null,
+      actorUsername: (log.actorUserId ? usernameMap.get(log.actorUserId) : undefined) ?? null,
     })),
     total: logs.length,
   };

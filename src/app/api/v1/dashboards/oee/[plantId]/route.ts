@@ -12,5 +12,6 @@ export const GET = withAuth(
 
     const result = await calculateOeeAggregate(plantId, from, to);
     return NextResponse.json(result, { status: 200 });
-  }
+  },
+  { requiredPermission: "dashboard.plant.view" }
 );

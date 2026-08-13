@@ -7,6 +7,9 @@
 
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { eq, inArray } from "drizzle-orm";
+import db from "@/db";
+import { rolePermission, permission } from "@/db/schema/identity";
 import {
   generateAccessToken,
   validateAndRotateSession,
@@ -79,7 +82,19 @@ export async function POST(request: Request) {
     );
 
     // -----------------------------------------------------------------------
-    // 3. Generate access token baru
+    // 3. Resolve permission codes dari role_permission
+    // -----------------------------------------------------------------------
+    const permissionCodes = resolvedScope.roleIds.length > 0
+      ? (await db
+          .select({ code: permission.code })
+          .from(rolePermission)
+          .innerJoin(permission, eq(rolePermission.permissionId, permission.id))
+          .where(inArray(rolePermission.roleId, resolvedScope.roleIds)))
+          .map((p) => p.code)
+      : [];
+
+    // -----------------------------------------------------------------------
+    // 4. Generate access token baru
     // -----------------------------------------------------------------------
     const isSuperadmin = resolvedScope.isPrivileged;
     const accessTokenTtl = getAccessTokenTtl(isSuperadmin);
@@ -91,6 +106,7 @@ export async function POST(request: Request) {
       roleIds: resolvedScope.roleIds,
       plantIds: resolvedScope.plantIds,
       isPrivileged: resolvedScope.isPrivileged,
+      permissions: permissionCodes,
     };
 
     const accessToken = await generateAccessToken(jwtPayload, accessTokenTtl);

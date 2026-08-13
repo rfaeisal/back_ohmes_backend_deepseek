@@ -19,4 +19,5 @@ export const POST = withAuth(async (request: Request) => {
   if (!parsed.success) return NextResponse.json({ error: { code: "VALIDATION_ERROR" } }, { status: 400 });
   const [item] = await db.insert(region).values(parsed.data).returning();
   return NextResponse.json(item, { status: 201 });
-});
+},
+  { requiredPermission: "masterdata.plant.edit" });

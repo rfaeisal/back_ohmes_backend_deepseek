@@ -14,5 +14,6 @@ export const DELETE = withAuth(
     } catch (e: any) {
       return NextResponse.json({ error: { code: "REVOKE_FAILED", message: e.message } }, { status: 400 });
     }
-  }
+  },
+  { requiredPermission: "user.revoke_scope" }
 );

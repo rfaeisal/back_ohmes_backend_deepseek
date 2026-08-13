@@ -74,4 +74,5 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
       { status: 500 }
     );
   }
-});
+},
+  { requiredPermission: "shift.start" });

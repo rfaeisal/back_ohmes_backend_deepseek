@@ -63,7 +63,8 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
     }
     throw err;
   }
-});
+},
+  { requiredPermission: "tsg.receiving.create" });
 
 // GET /api/v1/tsg-receiving — List receiving dengan filter
 export const GET = withAuth(async (request: Request, ctx: AuthContext) => {
@@ -115,4 +116,5 @@ export const GET = withAuth(async (request: Request, ctx: AuthContext) => {
   }
 
   return NextResponse.json({ data: items }, { status: 200 });
-});
+},
+  { requiredPermission: "tsg.receiving.view" });
