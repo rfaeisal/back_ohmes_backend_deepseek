@@ -97,7 +97,7 @@ pnpm dev
 | ekspedisi | 12345678 | EKSPEDISI |
 | plantmanager | 12345678 | PLANT_MANAGER |
 | areaqa | 12345678 | AREA_QA |
-| erik.koordinator | 12345678 | AREA_COORDINATOR |
+| area.koordinator | 12345678 | AREA_COORDINATOR |
 | hqadmin | 12345678 | HQ_ADMIN |
 | hqanalyst | 12345678 | HQ_ANALYST |
 | hqauditor | 12345678 | HQ_AUDITOR |
