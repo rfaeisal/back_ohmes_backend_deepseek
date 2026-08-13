@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Tugas &amp; Fungsi Role — MES + WMS Hummer</title>
+<style>
+  :root {
+    --primary: #0f4c81;
+    --accent: #e8a13c;
+    --bg: #f5f7fa;
+    --card: #ffffff;
+    --text: #1f2937;
+    --muted: #6b7280;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .page { background: var(--bg); padding: 32px 40px; max-width: 820px; margin: 0 auto; }
+  .cover {
+    background: linear-gradient(160deg, #0f4c81 0%, #1a6bb5 60%, #2b8ac9 100%);
+    color: white;
+    border-radius: 16px;
+    padding: 64px 48px;
+    margin-bottom: 28px;
+    page-break-after: always;
+  }
+  .cover h1 { font-size: 34px; line-height: 1.25; margin-bottom: 12px; }
+  .cover .sub { font-size: 16px; opacity: 0.9; margin-bottom: 28px; }
+  .cover .meta { border-top: 1px solid rgba(255,255,255,.35); padding-top: 16px; font-size: 12px; opacity: .85; }
+  h2.section {
+    font-size: 20px;
+    color: var(--primary);
+    margin: 34px 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--accent);
+  }
+  .role-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(15,76,129,.08);
+    page-break-inside: avoid;
+  }
+  .role-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+  .role-head h3 { font-size: 16px; color: var(--primary); }
+  .role-head .code { font-family: "SF Mono", Consolas, monospace; font-size: 11px; background: #eef3f9; color: var(--primary); padding: 2px 8px; border-radius: 10px; }
+  .role-tag { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .duty-list { margin: 8px 0 4px; padding-left: 18px; }
+  .duty-list li { margin-bottom: 3px; }
+  .example {
+    background: #fff8ec;
+    border-left: 4px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 10px 14px;
+    margin: 10px 0 4px;
+  }
+  .example strong { color: #b8780e; }
+  .no-do {
+    background: #fdf0f0;
+    border-left: 4px solid #d9534f;
+    border-radius: 0 8px 8px 0;
+    padding: 8px 14px;
+    margin: 8px 0 0;
+    font-size: 12px;
+    color: #a33;
+  }
+  .flow {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 18px 22px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(15,76,129,.08);
+  }
+  .flow h3 { font-size: 15px; color: var(--primary); margin-bottom: 10px; }
+  .chain { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chain span {
+    background: #eef3f9; color: var(--primary);
+    border-radius: 16px; padding: 4px 12px; font-size: 11px;
+  }
+  .chain .arrow { background: transparent; color: var(--muted); padding: 4px 2px; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+  th, td { border: 1px solid #dde5ee; padding: 6px 10px; text-align: left; font-size: 12px; }
+  th { background: #eef3f9; color: var(--primary); }
+  .footer { text-align: center; color: var(--muted); font-size: 11px; margin-top: 30px; }
+  @media print {
+    body { background: white; }
+    .page { padding: 0; max-width: none; }
+    .role-card, .flow { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="cover">
+    <h1>Tugas &amp; Fungsi Role<br>MES + WMS Hummer</h1>
+    <p class="sub">Panduan 13 role dengan contoh nyata dalam rantai produksi pabrik rokok</p>
+    <div class="meta">
+      Versi 1.0 · Agustus 2026 · Pabrik Kadur 1 (PLT-PMK-01)<br>
+      Password test users seragam: <b>12345678</b>
+    </div>
+  </div>
+
+  <div class="flow">
+    <h3>Rantai Produksi — siapa berperan di mana</h3>
+    <div class="chain">
+      <span>Supplier</span><span class="arrow">→</span>
+      <span>Gudang Inbound</span><span class="arrow">→</span>
+      <span>Operator (Kecer)</span><span class="arrow">→</span>
+      <span>Supervisor</span><span class="arrow">→</span>
+      <span>Plant Manager</span><span class="arrow">→</span>
+      <span>Area</span><span class="arrow">→</span>
+      <span>HQ</span>
+    </div>
+    <table>
+      <tr><th>Role</th><th>Contoh pengguna</th><th>Posisi dalam rantai</th></tr>
+      <tr><td>SUPERADMIN</td><td>admin</td><td>Penguasa sistem (di luar rantai operasional)</td></tr>
+      <tr><td>HQ_ADMIN</td><td>hqadmin</td><td>Administrator pusat — master data &amp; user</td></tr>
+      <tr><td>HQ_ANALYST</td><td>hqanalyst</td><td>Analis pusat — laporan &amp; tren</td></tr>
+      <tr><td>HQ_AUDITOR</td><td>hqauditor</td><td>Auditor pusat — koreksi &amp; kepatuhan</td></tr>
+      <tr><td>AREA_COORDINATOR</td><td>area.koordinator</td><td>Koordinator lintas pabrik dalam 1 area</td></tr>
+      <tr><td>AREA_QA</td><td>areaqa</td><td>Pengawas mutu area</td></tr>
+      <tr><td>PLANT_MANAGER</td><td>plantmanager</td><td>Kepala pabrik — owner operasional</td></tr>
+      <tr><td>SHIFT_SUPERVISOR</td><td>supervisor</td><td>Pengawas shift — approval</td></tr>
+      <tr><td>OPERATOR_KECER</td><td>kecer</td><td>Ketua tim produksi di mesin</td></tr>
+      <tr><td>OPERATOR_MEMBER</td><td>anggotatim</td><td>Anggota tim produksi</td></tr>
+      <tr><td>GUDANG_INBOUND</td><td>gudangin</td><td>Penerimaan bahan baku &amp; material</td></tr>
+      <tr><td>GUDANG_OUTBOUND</td><td>gudangout</td><td>Barang jadi &amp; kartoning</td></tr>
+      <tr><td>EKSPEDISI</td><td>ekspedisi</td><td>Pengiriman ke distributor</td></tr>
+    </table>
+  </div>
+
+  <h2 class="section">1. SUPERADMIN — <span style="font-weight:400;font-size:14px;color:var(--muted)">Penguasa Sistem</span></h2>
+  <div class="role-card">
+    <div class="role-head"><h3>Super Admin</h3><span class="code">admin</span></div>
+    <p class="role-tag">Scope: GLOBAL · Akses penuh tanpa batas · 2FA wajib · JWT 5 menit · Maks 3 akun aktif</p>
+    <p><b>Tugas &amp; fungsi:</b></p>
+    <ul class="duty-list">
+      <li>Bootstrap sistem &amp; migrasi database</li>
+      <li>Impersonate user (masuk sebagai user lain untuk investigasi)</li>
+      <li>Force logout &amp; revoke session semua user</li>
+      <li>Reset password akun yang terkunci</li>
+      <li>Menunjuk SUPERADMIN baru (maks 3)</li>
+      <li>Melihat security log (percobaan login gagal, aktivitas mencurigakan)</li>
+    </ul>
+    <div class="example"><strong>Contoh nyata:</strong> Jam 22.00 seorang operator melaporkan akunnya tidak bisa login karena HP-nya masih menyimpan sesi lama. SUPERADMIN membuka Manajemen Sesi → revoke sesi mobile operator → operator login ulang tanpa harus menunggu sesi expire.</div>
+    <div class="no-do">Tidak boleh: dipakai untuk operasional harian — akun SUPERADMIN hanya untuk keadaan darurat &amp; audit keamanan.</div>
+  </div>
+
+  <h2 class="section">2. HQ_ADMIN — <span style="font-weight:400;font-size:14px;color:var(--muted)">Administrator Pusat</span></h2>
+  <div class="role-card">
+    <div class="role-head"><h3>HQ Admin</h3><span class="code">hqadmin</span></div>
+    <p class="role-tag">Scope: COMPANY · Kantor pusat</p>
+    <p><b>Tugas &amp; fungsi:</b></p>
+    <ul class="duty-list">
+      <li>Kelola master data: mesin, produk, consumable, sparepart, supplier</li>
+      <li>Buat user &amp; assign role + scope (pabrik mana user ditempatkan)</li>
+      <li>Edit shift template, shift role, reject reason, downtime category</li>
+      <li>Lihat dashboard area &amp; HQ, export laporan cukai &amp; operasional</li>
+      <li>Reopen shift yang salah approve</li>
+    </ul>
+    <div class="example"><strong>Contoh nyata:</strong> Pabrik Kadur akan memproduksi varian baru. HQ Admin menambahkan produk "Hummer Mild" di Master Data → assign produk ke pabrik → menambah consumable "Filter Mild" → membuat user baru untuk operator tambahan dengan role OPERATOR_MEMBER scope PLT-PMK-01.</div>
+    <div class="no-do">Tidak boleh: approve shift harian (itu supervisor), koreksi shift LOCKED (itu auditor).</div>
+  </div>
+
+  <h2 class="section">3. HQ_ANALYST — <span style="font-weight:400;font-size:14px;color:var(--muted)">Analis Pusat</span></h2>
+  <div class="role-card">
+    <div class="role-head"><h3>HQ Analyst</h3><span class="code">hqanalyst</span></div>
+    <p class="role-tag">Scope: COMPANY · Read-only + export</p>
+    <p><b>Tugas &amp; fungsi:</b></p>
+    <ul class="duty-list">
+      <li>Analisis yield trend per bulan, produk, dan pabrik</li>
+      <li>Benchmark waste antar pabrik</li>
+      <li>Analisis consumption rate TSG &amp; inventory age</li>
+      <li>Export laporan cukai (CSV/XLSX) untuk pelaporan bea cukai</li>
+      <li>Pantau OEE pabrik</li>
+    </ul>
+    <div class="example"><strong>Contoh nyata:</strong> Rapat manajemen bulanan butuh data. HQ Analyst membuka HQ Analytics → melihat yield trend 3 bulan terakhir menunjukkan Pabrik Kadur konsisten 111–112%, tapi waste MENIR naik 15%. Dia export laporan operasional sebagai bahan rapat, lalu melaporkan ke Plant Manager untuk investigasi.</div>
+    <div class="no-do">Tidak boleh: mengubah data produksi, master data, atau approve shift.</div>
+  </div>
+
+  <h2 class="section">4. HQ_AUDITOR — <span style="font-weight:400;font-size:14px;color:var(--muted)">Auditor Pusat</span></h2>
+  <div class="role-card">
+    <div class="role-head"><h3>HQ Auditor</h3><span class="code">hqauditor</span></div>
+    <p class="role-tag">Scope: COMPANY · Pengawasan &amp; kepatuhan</p>
+    <p><b>Tugas &amp; fungsi:</b></p>
+    <ul class="duty-list">
+      <li>Koreksi shift yang sudah APPROVED/LOCKED (tanpa mengubah data asli — sistem mencatat correction trail)</li>
+      <li>Audit trail aktivitas: siapa mengubah apa, kapan</li>
+      <li>Pantau dashboard area &amp; HQ</li>
+    </ul>
+    <div class="example"><strong>Contoh nyata:</strong> Auditor menemukan shift #123 sudah APPROVED tapi catatan waste MENIR salah ketik: tertulis 50 kg padahal seharusnya 0.5 kg. Auditor membuka menu Correction → pilih shift → masukkan nilai koreksi + alasan → sistem menyimpan nilai asli dan nilai koreksi secara terpisah (immutable), jadi jejak audit tetap utuh.</div>
+    <div class="no-do">Tidak boleh: approve shift atau mengubah master data.</div>
+  </div>
+
+  <h2 class="section">5. AREA_COORDINATOR — <span style="font-weight:400;font-size:14px;color:var(--muted)">Koordinator Area</span></h2>
+  <div class="role-card">
+    <div class="role-head"><h3>Koordinator Area</h3><span class="code">area.koordinator</span></div>
+    <p class="role-tag">Scope: REGION · Lintas pabrik dalam 1 area</p>
+    <p><b>Tugas &amp; fungsi:</b></p>
+    <ul class="duty-list">
+      <li>Dashboard area: rollup KPI semua pabrik dalam region (shift, approval, waste per pabrik)</li>
+      <li>Lihat detail shift, penggunaan TSG, stok TSG &amp; material semua pabrik di area</li>
+      <li>Export laporan operasional area untuk pelaporan ke HQ</li>
+      <li>Akses audit log area</li>
+    </ul>
+    <div class="example"><strong>Contoh nyata:</strong> Pukul 14.00 Koordinator Area membuka Dashboard Area: Pabrik Kadur 1 punya 2 shift APPROVED, Pabrik Pamekasan 1 shift masih COMPLETED (menunggu approval). Dia menelepon supervisor Pamekasan untuk segera approve, lalu mengecek stok TSG kedua pabrik — Kadur tinggal 5 boks, dia mengajukan transfer stok ke HQ Admin.</div>
+    <div class="no-do">Tidak boleh: intervensi produksi pabrik, approve shift, koreksi data.</div>
+  </div>
+
+  <h2 class="section">6. AREA_QA — <span style="font-weight:400;font-size:14px;color:var(--muted)">Pengawas Mutu Area</span></h2>
+  <div class="role-card">
+    <div class="role-head"><h3>Area QA</h3><span class="code">areaqa</span></div>
+    <p class="role-tag">Scope: REGION · Read-only murni</p>
+    <p><b>Tugas &amp; fungsi:</b></p>
+    <ul class="duty-list">
+      <li>Pantau kualitas produksi lintas pabrik: yield per shift, waste per kategori</li>
+      <li>Lihat detail shift untuk evaluasi mutu</li>
+      <li>Pantau stok TSG &amp; material (ketersediaan &amp; umur bahan)</li>
+    </ul>
+    <div class="example"><strong>Contoh nyata:</strong> QA Area menemukan 3 shift di pabrik yang sama menghasilkan yield 109% (di bawah standar 110–114%). Dia membuka detail shift: downtime KENDALA_MESIN tinggi + banyak boks PARTIAL. Dia menulis laporan ke Plant Manager agar mesin MKR-01 dijadwalkan maintenance.</div>
+    <div class="no-do">Tidak boleh: export data, buka audit log, atau mengubah apa pun — murni pengawasan.</div>
+  </div>
+
+  <h2 class="section">7. PLANT_MANAGER — <span style="font-weight:400;font-size:14px;color:var(--muted)">Kepala Pabrik</span></h2>
+  <div class="role-card">
+    <div class="role-head"><h3>Plant Manager</h3><span class="code">plantmanager</span></div>
+    <p class="role-tag">Scope: PLANT · Owner operasional pabrik</p>
+    <p><b>Tugas &amp; fungsi:</b></p>
+    <ul class="duty-list">
+      <li>Semua alur produksi: start/end shift, buka boks, timbang (backup operator)</li>
+      <li>Approve &amp; reopen shift (backup supervisor)</li>
+      <li>Terima TSG, alokasi inventory, override FIFO dengan alasan, write-off boks rusak</li>
+      <li>Terima material &amp; sparepart, pantau stok &amp; pemakaian</li>
+      <li>Terima finished goods, dispute, kartoning, buat dispatch order</li>
+      <li>Edit shift template &amp; shift role pabrik, assign produk</li>
+      <li>Dashboard pabrik, export laporan operasional, audit log</li>
+    </ul>
+    <div class="example"><strong>Contoh nyata:</strong> Operator kehabisan TSG REGULER. Plant Manager membuka inventory — ternyata ada 2 boks REGULER tapi umurnya 35 hari, sedangkan ada 3 boks MILD umur 2 hari. Dia memutuskan pakai MILD dengan override FIFO (alasan: "REGULER terlalu tua, risiko kualitas"), sistem mencatat override + audit trail lengkap.</div>
+    <div class="no-do">Tidak boleh: edit master mesin/produk (HQ), kelola user (HQ), koreksi shift LOCKED (auditor).</div>
+  </div>
+
+  <h2 class="section">8. SHIFT_SUPERVISOR — <span style="font-weight:400;font-size:14px;color:var(--muted)">Pengawas Shift</span></h2>
+  <div class="role-card">
+    <div class="role-head"><h3>Supervisor Pabrik</h3><span class="code">supervisor</span></div>
+    <p class="role-tag">Scope: PLANT · Pengawas produksi per shift</p>
+    <p><b>Tugas &amp; fungsi:</b></p>
+    <ul class="duty-list">
+      <li>Atur anggota tim shift &amp; roster mingguan</li>
+      <li>Review &amp; approve shift COMPLETED → LOCKED</li>
+      <li>Reopen shift yang belum di-approve kalau ada kesalahan input</li>
+      <li>Ikut catat pemakaian bahan, downtime, maintenance saat di lapangan</li>
+      <li>Lihat laporan shift, stok TSG &amp; material, audit log</li>
+    </ul>
+    <div class="example"><strong>Contoh nyata:</strong> Shift Pagi selesai pukul 15.00. Supervisor membuka Approval Shift → Review: 2 boks diproses, yield 112% &amp; 111%, waste sesuai, tapi downtime ISTIRAHAT_IZIN 45 menit tanpa keterangan. Dia menghubungi ketua kecer untuk konfirmasi, lalu Approve dengan catatan review "downtime istirahat wajar, tim 4 orang".</div>
+    <div class="no-do">Tidak boleh: approve shift yang dia sendiri ikut jadi operator-nya (prinsip pemisahan tugas).</div>
+  </div>
+
+  <h2 class="section">9. OPERATOR_KECER — <span style="font-weight:400;font-size:14px;color:var(--muted)">Ketua Tim Produksi</span></h2>
+  <div class="role-card">
+    <div class="role-head"><h3>Operator Kecer</h3><span class="code">kecer</span></div>
+    <p class="role-tag">Scope: PLANT · Operator utama di mesin (tablet)</p>
+    <p><b>Tugas &amp; fungsi:</b></p>
+    <ul class="duty-list">
+      <li>Mulai shift di mesin &amp; pilih anggota tim (auto-pick dari roster)</li>
+      <li>Buka boks TSG dari inventory (FIFO) &amp; timbang hasil batangan</li>
+      <li>Catat pemakaian consumable per boks (bobbin, lem, dll)</li>
+      <li>Log downtime &amp; maintenance saat produksi</li>
+      <li>Akhiri shift: input 4 kategori waste + pemakaian material akhir shift (karton, dus)</li>
+      <li>Buat handoff TSG sisa ke shift berikutnya</li>
+    </ul>
+    <div class="example"><strong>Contoh nyata:</strong> Shift Pagi dimulai. Kecer memulai shift di MKR-02, memilih 3 anggota dari roster. Dia buka boks TSG-001 (29.75 kg), produksi berjalan, di tengah jalan bobbin habis → catat "+ Tambah Pemakaian" Bobbin 3 roll + downtime GANTI_MATERIAL 10 menit. Boks selesai → timbang 33.32 kg → yield 112% NORMAL. Akhir shift → input waste (MENIR 0.5 kg, dst) + pemakaian Karton 2 pcs → Akhiri Shift.</div>
+    <div class="no-do">Tidak boleh: approve shift, edit master data, terima barang dari supplier.</div>
+  </div>
+
+  <h2 class="section">10. OPERATOR_MEMBER — <span style="font-weight:400;font-size:14px;color:var(--muted)">Anggota Tim</span></h2>
+  <div class="role-card">
+    <div class="role-head"><h3>Anggota Tim</h3><span class="code">anggotatim</span></div>
+    <p class="role-tag">Scope: PLANT · Read-only produksi</p>
+    <p><b>Tugas &amp; fungsi:</b></p>
+    <ul class="duty-list">
+      <li>Tercatat sebagai anggota tim shift (dipilih oleh ketua kecer)</li>
+      <li>Melihat shift &amp; batch berjalan untuk tahu tugasnya</li>
+    </ul>
+    <div class="example"><strong>Contoh nyata:</strong> Anggota tim mengecek tablet: shift Pagi MKR-02 sedang berjalan, boks #2 sedang diproses. Dia menyiapkan bobbin cadangan di rak mesin agar pergantian cepat saat dibutuhkan.</div>
+    <div class="no-do">Tidak boleh: mencatat produksi sendiri — input dilakukan ketua kecer.</div>
+  </div>
+
+  <h2 class="section">11. GUDANG_INBOUND — <span style="font-weight:400;font-size:14px;color:var(--muted)">Penerimaan Bahan</span></h2>
+  <div class="role-card">
+    <div class="role-head"><h3>Gudang Inbound</h3><span class="code">gudangin</span></div>
+    <p class="role-tag">Scope: PLANT · Gudang bahan baku</p>
+    <p><b>Tugas &amp; fungsi:</b></p>
+    <ul class="duty-list">
+      <li>Terima TSG dari supplier (kode boks, berat, jenis) → auto masuk inventory FIFO</li>
+      <li>Terima material &amp; sparepart (item, qty, harga beli)</li>
+      <li>Atur lokasi rak, alokasi TSG ke shift, write-off boks rusak</li>
+      <li>Settle waste (MENIR dsb) dari pabrik</li>
+    </ul>
+    <div class="example"><strong>Contoh nyata:</strong> Truk supplier datang membawa 8 boks TSG + 40 roll bobbin. Gudang Inbound klik "Terima TSG Baru" → input 8 boks dengan berat &amp; jenis → klik "Terima Material" → 40 roll Bobbin @ Rp 240.000. Sistem membuat kode receiving + stok langsung bertambah.</div>
+    <div class="no-do">Tidak boleh: approve shift, input produksi.</div>
+  </div>
+
+  <h2 class="section">12. GUDANG_OUTBOUND — <span style="font-weight:400;font-size:14px;color:var(--muted)">Barang Jadi</span></h2>
+  <div class="role-card">
+    <div class="role-head"><h3>Gudang Outbound</h3><span class="code">gudangout</span></div>
+    <p class="role-tag">Scope: PLANT · Gudang barang jadi &amp; kartoning</p>
+    <p><b>Tugas &amp; fungsi:</b></p>
+    <ul class="duty-list">
+      <li>Terima finished goods dari produksi (confirm penerimaan)</li>
+      <li>Dispute barang yang tidak sesuai</li>
+      <li>Buat kartoning: bungkus batangan ke karton, catat isi per pack, reject</li>
+      <li>Lihat shift produksi untuk perencanaan kartoning</li>
+    </ul>
+    <div class="example"><strong>Contoh nyata:</strong> Shift selesai menghasilkan 33 kg batangan. Gudang Outbound menerima finished goods → mulai kartoning: 10 karton, masing-masing 10 pack × 20 batang → 2.000 batang lolos, 15 batang reject (keriput). Data reject tercatat untuk evaluasi mutu.</div>
+    <div class="no-do">Tidak boleh: terima bahan baku dari supplier (itu inbound), dispatch pengiriman (itu ekspedisi).</div>
+  </div>
+
+  <h2 class="section">13. EKSPEDISI — <span style="font-weight:400;font-size:14px;color:var(--muted)">Pengiriman</span></h2>
+  <div class="role-card">
+    <div class="role-head"><h3>Ekspedisi</h3><span class="code">ekspedisi</span></div>
+    <p class="role-tag">Scope: PLANT · Distribusi ke gudang distributor</p>
+    <p><b>Tugas &amp; fungsi:</b></p>
+    <ul class="duty-list">
+      <li>Buat dispatch order (surat jalan pengiriman)</li>
+      <li>Eksekusi dispatch: kapan, lewat mana, ke distributor mana</li>
+      <li>Generate dokumen pengiriman (DO/SJ)</li>
+      <li>Lihat stok karton &amp; finished goods yang siap kirim</li>
+    </ul>
+    <div class="example"><strong>Contoh nyata:</strong> 10 karton Hummer STD siap di gudang. Ekspedisi membuat dispatch order ke distributor area Surabaya, mencetak dokumen pengiriman, lalu update status "DISPATCHED" saat truk berangkat pukul 16.00.</div>
+    <div class="no-do">Tidak boleh: ubah data produksi, kartoning, atau master data.</div>
+  </div>
+
+  <div class="footer">
+    MES + WMS Hummer — Panduan Role v1.0 · Agustus 2026 · Password test: 12345678
+  </div>
+</div>
+</body>
+</html>
