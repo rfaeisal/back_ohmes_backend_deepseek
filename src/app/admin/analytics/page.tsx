@@ -24,9 +24,23 @@ export default function AnalyticsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      // Plant ID dari scope JWT (bukan hardcoded)
+      let plantId = "";
+      const token = getToken();
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split(".")[1]!));
+          plantId = payload.plantIds?.[0] ?? "";
+        } catch {}
+      }
+      if (!plantId) {
+        const plantsRes = await apiFetch("/plants");
+        plantId = plantsRes?.data?.[0]?.id ?? "";
+      }
+
       const [analytics, oeeData] = await Promise.all([
         apiFetch("/dashboards/hq/analytics"),
-        apiFetch("/dashboards/oee/PLT-MLG-01"),
+        plantId ? apiFetch(`/dashboards/oee/${plantId}`) : Promise.resolve(null),
       ]);
       setData(analytics);
       setOee(oeeData);
