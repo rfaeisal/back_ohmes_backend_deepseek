@@ -4,30 +4,68 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LayoutDashboard, ClipboardCheck, MapPin, TrendingUp, Wrench, Users, Settings, ScrollText, Shield, Printer, FileText, FileBarChart, Factory, LogOut, Smartphone, Calendar, Package, BarChart3, Menu, X } from "lucide-react";
 
-const NAV_ITEMS: Array<{ href: string; label: string; icon: any; permissions?: string[] }> = [
-  { href: "/admin", label: "Overview", icon: LayoutDashboard },
-  { href: "/admin/approvals", label: "Approval Shift", icon: ClipboardCheck, permissions: ["shift.approve"] },
-  { href: "/admin/area-dashboard", label: "Dashboard Area", icon: MapPin, permissions: ["dashboard.area.view"] },
-  { href: "/admin/analytics", label: "HQ Analytics", icon: TrendingUp, permissions: ["dashboard.hq.view"] },
-  { href: "/admin/corrections", label: "Correction", icon: Wrench, permissions: ["shift.correct"] },
-  { href: "/admin/users", label: "Users & Role", icon: Users, permissions: ["user.assign_scope"] },
-  { href: "/admin/master-data", label: "Master Data", icon: Settings, permissions: ["masterdata.machine.edit", "masterdata.product.edit", "masterdata.plant.edit"] },
-  { href: "/admin/master-consumables", label: "Master Consumable", icon: Package, permissions: ["masterdata.consumable.edit"] },
-  { href: "/admin/master-spareparts", label: "Master Sparepart", icon: Wrench, permissions: ["masterdata.sparepart.edit"] },
-  { href: "/admin/audit", label: "Audit Log", icon: ScrollText, permissions: ["audit.read"] },
-  { href: "/admin/reports/shifts", label: "Laporan Per Shift", icon: FileText, permissions: ["shift.view"] },
-  { href: "/admin/reports/tsg-usage", label: "Penggunaan TSG", icon: BarChart3, permissions: ["shift.view"] },
-  { href: "/admin/reports/tsg-stock", label: "Stok TSG", icon: Package, permissions: ["tsg.inventory.view"] },
-  { href: "/admin/reports/tsg-receiving", label: "Laporan TSG Masuk", icon: FileBarChart, permissions: ["tsg.receiving.view"] },
-  { href: "/admin/reports/material-stock", label: "Stok Material", icon: Package, permissions: ["tsg.inventory.view"] },
-  { href: "/admin/reports/material-receiving", label: "Material Masuk", icon: FileBarChart, permissions: ["tsg.receiving.view"] },
-  { href: "/admin/reports/material-usage", label: "Pemakaian Material", icon: BarChart3, permissions: ["shift.view"] },
-  { href: "/admin/gudang", label: "Gudang Inbound", icon: Factory, permissions: ["tsg.receiving.create"] },
-  { href: "/admin/labels", label: "Cetak Label", icon: Printer, permissions: ["tsg.receiving.create"] },
-  { href: "/admin/roster", label: "Roster Mingguan", icon: Calendar, permissions: ["shift.member.assign"] },
-  { href: "/admin/sessions", label: "Manajemen Sesi", icon: Smartphone, permissions: ["super.session.view"] },
-  { href: "/admin/super", label: "SUPERADMIN Tools", icon: Shield, permissions: ["super.impersonate"] },
-  { href: "/tablet", label: "← Tablet Operator", icon: Smartphone },
+type NavItem = { href: string; label: string; icon: any; permissions?: string[] };
+type NavSection = { title: string; items: NavItem[] };
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    title: "Operasional",
+    items: [
+      { href: "/admin", label: "Overview", icon: LayoutDashboard },
+      { href: "/admin/approvals", label: "Approval Shift", icon: ClipboardCheck, permissions: ["shift.approve"] },
+      { href: "/admin/roster", label: "Roster Mingguan", icon: Calendar, permissions: ["shift.member.assign"] },
+      { href: "/admin/gudang", label: "Gudang Inbound", icon: Factory, permissions: ["tsg.receiving.create"] },
+      { href: "/admin/labels", label: "Cetak Label", icon: Printer, permissions: ["tsg.receiving.create"] },
+    ],
+  },
+  {
+    title: "Dashboard",
+    items: [
+      { href: "/admin/area-dashboard", label: "Dashboard Area", icon: MapPin, permissions: ["dashboard.area.view"] },
+      { href: "/admin/analytics", label: "HQ Analytics", icon: TrendingUp, permissions: ["dashboard.hq.view"] },
+    ],
+  },
+  {
+    title: "Laporan TSG",
+    items: [
+      { href: "/admin/reports/shifts", label: "Laporan Per Shift", icon: FileText, permissions: ["shift.view"] },
+      { href: "/admin/reports/tsg-usage", label: "Penggunaan TSG", icon: BarChart3, permissions: ["shift.view"] },
+      { href: "/admin/reports/tsg-stock", label: "Stok TSG", icon: Package, permissions: ["tsg.inventory.view"] },
+      { href: "/admin/reports/tsg-receiving", label: "Laporan TSG Masuk", icon: FileBarChart, permissions: ["tsg.receiving.view"] },
+    ],
+  },
+  {
+    title: "Material & Sparepart",
+    items: [
+      { href: "/admin/reports/material-stock", label: "Stok Material", icon: Package, permissions: ["tsg.inventory.view"] },
+      { href: "/admin/reports/material-receiving", label: "Material Masuk", icon: FileBarChart, permissions: ["tsg.receiving.view"] },
+      { href: "/admin/reports/material-usage", label: "Pemakaian Material", icon: BarChart3, permissions: ["shift.view"] },
+      { href: "/admin/master-consumables", label: "Master Consumable", icon: Package, permissions: ["masterdata.consumable.edit"] },
+      { href: "/admin/master-spareparts", label: "Master Sparepart", icon: Wrench, permissions: ["masterdata.sparepart.edit"] },
+    ],
+  },
+  {
+    title: "Administrasi",
+    items: [
+      { href: "/admin/corrections", label: "Correction", icon: Wrench, permissions: ["shift.correct"] },
+      { href: "/admin/users", label: "Users & Role", icon: Users, permissions: ["user.assign_scope"] },
+      { href: "/admin/master-data", label: "Master Data", icon: Settings, permissions: ["masterdata.machine.edit", "masterdata.product.edit", "masterdata.plant.edit"] },
+      { href: "/admin/audit", label: "Audit Log", icon: ScrollText, permissions: ["audit.read"] },
+    ],
+  },
+  {
+    title: "SUPERADMIN",
+    items: [
+      { href: "/admin/sessions", label: "Manajemen Sesi", icon: Smartphone, permissions: ["super.session.view"] },
+      { href: "/admin/super", label: "SUPERADMIN Tools", icon: Shield, permissions: ["super.impersonate"] },
+    ],
+  },
+  {
+    title: "",
+    items: [
+      { href: "/tablet", label: "← Tablet Operator", icon: Smartphone },
+    ],
+  },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -65,16 +103,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <X className="size-5" />
         </button>
       </div>
-      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {NAV_ITEMS.filter(canSee).map((item) => {
-          const Icon = item.icon;
+      <nav className="flex-1 p-3 space-y-3 overflow-y-auto">
+        {NAV_SECTIONS.map((section) => {
+          const visibleItems = section.items.filter(canSee);
+          if (visibleItems.length === 0) return null;
           return (
-            <Link key={item.href} href={item.href}
-              onClick={closeSidebar}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
-              <Icon className="size-4" />
-              {item.label}
-            </Link>
+            <div key={section.title || "bottom"}>
+              {section.title && (
+                <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                  {section.title}
+                </p>
+              )}
+              <div className="space-y-1">
+                {visibleItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link key={item.href} href={item.href}
+                      onClick={closeSidebar}
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+                      <Icon className="size-4" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
           );
         })}
       </nav>
