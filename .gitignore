@@ -36,3 +36,4 @@ pnpm-debug.log*
 # --- Test coverage & artifacts (future) ---
 coverage/
 .nyc_output/
+tsconfig.tsbuildinfo
