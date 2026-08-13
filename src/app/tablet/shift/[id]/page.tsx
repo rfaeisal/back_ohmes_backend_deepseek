@@ -482,7 +482,7 @@ export default function ShiftActivePage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Item</label>
             <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base" value={consForm.itemId} onChange={e => setConsForm({...consForm, itemId: e.target.value})}>
               <option value="">Pilih Item</option>
-              {consumables.map((c: any) => (
+              {consumables.filter((c: any) => !c.allowAtEndShift).map((c: any) => (
                 <option key={c.id} value={c.id}>{c.name} ({c.unit})</option>
               ))}
             </select>
