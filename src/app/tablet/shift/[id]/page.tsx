@@ -113,9 +113,29 @@ export default function ShiftActivePage() {
   const [endNotes, setEndNotes] = useState("");
 
   // Consumable/Downtime/Maintenance form
-  const [consForm, setConsForm] = useState({ item: "", qty: "", note: "" });
+  const [consumables, setConsumables] = useState<any[]>([]);
+  const [spareparts, setSpareparts] = useState<any[]>([]);
+  const [consForm, setConsForm] = useState({ itemId: "", qty: "", note: "" });
   const [downForm, setDownForm] = useState({ cat: "GANTI_MATERIAL", dur: "", desc: "" });
-  const [mtnForm, setMtnForm] = useState({ part: "", qty: "", note: "" });
+  const [mtnForm, setMtnForm] = useState({ partId: "", qty: "", note: "" });
+  const [consSaving, setConsSaving] = useState(false);
+  const [mtnSaving, setMtnSaving] = useState(false);
+
+  // Load master data consumables & spareparts saat dialog pertama dibuka
+  const loadMasterItems = useCallback(async () => {
+    try {
+      const [c, s] = await Promise.all([
+        apiFetch("/consumable-items"),
+        apiFetch("/spareparts"),
+      ]);
+      setConsumables(c.data ?? []);
+      setSpareparts(s.data ?? []);
+    } catch { /* biarkan kosong */ }
+  }, []);
+
+  useEffect(() => {
+    if (showConsumption || showMaintenance) loadMasterItems();
+  }, [showConsumption, showMaintenance, loadMasterItems]);
 
   // Weigh form
   const [outputWeight, setOutputWeight] = useState("");
@@ -459,23 +479,48 @@ export default function ShiftActivePage() {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Item</label>
-            <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base" value={consForm.item} onChange={e => setConsForm({...consForm, item: e.target.value})}>
+            <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base" value={consForm.itemId} onChange={e => setConsForm({...consForm, itemId: e.target.value})}>
               <option value="">Pilih Item</option>
-              <option value="Bobbin Hummer">Bobbin Hummer</option>
-              <option value="Filter Hummer">Filter Hummer</option>
-              <option value="Tipping Hummer">Tipping Hummer</option>
-              <option value="Lem Hummer">Lem Hummer</option>
+              {consumables.map((c: any) => (
+                <option key={c.id} value={c.id}>{c.name} ({c.unit})</option>
+              ))}
             </select>
           </div>
           <Input label="Quantity" type="number" value={consForm.qty} onChange={e => setConsForm({...consForm, qty: e.target.value})} />
           <Input label="Catatan (opsional)" value={consForm.note} onChange={e => setConsForm({...consForm, note: e.target.value})} />
-          <Button size="operator" className="w-full" onClick={() => {
-            if (!consForm.item || !consForm.qty) { setActionMsg("Isi item dan quantity"); return; }
-            setConsumptionEvents(prev => [...prev, { item: consForm.item, qty: consForm.qty, note: consForm.note, time: new Date().toLocaleTimeString("id-ID") }]);
-            setActionMsg(`✅ Pemakaian ${consForm.item} dicatat`);
-            setConsForm({ item: "", qty: "", note: "" });
-            setShowConsumption(false);
-          }}>Simpan</Button>
+          <Button
+            size="operator"
+            className="w-full"
+            disabled={consSaving}
+            onClick={async () => {
+              if (!consForm.itemId || !consForm.qty || !activeBox?.id) {
+                setActionMsg("Pilih item, isi quantity, dan pastikan ada boks aktif.");
+                return;
+              }
+              setConsSaving(true);
+              try {
+                await apiFetch(`/boxes/${activeBox.id}/consumption`, {
+                  method: "POST",
+                  body: JSON.stringify({
+                    consumableItemId: consForm.itemId,
+                    quantity: parseFloat(consForm.qty),
+                    note: consForm.note || undefined,
+                  }),
+                });
+                const item = consumables.find((c) => c.id === consForm.itemId);
+                setConsumptionEvents(prev => [...prev, { item: item?.name ?? consForm.itemId, qty: consForm.qty, note: consForm.note, time: new Date().toLocaleTimeString("id-ID") }]);
+                setActionMsg(`✅ Pemakaian ${item?.name ?? ""} dicatat`);
+                setConsForm({ itemId: "", qty: "", note: "" });
+                setShowConsumption(false);
+              } catch (e: any) {
+                setActionMsg(e.message);
+              } finally {
+                setConsSaving(false);
+              }
+            }}
+          >
+            {consSaving ? "Menyimpan..." : "Simpan"}
+          </Button>
         </div>
       </Dialog>
 
@@ -490,12 +535,25 @@ export default function ShiftActivePage() {
           </div>
           <Input label="Durasi (menit)" type="number" value={downForm.dur} onChange={e => setDownForm({...downForm, dur: e.target.value})} />
           <Input label="Deskripsi (opsional)" value={downForm.desc} onChange={e => setDownForm({...downForm, desc: e.target.value})} />
-          <Button size="operator" className="w-full" onClick={() => {
+          <Button size="operator" className="w-full" onClick={async () => {
             if (!downForm.dur) { setActionMsg("Isi durasi downtime"); return; }
-            setDowntimeEvents(prev => [...prev, { cat: downForm.cat, dur: downForm.dur, desc: downForm.desc, time: new Date().toLocaleTimeString("id-ID") }]);
-            setActionMsg(`✅ Downtime ${downForm.cat} (${downForm.dur} menit) dicatat`);
-            setDownForm({ cat: "GANTI_MATERIAL", dur: "", desc: "" });
-            setShowDowntime(false);
+            try {
+              await apiFetch(`/shifts/${shiftId}/downtime`, {
+                method: "POST",
+                body: JSON.stringify({
+                  category: downForm.cat,
+                  durationMinutes: parseInt(downForm.dur),
+                  linkedBoxId: activeBox?.id,
+                  description: downForm.desc || undefined,
+                }),
+              });
+              setDowntimeEvents(prev => [...prev, { cat: downForm.cat, dur: downForm.dur, desc: downForm.desc, time: new Date().toLocaleTimeString("id-ID") }]);
+              setActionMsg(`✅ Downtime ${downForm.cat} (${downForm.dur} menit) dicatat`);
+              setDownForm({ cat: "GANTI_MATERIAL", dur: "", desc: "" });
+              setShowDowntime(false);
+            } catch (e: any) {
+              setActionMsg(e.message);
+            }
           }}>Simpan</Button>
         </div>
       </Dialog>
@@ -505,20 +563,45 @@ export default function ShiftActivePage() {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Sparepart</label>
-            <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base" value={mtnForm.part} onChange={e => setMtnForm({...mtnForm, part: e.target.value})}>
+            <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base" value={mtnForm.partId} onChange={e => setMtnForm({...mtnForm, partId: e.target.value})}>
               <option value="">Pilih Sparepart</option>
-              <option value="Pisau Filter">Pisau Filter</option><option value="Nylon">Nylon</option><option value="Belt Maker">Belt Maker</option>
+              {spareparts.map((s: any) => (
+                <option key={s.id} value={s.id}>{s.name} ({s.unit})</option>
+              ))}
             </select>
           </div>
           <Input label="Quantity" type="number" value={mtnForm.qty} onChange={e => setMtnForm({...mtnForm, qty: e.target.value})} placeholder="1" />
           <Input label="Catatan (opsional)" value={mtnForm.note} onChange={e => setMtnForm({...mtnForm, note: e.target.value})} />
-          <Button size="operator" className="w-full" onClick={() => {
-            if (!mtnForm.part || !mtnForm.qty) { setActionMsg("Isi sparepart dan quantity"); return; }
-            setMaintenanceEvents(prev => [...prev, { part: mtnForm.part, qty: mtnForm.qty, note: mtnForm.note, time: new Date().toLocaleTimeString("id-ID") }]);
-            setActionMsg(`✅ Maintenance ${mtnForm.part} dicatat`);
-            setMtnForm({ part: "", qty: "", note: "" });
-            setShowMaintenance(false);
-          }}>Simpan</Button>
+          <Button
+            size="operator"
+            className="w-full"
+            disabled={mtnSaving}
+            onClick={async () => {
+              if (!mtnForm.partId || !mtnForm.qty) { setActionMsg("Isi sparepart dan quantity"); return; }
+              setMtnSaving(true);
+              try {
+                await apiFetch(`/shifts/${shiftId}/maintenance`, {
+                  method: "POST",
+                  body: JSON.stringify({
+                    sparepartId: mtnForm.partId,
+                    quantity: parseInt(mtnForm.qty),
+                    note: mtnForm.note || undefined,
+                  }),
+                });
+                const part = spareparts.find((s) => s.id === mtnForm.partId);
+                setMaintenanceEvents(prev => [...prev, { part: part?.name ?? mtnForm.partId, qty: mtnForm.qty, note: mtnForm.note, time: new Date().toLocaleTimeString("id-ID") }]);
+                setActionMsg(`✅ Maintenance ${part?.name ?? ""} dicatat`);
+                setMtnForm({ partId: "", qty: "", note: "" });
+                setShowMaintenance(false);
+              } catch (e: any) {
+                setActionMsg(e.message);
+              } finally {
+                setMtnSaving(false);
+              }
+            }}
+          >
+            {mtnSaving ? "Menyimpan..." : "Simpan"}
+          </Button>
         </div>
       </Dialog>
 
