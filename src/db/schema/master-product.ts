@@ -121,6 +121,7 @@ export const consumableItem = pgTable("consumable_item", {
   unit: text("unit").notNull().default("roll"), // 'roll', 'kg', 'unit'
   productId: uuid("product_id").references(() => product.id), // NULL = universal
   isActive: boolean("is_active").notNull().default(true),
+  allowAtEndShift: boolean("allow_at_end_shift").notNull().default(false), // boleh dicatat saat akhiri shift
 });
 
 export const sparepart = pgTable("sparepart", {

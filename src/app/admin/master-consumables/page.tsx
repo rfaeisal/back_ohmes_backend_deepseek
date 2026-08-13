@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
@@ -28,7 +29,7 @@ export default function MasterConsumablesPage() {
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState({ code: "", name: "", unit: "roll", productId: "" });
+  const [form, setForm] = useState({ code: "", name: "", unit: "roll", productId: "", allowAtEndShift: false });
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -47,8 +48,8 @@ export default function MasterConsumablesPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const openAdd = () => { setEditing(null); setForm({ code: "", name: "", unit: "roll", productId: products[0]?.id ?? "" }); setShowForm(true); };
-  const openEdit = (item: any) => { setEditing(item); setForm({ code: item.code, name: item.name, unit: item.unit ?? "roll", productId: item.productId ?? "" }); setShowForm(true); };
+  const openAdd = () => { setEditing(null); setForm({ code: "", name: "", unit: "roll", productId: products[0]?.id ?? "", allowAtEndShift: false }); setShowForm(true); };
+  const openEdit = (item: any) => { setEditing(item); setForm({ code: item.code, name: item.name, unit: item.unit ?? "roll", productId: item.productId ?? "", allowAtEndShift: item.allowAtEndShift ?? false }); setShowForm(true); };
 
   const handleSave = async () => {
     if (!form.code || !form.name || !form.unit) { setError("Kode, nama, dan unit wajib diisi."); return; }
@@ -96,20 +97,28 @@ export default function MasterConsumablesPage() {
                 <th className="pb-3 text-sm font-semibold text-gray-600">Nama</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Unit</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Produk</th>
+                <th className="pb-3 text-sm font-semibold text-gray-600">Akhir Shift</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Aksi</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} className="py-6 text-center text-gray-400">Memuat...</td></tr>
+                <tr><td colSpan={6} className="py-6 text-center text-gray-400">Memuat...</td></tr>
               ) : items.length === 0 ? (
-                <tr><td colSpan={5} className="py-6 text-center text-gray-400">Belum ada item.</td></tr>
+                <tr><td colSpan={6} className="py-6 text-center text-gray-400">Belum ada item.</td></tr>
               ) : items.map((item) => (
                 <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 font-mono text-sm">{item.code}</td>
                   <td className="py-3 font-medium">{item.name}</td>
                   <td className="py-3 text-sm text-gray-500">{item.unit}</td>
                   <td className="py-3 text-sm text-gray-500">{products.find((p) => p.id === item.productId)?.code ?? "-"}</td>
+                  <td className="py-3">
+                    {item.allowAtEndShift ? (
+                      <Badge variant="success">✓ Boleh</Badge>
+                    ) : (
+                      <Badge variant="neutral">—</Badge>
+                    )}
+                  </td>
                   <td className="py-3 flex gap-2">
                     <Button size="sm" variant="ghost" onClick={() => openEdit(item)}><Pencil className="size-4" /></Button>
                     <Button size="sm" variant="ghost" onClick={() => handleDelete(item.id)}><Trash2 className="size-4 text-red-500" /></Button>
@@ -133,6 +142,15 @@ export default function MasterConsumablesPage() {
               {products.map((p: any) => <option key={p.id} value={p.id}>{p.brand} {p.code}</option>)}
             </select>
           </div>
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <input
+              type="checkbox"
+              checked={form.allowAtEndShift}
+              onChange={(e) => setForm({ ...form, allowAtEndShift: e.target.checked })}
+              className="size-4"
+            />
+            📦 Boleh ditambahkan saat Akhiri Shift
+          </label>
           <Button className="w-full" onClick={handleSave} disabled={saving}>
             {saving ? "Menyimpan..." : "Simpan"}
           </Button>

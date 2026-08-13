@@ -653,7 +653,7 @@ export default function ShiftActivePage() {
                         onChange={(e) => { const next = [...endConsumptions]; next[i] = { ...next[i]!, itemId: e.target.value }; setEndConsumptions(next); }}
                       >
                         <option value="">Pilih Material</option>
-                        {consumables.map((cm: any) => <option key={cm.id} value={cm.id}>{cm.name} ({cm.unit})</option>)}
+                        {consumables.filter((cm: any) => cm.allowAtEndShift).map((cm: any) => <option key={cm.id} value={cm.id}>{cm.name} ({cm.unit})</option>)}
                       </select>
                       <Input
                         type="number"

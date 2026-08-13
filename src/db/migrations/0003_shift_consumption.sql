@@ -19,3 +19,6 @@ CREATE POLICY p_sc_select ON shift_consumption FOR SELECT USING (plant_id = ANY(
 CREATE POLICY p_sc_insert ON shift_consumption FOR INSERT WITH CHECK (plant_id = ANY(current_setting('app.current_plant_ids')::uuid[]) OR current_setting('app.bypass_rls', true) = 'true');
 CREATE POLICY p_sc_update ON shift_consumption FOR UPDATE USING (plant_id = ANY(current_setting('app.current_plant_ids')::uuid[]) OR current_setting('app.bypass_rls', true) = 'true');
 CREATE POLICY p_sc_delete ON shift_consumption FOR DELETE USING (plant_id = ANY(current_setting('app.current_plant_ids')::uuid[]) OR current_setting('app.bypass_rls', true) = 'true');
+
+-- Penanda material yang boleh dicatat saat Akhiri Shift
+ALTER TABLE consumable_item ADD COLUMN allow_at_end_shift boolean NOT NULL DEFAULT false;

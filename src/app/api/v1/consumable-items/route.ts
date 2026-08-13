@@ -10,6 +10,7 @@ const createSchema = z.object({
   name: z.string().min(1, "Nama wajib"),
   unit: z.string().min(1, "Unit wajib").default("roll"),
   productId: z.string().uuid().optional(),
+  allowAtEndShift: z.boolean().optional().default(false),
 });
 
 // GET — reference data untuk dialog pemakaian (auth-only)
@@ -21,6 +22,7 @@ export const GET = withAuth(async (_req: Request, _ctx: AuthContext) => {
       name: consumableItem.name,
       unit: consumableItem.unit,
       productId: consumableItem.productId,
+      allowAtEndShift: consumableItem.allowAtEndShift,
     })
     .from(consumableItem)
     .orderBy(consumableItem.code);
@@ -45,6 +47,7 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
       name: parsed.data.name,
       unit: parsed.data.unit,
       productId: parsed.data.productId ?? null,
+      allowAtEndShift: parsed.data.allowAtEndShift ?? false,
     })
     .returning();
 

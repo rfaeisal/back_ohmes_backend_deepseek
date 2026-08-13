@@ -11,6 +11,7 @@ const updateSchema = z.object({
   name: z.string().min(1).optional(),
   unit: z.string().min(1).optional(),
   productId: z.string().uuid().nullable().optional(),
+  allowAtEndShift: z.boolean().optional(),
 });
 
 export const PATCH = withAuth(async (request: Request, ctx: AuthContext, { params }: { params: Promise<{ id: string }> }) => {
