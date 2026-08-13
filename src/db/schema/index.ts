@@ -36,6 +36,7 @@ export {
   maintenanceEvent,
   batch,
   hlpPack,
+  shiftConsumption,
 } from "./box";
 export {
   tsgSupplier,

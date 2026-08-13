@@ -14,6 +14,7 @@ import {
   shiftHandoff,
   tsgBoxProcess,
   downtimeLog,
+  shiftConsumption,
 } from "@/db/schema";
 import { machine, shiftTemplate, product } from "@/db/schema/master-product";
 import { calculateShiftYield } from "@/lib/calc";
@@ -43,6 +44,12 @@ export interface EndShiftInput {
     settlementStatus: "PENDING" | "LUNAS";
   }>;
   notes?: string;
+  /** Pemakaian material tambahan di level shift (karton, dus, dll) — opsional */
+  consumptions?: Array<{
+    consumableItemId: string;
+    quantity: number;
+    note?: string;
+  }>;
 }
 
 export interface HandoffInput {
@@ -212,7 +219,7 @@ export async function endShift(input: EndShiftInput) {
     }
   }
 
-  // 4. Insert waste + update shift dalam transaksi
+  // 4. Insert waste + consumptions + update shift dalam transaksi
   await db.transaction(async (tx) => {
     for (const w of input.waste) {
       await tx.insert(shiftWaste).values({
@@ -220,6 +227,17 @@ export async function endShift(input: EndShiftInput) {
         category: w.category as "MENIR" | "RIJEKAN" | "DEBU_KASAR" | "DEBU_HALUS",
         kg: String(w.kg),
         settlementStatus: w.settlementStatus as "PENDING" | "LUNAS",
+      });
+    }
+
+    for (const c of input.consumptions ?? []) {
+      await tx.insert(shiftConsumption).values({
+        shiftReportId: input.shiftId,
+        plantId: shift.plantId,
+        consumableItemId: c.consumableItemId,
+        quantity: String(c.quantity),
+        note: c.note ?? null,
+        loggedBy: shift.createdBy,
       });
     }
 
@@ -459,6 +477,20 @@ export async function getShiftDetail(shiftId: string) {
         quantity: r.quantity, note: r.note, itemName: r.item_name,
       }));
 
+  // Shift-level consumption (dicatat saat akhiri shift — karton, dus, dll)
+  const shiftConsRaw = await db.execute(
+    sql`SELECT sc.*, ci.name as item_name FROM shift_consumption sc LEFT JOIN consumable_item ci ON ci.id = sc.consumable_item_id WHERE sc.shift_report_id = ${shiftId}::uuid`
+  );
+  const shiftConsumptions = (Array.isArray(shiftConsRaw) ? shiftConsRaw : (shiftConsRaw as any)?.rows || [])
+    .map((r: any) => ({
+      id: r.id,
+      consumableItemId: r.consumable_item_id,
+      quantity: r.quantity,
+      note: r.note,
+      itemName: r.item_name,
+      isShiftLevel: true,
+    }));
+
   const maintenances = Array.isArray(maintenancesRaw)
     ? maintenancesRaw.map((r: any) => ({
         id: r.id, sparepartId: r.sparepart_id, quantity: r.quantity,
@@ -485,6 +517,7 @@ export async function getShiftDetail(shiftId: string) {
     boxes,
     handoffs,
     consumptions,
+    shiftConsumptions,
     downtimes,
     maintenances,
     yieldPct,

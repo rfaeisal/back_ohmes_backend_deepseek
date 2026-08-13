@@ -10,7 +10,7 @@ import {
   sparepartReceivingItem,
   tsgSupplier,
 } from "@/db/schema";
-import { tsgBoxConsumption, maintenanceEvent, tsgBoxProcess } from "@/db/schema/box";
+import { tsgBoxConsumption, maintenanceEvent, tsgBoxProcess, shiftConsumption } from "@/db/schema/box";
 import { shiftReport } from "@/db/schema/shift";
 import { consumableItem, sparepart } from "@/db/schema/master-product";
 import { ServiceError } from "./shift.service";
@@ -209,7 +209,7 @@ export async function getMaterialStock(plantId: string, materialType: MaterialTy
       .where(eq(materialReceiving.plantId, plantId))
       .groupBy(consumableReceivingItem.consumableItemId);
 
-    const usedRows = await db
+    const boxUsedRows = await db
       .select({
         itemId: tsgBoxConsumption.consumableItemId,
         total: sql<number>`COALESCE(SUM(${tsgBoxConsumption.quantity}::decimal), 0)`.mapWith(Number),
@@ -218,13 +218,26 @@ export async function getMaterialStock(plantId: string, materialType: MaterialTy
       .where(eq(tsgBoxConsumption.plantId, plantId))
       .groupBy(tsgBoxConsumption.consumableItemId);
 
+    const shiftUsedRows = await db
+      .select({
+        itemId: shiftConsumption.consumableItemId,
+        total: sql<number>`COALESCE(SUM(${shiftConsumption.quantity}::decimal), 0)`.mapWith(Number),
+      })
+      .from(shiftConsumption)
+      .where(eq(shiftConsumption.plantId, plantId))
+      .groupBy(shiftConsumption.consumableItemId);
+
     const items = await db
       .select({ id: consumableItem.id, code: consumableItem.code, name: consumableItem.name, unit: consumableItem.unit })
       .from(consumableItem)
       .orderBy(consumableItem.code);
 
     const receivedMap = new Map(receivedRows.map((r) => [r.itemId, r.total]));
-    const usedMap = new Map(usedRows.map((r) => [r.itemId, r.total]));
+    const usedMap = new Map(boxUsedRows.map((r) => [r.itemId, r.total]));
+    // Gabungkan pemakaian shift-level
+    for (const r of shiftUsedRows) {
+      usedMap.set(r.itemId, (usedMap.get(r.itemId) ?? 0) + r.total);
+    }
 
     return items.map((it) => {
       const masuk = receivedMap.get(it.id) ?? 0;
@@ -302,7 +315,7 @@ export async function getMaterialUsage(params: {
     if (params.from) conditions.push(gte(shiftReport.reportDate, params.from));
     if (params.to) conditions.push(lte(shiftReport.reportDate, params.to));
 
-    const rows = await db
+    const boxRows = await db
       .select({
         itemId: tsgBoxConsumption.consumableItemId,
         total: sql<number>`COALESCE(SUM(${tsgBoxConsumption.quantity}::decimal), 0)`.mapWith(Number),
@@ -315,12 +328,41 @@ export async function getMaterialUsage(params: {
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .groupBy(tsgBoxConsumption.consumableItemId);
 
+    // Shift-level consumption (dicatat saat akhiri shift)
+    const shiftConditions = [];
+    if (params.plantId) shiftConditions.push(eq(shiftConsumption.plantId, params.plantId));
+    if (params.from) shiftConditions.push(gte(shiftReport.reportDate, params.from));
+    if (params.to) shiftConditions.push(lte(shiftReport.reportDate, params.to));
+
+    const shiftRows = await db
+      .select({
+        itemId: shiftConsumption.consumableItemId,
+        total: sql<number>`COALESCE(SUM(${shiftConsumption.quantity}::decimal), 0)`.mapWith(Number),
+        eventCount: sql<number>`CAST(COUNT(*) AS INTEGER)`.mapWith(Number),
+        lastUsed: sql<Date>`MAX(${shiftConsumption.loggedAt})`.mapWith((v) => new Date(v as string)),
+      })
+      .from(shiftConsumption)
+      .innerJoin(shiftReport, eq(shiftConsumption.shiftReportId, shiftReport.id))
+      .where(shiftConditions.length > 0 ? and(...shiftConditions) : undefined)
+      .groupBy(shiftConsumption.consumableItemId);
+
     const items = await db
       .select({ id: consumableItem.id, code: consumableItem.code, name: consumableItem.name, unit: consumableItem.unit })
       .from(consumableItem)
       .orderBy(consumableItem.code);
 
-    const rowMap = new Map(rows.map((r) => [r.itemId, r]));
+    const rowMap = new Map(boxRows.map((r) => [r.itemId, r]));
+    // Gabungkan shift-level
+    for (const r of shiftRows) {
+      const existing = rowMap.get(r.itemId);
+      if (existing) {
+        existing.total += r.total;
+        existing.eventCount += r.eventCount;
+        if (r.lastUsed > existing.lastUsed) existing.lastUsed = r.lastUsed;
+      } else {
+        rowMap.set(r.itemId, r);
+      }
+    }
 
     return items
       .filter((it) => rowMap.has(it.id))

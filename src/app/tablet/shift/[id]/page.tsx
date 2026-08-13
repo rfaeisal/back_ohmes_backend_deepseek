@@ -111,6 +111,7 @@ export default function ShiftActivePage() {
     DEBU_HALUS: { kg: "", status: "PENDING" },
   });
   const [endNotes, setEndNotes] = useState("");
+  const [endConsumptions, setEndConsumptions] = useState<Array<{ itemId: string; qty: string; note: string }>>([]);
 
   // Consumable/Downtime/Maintenance form
   const [consumables, setConsumables] = useState<any[]>([]);
@@ -134,8 +135,8 @@ export default function ShiftActivePage() {
   }, []);
 
   useEffect(() => {
-    if (showConsumption || showMaintenance) loadMasterItems();
-  }, [showConsumption, showMaintenance, loadMasterItems]);
+    if (showConsumption || showMaintenance || showEndShift) loadMasterItems();
+  }, [showConsumption, showMaintenance, showEndShift, loadMasterItems]);
 
   // Weigh form
   const [outputWeight, setOutputWeight] = useState("");
@@ -632,6 +633,46 @@ export default function ShiftActivePage() {
             </div>
           ))}
           <Input label="Catatan Shift (opsional)" value={endNotes} onChange={(e) => setEndNotes(e.target.value)} />
+
+          {/* Pemakaian material tambahan (opsional) */}
+          <div className="rounded-lg border border-gray-200 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-semibold">📦 Pemakaian Material (opsional)</p>
+              <span className="text-xs text-gray-400">{endConsumptions.length} item</span>
+            </div>
+            {endConsumptions.length === 0 ? (
+              <p className="text-xs text-gray-400">Kosong — tambah material kalau ada (karton, dus, dll).</p>
+            ) : (
+              <div className="space-y-2 mb-2">
+                {endConsumptions.map((c, i) => {
+                  return (
+                    <div key={i} className="flex items-center gap-2 rounded border border-gray-100 p-2">
+                      <select
+                        className="flex-1 rounded border border-gray-300 px-2 py-2 text-sm bg-white"
+                        value={c.itemId}
+                        onChange={(e) => { const next = [...endConsumptions]; next[i] = { ...next[i]!, itemId: e.target.value }; setEndConsumptions(next); }}
+                      >
+                        <option value="">Pilih Material</option>
+                        {consumables.map((cm: any) => <option key={cm.id} value={cm.id}>{cm.name} ({cm.unit})</option>)}
+                      </select>
+                      <Input
+                        type="number"
+                        value={c.qty}
+                        onChange={(e) => { const next = [...endConsumptions]; next[i] = { ...next[i]!, qty: e.target.value }; setEndConsumptions(next); }}
+                        placeholder="Qty"
+                        className="w-24"
+                      />
+                      <button className="text-red-400 hover:text-red-600" onClick={() => setEndConsumptions(endConsumptions.filter((_, j) => j !== i))}>✕</button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <Button variant="outline" size="sm" onClick={() => setEndConsumptions([...endConsumptions, { itemId: "", qty: "", note: "" }])}>
+              + Tambah Material
+            </Button>
+          </div>
+
           {actionMsg && (
             <div className={`rounded-lg p-3 text-sm ${actionMsg.startsWith("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>{actionMsg}</div>
           )}
@@ -659,9 +700,16 @@ export default function ShiftActivePage() {
                     setEndShiftLoading(false);
                     return;
                   }
+                  const consumptions = endConsumptions
+                    .filter((c) => c.itemId && parseFloat(c.qty) > 0)
+                    .map((c) => ({ consumableItemId: c.itemId, quantity: parseFloat(c.qty), note: c.note || undefined }));
                   await apiFetch(`/shifts/${shiftId}/end`, {
                     method: "PATCH",
-                    body: JSON.stringify({ waste, notes: endNotes || undefined }),
+                    body: JSON.stringify({
+                      waste,
+                      notes: endNotes || undefined,
+                      consumptions: consumptions.length > 0 ? consumptions : undefined,
+                    }),
                   });
                   setShowEndShift(false);
                   router.push("/tablet");

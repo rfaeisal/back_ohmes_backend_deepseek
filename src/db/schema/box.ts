@@ -170,3 +170,33 @@ export const hlpPack = pgTable("hlp_pack", {
   }),
   packedAt: timestamp("packed_at").notNull().defaultNow(),
 });
+
+// =============================================================================
+// Shift Consumption — pemakaian consumable level shift (bukan per boks)
+// Dicatat saat Akhiri Shift — material tambahan seperti karton, dus, dll
+// =============================================================================
+
+export const shiftConsumption = pgTable(
+  "shift_consumption",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    shiftReportId: uuid("shift_report_id")
+      .notNull()
+      .references(() => shiftReport.id, { onDelete: "cascade" }),
+    plantId: uuid("plant_id")
+      .notNull()
+      .references(() => plant.id), // ← denormalized untuk RLS
+    consumableItemId: uuid("consumable_item_id")
+      .notNull()
+      .references(() => consumableItem.id),
+    quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull(),
+    note: text("note"),
+    loggedAt: timestamp("logged_at").notNull().defaultNow(),
+    loggedBy: uuid("logged_by")
+      .notNull()
+      .references(() => user.id),
+  },
+  (t) => ({
+    idxShift: index("idx_shift_cons_shift").on(t.shiftReportId),
+  })
+);

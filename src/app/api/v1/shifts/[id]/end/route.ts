@@ -15,6 +15,15 @@ const endSchema = z.object({
     )
     .length(4, "Wajib 4 kategori waste"),
   notes: z.string().optional(),
+  consumptions: z
+    .array(
+      z.object({
+        consumableItemId: z.string().uuid(),
+        quantity: z.number().min(0.01, "Quantity harus > 0"),
+        note: z.string().optional(),
+      })
+    )
+    .optional(),
 });
 
 export const PATCH = withAuth(

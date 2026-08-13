@@ -206,10 +206,25 @@ export default function ApprovalsPage() {
             {/* Consumptions */}
             {selected.consumptions?.length > 0 && (
               <div>
-                <p className="text-sm font-semibold mb-2">Pemakaian Bahan ({selected.consumptions.length})</p>
+                <p className="text-sm font-semibold mb-2">Pemakaian Bahan per Boks ({selected.consumptions.length})</p>
                 <div className="space-y-1">
                   {selected.consumptions.map((c: any) => (
                     <div key={c.id} className="flex justify-between text-sm bg-gray-50 rounded p-2">
+                      <span>{c.itemName || "-"}</span>
+                      <span className="text-gray-500">{c.quantity}{c.note ? ` · ${c.note}` : ""}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Shift-level Consumptions */}
+            {selected.shiftConsumptions?.length > 0 && (
+              <div>
+                <p className="text-sm font-semibold mb-2">📦 Pemakaian Material Akhir Shift ({selected.shiftConsumptions.length})</p>
+                <div className="space-y-1">
+                  {selected.shiftConsumptions.map((c: any) => (
+                    <div key={c.id} className="flex justify-between text-sm bg-orange-50 rounded p-2">
                       <span>{c.itemName || "-"}</span>
                       <span className="text-gray-500">{c.quantity}{c.note ? ` · ${c.note}` : ""}</span>
                     </div>
