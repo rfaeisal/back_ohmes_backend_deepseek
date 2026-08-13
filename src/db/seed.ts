@@ -300,10 +300,16 @@ async function seed() {
   }> = [
     { username: "admin", fullName: "admin", password: process.env.SUPERADMIN_DEFAULT_PASSWORD || "CHANGE_ME_admin", email: "admin@hummer.example", roleCode: "SUPERADMIN", scopeType: "GLOBAL", scopeId: "00000000-0000-0000-0000-000000000000" },
     { username: "kecer", fullName: "Pak Kecer", password: "12345678", email: "kecer@gmail.com", roleCode: "OPERATOR_KECER", scopeType: "PLANT", scopeId: plantId },
+    { username: "anggotatim", fullName: "Pak Anggota Tim", password: "12345678", email: "anggotatim@gmail.com", roleCode: "OPERATOR_MEMBER", scopeType: "PLANT", scopeId: plantId },
     { username: "supervisor", fullName: "Pak Supervisor", password: "12345678", email: "paksuper@gmail.com", roleCode: "SHIFT_SUPERVISOR", scopeType: "PLANT", scopeId: plantId },
     { username: "gudangin", fullName: "Mbak Gudang", password: "12345678", email: "mbakgudang@gmail.com", roleCode: "GUDANG_INBOUND", scopeType: "PLANT", scopeId: plantId },
     { username: "gudangout", fullName: "Mbok Gudang", password: "12345678", email: "mbokgudang@gmail.com", roleCode: "GUDANG_OUTBOUND", scopeType: "PLANT", scopeId: plantId },
+    { username: "ekspedisi", fullName: "Pak Ekspedisi", password: "12345678", email: "ekspedisi@gmail.com", roleCode: "EKSPEDISI", scopeType: "PLANT", scopeId: plantId },
+    { username: "plantmanager", fullName: "Pak Plant Manager", password: "12345678", email: "plantmanager@hummer.example", roleCode: "PLANT_MANAGER", scopeType: "PLANT", scopeId: plantId },
+    { username: "areaqa", fullName: "Bu Area QA", password: "12345678", email: "areaqa@hummer.example", roleCode: "AREA_QA", scopeType: "REGION", scopeId: reg!.id },
     { username: "erik.koordinator", fullName: "Erik Koordinator", password: "12345678", email: "erik@hummer.example", roleCode: "AREA_COORDINATOR", scopeType: "REGION", scopeId: reg!.id },
+    { username: "hqadmin", fullName: "Pak HQ Admin", password: "12345678", email: "hqadmin@hummer.example", roleCode: "HQ_ADMIN", scopeType: "COMPANY", scopeId: comp!.id },
+    { username: "hqanalyst", fullName: "Bu HQ Analyst", password: "12345678", email: "hqanalyst@hummer.example", roleCode: "HQ_ANALYST", scopeType: "COMPANY", scopeId: comp!.id },
     { username: "hqauditor", fullName: "Pak HQ Auditor", password: "12345678", email: "pakhqauditor@gmail.com", roleCode: "HQ_AUDITOR", scopeType: "COMPANY", scopeId: comp!.id },
   ];
 
@@ -560,10 +566,16 @@ async function seed() {
   console.log("   │ Username         │ Password         │ Role                │");
   console.log("   ├──────────────────┼──────────────────┼─────────────────────┤");
   console.log("   │ kecer            │ 12345678         │ OPERATOR_KECER      │");
+  console.log("   │ anggotatim       │ 12345678         │ OPERATOR_MEMBER     │");
   console.log("   │ supervisor       │ 12345678         │ SHIFT_SUPERVISOR    │");
   console.log("   │ gudangin         │ 12345678         │ GUDANG_INBOUND      │");
   console.log("   │ gudangout        │ 12345678         │ GUDANG_OUTBOUND     │");
+  console.log("   │ ekspedisi        │ 12345678         │ EKSPEDISI           │");
+  console.log("   │ plantmanager     │ 12345678         │ PLANT_MANAGER       │");
+  console.log("   │ areaqa           │ 12345678         │ AREA_QA             │");
   console.log("   │ erik.koordinator │ 12345678         │ AREA_COORDINATOR    │");
+  console.log("   │ hqadmin          │ 12345678         │ HQ_ADMIN            │");
+  console.log("   │ hqanalyst        │ 12345678         │ HQ_ANALYST          │");
   console.log("   │ hqauditor        │ 12345678         │ HQ_AUDITOR          │");
   console.log("   │ admin            │ (env var)        │ SUPERADMIN          │");
   console.log("   └──────────────────┴──────────────────┴─────────────────────┘");

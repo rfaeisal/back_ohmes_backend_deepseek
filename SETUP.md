@@ -89,11 +89,18 @@ pnpm dev
 | Username | Password | Role |
 |---|---|---|
 | admin | (seed output) | SUPERADMIN |
-| kecer | operator123 | OPERATOR_KECER |
-| supervisor | supervisor123 | SHIFT_SUPERVISOR |
-| citra.gudang | gudang123 | GUDANG_INBOUND |
-| dodi.auditor | auditor123 | HQ_AUDITOR |
-| erik.koordinator | koordinator123 | AREA_COORDINATOR |
+| kecer | 12345678 | OPERATOR_KECER |
+| anggotatim | 12345678 | OPERATOR_MEMBER |
+| supervisor | 12345678 | SHIFT_SUPERVISOR |
+| gudangin | 12345678 | GUDANG_INBOUND |
+| gudangout | 12345678 | GUDANG_OUTBOUND |
+| ekspedisi | 12345678 | EKSPEDISI |
+| plantmanager | 12345678 | PLANT_MANAGER |
+| areaqa | 12345678 | AREA_QA |
+| erik.koordinator | 12345678 | AREA_COORDINATOR |
+| hqadmin | 12345678 | HQ_ADMIN |
+| hqanalyst | 12345678 | HQ_ANALYST |
+| hqauditor | 12345678 | HQ_AUDITOR |
 
 ---
 

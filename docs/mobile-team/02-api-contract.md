@@ -69,7 +69,7 @@ Header `X-Client-Version: 1.2.0` wajib. Kalau < min supported → 426 UPGRADE_RE
 **Body**:
 ```json
 {
-  "username": "andi.kecer",
+  "username": "kecer",
   "password": "***",
   "otp": "123456",
   "deviceType": "MOBILE",
@@ -90,7 +90,7 @@ Field:
   "user": {
     "id": "usr_4c1b",
     "fullName": "Andi Kecer",
-    "username": "andi.kecer"
+    "username": "kecer"
   },
   "assignments": [
     {

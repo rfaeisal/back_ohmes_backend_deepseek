@@ -86,7 +86,7 @@ Request & response menggunakan `camelCase`. Database internal `snake_case` — d
 **Body**:
 ```json
 {
-  "username": "andi.kecer",
+  "username": "kecer",
   "password": "***",
   "otp": "123456",
   "deviceType": "MOBILE",
@@ -128,7 +128,7 @@ Kalau `deviceId` sama dengan session existing → sistem otomatis revoke sesi la
   "user": {
     "id": "usr_4c1b",
     "fullName": "Andi Kecer",
-    "username": "andi.kecer"
+    "username": "kecer"
   },
   "assignments": [
     {
@@ -759,7 +759,7 @@ Semua endpoint di grup ini butuh role `SUPERADMIN` dan **bypass RLS** aktif. Sem
 ```json
 {
   "data": [
-    { "type": "LOGIN_FAILED", "username": "andi.kecer", "ipAddress": "1.2.3.4", "userAgent": "…", "occurredAt": "2026-08-10T14:00:00+07:00", "reason": "Password salah 3× berturut" },
+    { "type": "LOGIN_FAILED", "username": "kecer", "ipAddress": "1.2.3.4", "userAgent": "…", "occurredAt": "2026-08-10T14:00:00+07:00", "reason": "Password salah 3× berturut" },
     { "type": "PRIVILEGED_ACTION", "actorUserId": "usr_super_1", "action": "super.impersonate", "targetUserId": "usr_supervisor_a", "occurredAt": "2026-08-10T14:15:12+07:00" }
   ]
 }

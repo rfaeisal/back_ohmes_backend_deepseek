@@ -8,7 +8,7 @@ Proyek MES + WMS Hummer — **Fase 0–6 Complete** (Agustus 2026).
 
 - ✅ 22 halaman UI, 60+ API endpoint, 43 tabel DB
 - ✅ Deploy Vercel + Neon PostgreSQL 16
-- ✅ 6 test users (admin, kecer, supervisor, citra.gudang, dodi.auditor, erik.koordinator)
+- ✅ 13 test users (semua role ter-cover, password seragam 12345678 — lihat README)
 - ✅ 8 boks TSG sample di inventory (REGULER, MILD, PUTIHAN)
 - ✅ Roster mingguan + cetak bulanan
 - ✅ Laporan stok TSG, laporan receiving, laporan per shift
