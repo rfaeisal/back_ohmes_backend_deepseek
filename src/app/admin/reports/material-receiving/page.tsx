@@ -149,9 +149,10 @@ export default function MaterialReceivingReport() {
                               <span>{it.itemName}</span>
                               <span className="font-mono">
                                 {it.quantity} {it.itemUnit}
-                                {it.unitPrice != null && <> × Rp {Number(it.unitPrice).toLocaleString("id-ID")}</>}
-                                {it.unitPrice != null && (
-                                  <> = <strong>Rp {Math.round(Number(it.quantity) * Number(it.unitPrice)).toLocaleString("id-ID")}</strong></>
+                                {it.unitPrice != null ? (
+                                  <> × Rp {Number(it.unitPrice).toLocaleString("id-ID")} = <strong>Rp {Math.round(Number(it.quantity) * Number(it.unitPrice)).toLocaleString("id-ID")}</strong></>
+                                ) : (
+                                  <span className="ml-1 text-xs text-red-500">⚠ tanpa harga</span>
                                 )}
                               </span>
                             </div>
