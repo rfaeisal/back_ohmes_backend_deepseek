@@ -151,6 +151,93 @@ export default function AreaDashboardPage() {
         </div>
       )}
 
+      {/* Perbandingan TSG vs Batangan + Waste per pabrik */}
+      {kpi.plants?.length > 0 && (() => {
+        const maxKg = Math.max(
+          0,
+          ...kpi.plants.map((p: any) => p.production?.tsgKg ?? 0),
+          ...kpi.plants.map((p: any) => p.production?.outputKg ?? 0)
+        );
+        const maxWaste = Math.max(
+          0,
+          ...kpi.plants.map((p: any) =>
+            (Object.values(p.waste ?? {}) as number[]).reduce((a: number, b: number) => a + b, 0)
+          )
+        );
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {maxKg > 0 && (
+              <Card>
+                <CardTitle>TSG Diproses vs Hasil Batangan</CardTitle>
+                <p className="text-sm text-gray-500 mb-3">Perbandingan antar pabrik (kg)</p>
+                <div className="flex gap-4 mb-3 text-xs">
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block size-2.5 rounded-sm" style={{ background: "#2a78d6" }} />
+                    TSG Diproses
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block size-2.5 rounded-sm" style={{ background: "#eb6834" }} />
+                    Hasil Batangan
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {kpi.plants.map((p: any) => {
+                    const tsg = p.production?.tsgKg ?? 0;
+                    const out = p.production?.outputKg ?? 0;
+                    return (
+                      <div key={p.id}>
+                        <p className="text-sm font-medium mb-1">{p.name}</p>
+                        <div className="space-y-[2px]">
+                          {[
+                            { v: tsg, c: "#2a78d6", label: "TSG Diproses" },
+                            { v: out, c: "#eb6834", label: "Hasil Batangan" },
+                          ].map((s) => (
+                            <div key={s.label} className="flex items-center gap-2">
+                              <div className="flex-1 h-3 bg-gray-100 rounded">
+                                <div
+                                  className="h-full rounded-sm"
+                                  style={{ width: `${maxKg > 0 ? Math.min(100, (s.v / maxKg) * 100) : 0}%`, background: s.c }}
+                                  title={`${p.name} — ${s.label}: ${s.v.toFixed(2)} kg`}
+                                />
+                              </div>
+                              <span className="w-20 text-xs text-right text-gray-600 flex-shrink-0">{s.v.toFixed(2)} kg</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            )}
+            {maxWaste > 0 && (
+              <Card>
+                <CardTitle>Waste per Pabrik</CardTitle>
+                <p className="text-sm text-gray-500 mb-4">Total waste (kg)</p>
+                <div className="space-y-3">
+                  {kpi.plants.map((p: any) => {
+                    const w = (Object.values(p.waste ?? {}) as number[]).reduce((a: number, b: number) => a + b, 0);
+                    return (
+                      <div key={p.id} className="flex items-center gap-3">
+                        <span className="w-32 text-sm font-medium flex-shrink-0">{p.name}</span>
+                        <div className="flex-1 h-5 bg-gray-100 rounded">
+                          <div
+                            className="h-full rounded-sm"
+                            style={{ width: `${maxWaste > 0 ? Math.min(100, (w / maxWaste) * 100) : 0}%`, background: "#2a78d6" }}
+                            title={`${p.name}: ${w.toFixed(2)} kg`}
+                          />
+                        </div>
+                        <span className="w-20 text-sm text-right text-gray-600 flex-shrink-0">{w.toFixed(2)} kg</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            )}
+          </div>
+        );
+      })()}
+
       {/* Grafik: yield per pabrik */}
       {kpi.plants?.length > 0 && kpi.plants.some((p: any) => p.production?.yieldPct != null) && (
         <Card className="mb-6">
