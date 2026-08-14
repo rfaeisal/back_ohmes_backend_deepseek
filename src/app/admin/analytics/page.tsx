@@ -79,6 +79,14 @@ export default function AnalyticsPage() {
 
   if (loading) return <div className="p-8 text-center text-gray-500">Memuat data analitik...</div>;
 
+  // Cek ada data sama sekali?
+  const hasAnyData =
+    (data?.yieldTrend?.length ?? 0) > 0 ||
+    Object.keys(data?.wasteBenchmark ?? {}).length > 0 ||
+    (data?.consumption?.length ?? 0) > 0 ||
+    (data?.inventoryAge?.aging?.length ?? 0) > 0 ||
+    (oee?.shifts ?? 0) > 0;
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -122,6 +130,16 @@ export default function AnalyticsPage() {
         </div>
         <Button onClick={handleExport}>📥 Export Cukai</Button>
       </div>
+
+      {!hasAnyData && (
+        <div className="mb-6 rounded-lg bg-yellow-50 border border-yellow-200 p-4 text-sm text-yellow-800">
+          📊 Tidak ada data analitik pada periode ini.
+          {mode === "week"
+            ? <> Minggu <strong>{weekStart}</strong> belum ada shift APPROVED.</>
+            : <> Tanggal <strong>{date}</strong> belum ada shift APPROVED.</>}
+          Jalankan produksi &amp; approval dulu.
+        </div>
+      )}
 
       {exportJob && (
         <Card className="mb-6" highlight={exportJob.status === "ready" ? "green" : "yellow"}>
