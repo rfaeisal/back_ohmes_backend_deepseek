@@ -5,7 +5,7 @@
 // Dipanggil dari API route handlers (Next.js Route Handlers).
 // =============================================================================
 
-import { eq, and, isNull, sql } from "drizzle-orm";
+import { eq, and, isNull, sql, inArray } from "drizzle-orm";
 import db from "@/db";
 import {
   shiftReport,
@@ -553,6 +553,30 @@ export async function listShifts(params: {
     .where(and(...conditions))
     .orderBy(sql`${shiftReport.reportDate} DESC, ${shiftReport.actualStart} DESC`)
     .limit(limit);
+
+  // Agregat boks + yield per shift (untuk kolom tabel laporan)
+  if (shifts.length > 0) {
+    const shiftIds = shifts.map((s) => s.id).filter(Boolean);
+    const boxAgg = await db
+      .select({
+        shiftReportId: tsgBoxProcess.shiftReportId,
+        boxesCount: sql<number>`CAST(COUNT(${tsgBoxProcess.id}) AS INTEGER)`.mapWith(Number),
+        tsgTotal: sql<number>`COALESCE(SUM(${tsgBoxProcess.tsgWeightKg}::decimal), 0)`.mapWith(Number),
+        outputTotal: sql<number>`COALESCE(SUM(${tsgBoxProcess.outputWeightKg}::decimal), 0)`.mapWith(Number),
+      })
+      .from(tsgBoxProcess)
+      .where(inArray(tsgBoxProcess.shiftReportId, shiftIds))
+      .groupBy(tsgBoxProcess.shiftReportId);
+
+    const boxMap = new Map(boxAgg.map((b) => [b.shiftReportId, b]));
+    for (const s of shifts) {
+      const agg = boxMap.get(s.id);
+      (s as any).boxesCount = agg?.boxesCount ?? 0;
+      (s as any).yieldPct = agg && agg.tsgTotal > 0
+        ? Math.round((agg.outputTotal / agg.tsgTotal) * 10000) / 100
+        : null;
+    }
+  }
 
   return { data: shifts, pagination: { hasMore: shifts.length === limit } };
 }

@@ -134,8 +134,14 @@ export default function ShiftReportPage() {
                       <td className="py-3">{statusBadge(s.status)}</td>
                       <td className="py-3 text-sm">{s.actualStart ? new Date(s.actualStart).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "-"}</td>
                       <td className="py-3 text-sm">{s.actualEnd ? new Date(s.actualEnd).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "-"}</td>
-                      <td className="py-3 text-sm">-</td>
-                      <td className="py-3 text-sm">-</td>
+                      <td className="py-3 text-sm">{s.boxesCount ?? 0}</td>
+                      <td className="py-3 text-sm">
+                        {s.yieldPct != null ? (
+                          <Badge variant={s.yieldPct >= 110 && s.yieldPct <= 114 ? "success" : "error"}>{s.yieldPct}%</Badge>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
                       <td className="py-3">
                         <Button size="sm" variant="outline" onClick={() => openDetail(s.id)}>📋 Detail</Button>
                       </td>
