@@ -99,7 +99,7 @@ export async function getTopDowntimeCauses(from: string, to: string, limit = 10)
       )
     )
     .groupBy(downtimeLog.category, shiftReport.plantId)
-    .orderBy(desc(sql`total_minutes`))
+    .orderBy(desc(sql`COALESCE(SUM(${downtimeLog.durationMinutes}), 0)`))
     .limit(limit);
 }
 
