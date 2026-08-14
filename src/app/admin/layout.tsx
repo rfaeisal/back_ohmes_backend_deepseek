@@ -5,7 +5,7 @@ import { isSessionExpired, redirectToLogin } from "@/lib/utils/api-client";
 import Link from "next/link";
 import { LayoutDashboard, ClipboardCheck, MapPin, TrendingUp, Wrench, Users, Settings, ScrollText, Shield, Printer, FileText, FileBarChart, Factory, LogOut, Smartphone, Calendar, Package, BarChart3, Menu, X } from "lucide-react";
 
-type NavItem = { href: string; label: string; icon: any; permissions?: string[] };
+type NavItem = { href: string; label: string; icon: any; permissions?: string[]; superadminOnly?: boolean };
 type NavSection = { title: string; items: NavItem[] };
 
 const NAV_SECTIONS: NavSection[] = [
@@ -50,10 +50,10 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: "Administrasi",
     items: [
-      { href: "/admin/corrections", label: "Correction", icon: Wrench, permissions: ["shift.correct"] },
-      { href: "/admin/users", label: "Users & Role", icon: Users, permissions: ["user.assign_scope"] },
-      { href: "/admin/master-data", label: "Master Data", icon: Settings, permissions: ["masterdata.machine.edit", "masterdata.product.edit", "masterdata.plant.edit"] },
-      { href: "/admin/audit", label: "Audit Log", icon: ScrollText, permissions: ["audit.read"] },
+      { href: "/admin/corrections", label: "Correction", icon: Wrench, permissions: ["shift.correct"], superadminOnly: true },
+      { href: "/admin/users", label: "Users & Role", icon: Users, permissions: ["user.assign_scope"], superadminOnly: true },
+      { href: "/admin/master-data", label: "Master Data", icon: Settings, permissions: ["masterdata.machine.edit", "masterdata.product.edit", "masterdata.plant.edit"], superadminOnly: true },
+      { href: "/admin/audit", label: "Audit Log", icon: ScrollText, permissions: ["audit.read"], superadminOnly: true },
     ],
   },
   {
@@ -66,7 +66,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: "",
     items: [
-      { href: "/tablet", label: "← Tablet Operator", icon: Smartphone },
+      { href: "/tablet", label: "← Tablet Operator", icon: Smartphone, superadminOnly: true },
     ],
   },
 ];
@@ -86,10 +86,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     } catch {}
   }, []);
 
-  const canSee = (item: { permissions?: string[] }) =>
-    !item.permissions ||
-    isPrivileged ||
-    item.permissions.some((p) => userPermissions.includes(p));
+  const canSee = (item: { permissions?: string[]; superadminOnly?: boolean }) => {
+    if (item.superadminOnly && !isPrivileged) return false;
+    return (
+      !item.permissions ||
+      isPrivileged ||
+      item.permissions.some((p) => userPermissions.includes(p))
+    );
+  };
 
   // Close sidebar on route change (for mobile)
   const closeSidebar = () => setSidebarOpen(false);
