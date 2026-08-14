@@ -14,16 +14,19 @@ export default function ApprovalsPage() {
   const [selected, setSelected] = useState<any>(null);
   const [notes, setNotes] = useState("");
 
+  const [tab, setTab] = useState<"PENDING" | "APPROVED">("PENDING");
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiFetch("/shifts?status=COMPLETED&limit=20");
+      const status = tab === "PENDING" ? "COMPLETED" : "APPROVED";
+      const res = await apiFetch(`/shifts?status=${status}&limit=50`);
       setShifts(res.data ?? []);
     } catch (e: any) {
       setShifts([]);
       if (!e.message?.includes("Sesi berakhir")) alert(e.message);
     } finally { setLoading(false); }
-  }, []);
+  }, [tab]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -55,10 +58,30 @@ export default function ApprovalsPage() {
   return (
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-2">Approval Shift</h1>
-      <p className="text-gray-500 mb-6">Supervisor Pabrik — Approve shift COMPLETED</p>
+      <p className="text-gray-500 mb-4">Supervisor Pabrik — review &amp; approve shift</p>
+
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => setTab("PENDING")}
+          className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${
+            tab === "PENDING" ? "bg-yellow-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          ⏳ Menunggu Approval
+        </button>
+        <button
+          onClick={() => setTab("APPROVED")}
+          className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${
+            tab === "APPROVED" ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          ✅ Sudah Approved
+        </button>
+      </div>
 
       <Card>
-        <CardTitle>Shift Menunggu Approval ({shifts.length})</CardTitle>
+        <CardTitle>{tab === "PENDING" ? `Shift Menunggu Approval (${shifts.length})` : `Shift Sudah Approved (${shifts.length})`}</CardTitle>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left">
             <thead className="border-b border-gray-200">
@@ -72,7 +95,7 @@ export default function ApprovalsPage() {
             </thead>
             <tbody>
               {shifts.length === 0 ? (
-                <tr><td colSpan={5} className="py-6 text-center text-gray-400">Tidak ada shift menunggu approval 🎉</td></tr>
+                <tr><td colSpan={5} className="py-6 text-center text-gray-400">{tab === "PENDING" ? "Tidak ada shift menunggu approval 🎉" : "Belum ada shift approved."}</td></tr>
               ) : shifts.map((s: any) => (
                 <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 font-mono text-sm">{s.id?.slice(0, 12)}</td>
@@ -81,7 +104,9 @@ export default function ApprovalsPage() {
                   <td className="py-3 text-sm text-gray-500">{s.actualEnd ? new Date(s.actualEnd).toLocaleTimeString("id-ID") : "-"}</td>
                   <td className="py-3 flex gap-2">
                     <Button size="sm" variant="outline" onClick={() => openDetail(s.id)}>Review</Button>
-                    <Button size="sm" variant="primary" onClick={() => handleApprove(s.id)}>Approve</Button>
+                    {tab === "PENDING" && (
+                      <Button size="sm" variant="primary" onClick={() => handleApprove(s.id)}>Approve</Button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -247,8 +272,12 @@ export default function ApprovalsPage() {
 
             <Input label="Review Notes" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Masukan review..." />
             <div className="flex gap-3">
-              <Button size="lg" variant="outline" className="flex-1" onClick={() => handleReopen(selected.id)}>Reopen (koreksi)</Button>
-              <Button size="lg" variant="primary" className="flex-1" onClick={() => handleApprove(selected.id)}>✅ Approve → LOCKED</Button>
+              {tab === "PENDING" && (
+                <Button size="lg" variant="outline" className="flex-1" onClick={() => handleReopen(selected.id)}>Reopen (koreksi)</Button>
+              )}
+              {tab === "PENDING" && (
+                <Button size="lg" variant="primary" className="flex-1" onClick={() => handleApprove(selected.id)}>✅ Approve → LOCKED</Button>
+              )}
             </div>
           </div>
         )}

@@ -9,6 +9,8 @@ export default function AreaDashboardPage() {
   const [kpi, setKpi] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -27,10 +29,10 @@ export default function AreaDashboardPage() {
         const regions = regionsRes?.data ?? [];
         if (regions.length > 0) regionId = regions[0].id;
       }
-      const data = await apiFetch(`/dashboards/area/${regionId}/kpi`);
+      const data = await apiFetch(`/dashboards/area/${regionId}/kpi?date=${date}`);
       setKpi(data);
     } catch { setKpi(null); } finally { setLoading(false); }
-  }, []);
+  }, [date]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -39,8 +41,23 @@ export default function AreaDashboardPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard Koordinator Area</h1>
-      <p className="text-gray-500 mb-6">Rollup KPI lintas pabrik — {kpi.date}</p>
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard Koordinator Area</h1>
+          <p className="text-gray-500">Rollup KPI lintas pabrik — {kpi.date}</p>
+        </div>
+        <div className="flex items-end gap-2">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Tanggal</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white"
+            />
+          </div>
+        </div>
+      </div>
 
       {kpi.summary && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
