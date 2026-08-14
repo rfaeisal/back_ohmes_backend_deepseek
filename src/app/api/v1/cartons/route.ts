@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import { createCarton, ServiceError } from "@/lib/services/wms-outbound.service";
+import { eq, desc } from "drizzle-orm";
+import db from "@/db";
+import { carton } from "@/db/schema/wms-outbound";
 
 const schema = z.object({
   productId: z.string().uuid(),
@@ -41,3 +44,17 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
   }
 },
   { requiredPermission: "cartoning.create" });
+
+
+// GET /cartons — List karton pabrik
+export const GET = withAuth(async (_request: Request, ctx: AuthContext) => {
+  const plantId = ctx.user.plantIds[0];
+  const items = await db
+    .select()
+    .from(carton)
+    .where(plantId ? eq(carton.plantId, plantId) : undefined)
+    .orderBy(desc(carton.openedAt))
+    .limit(100);
+
+  return NextResponse.json({ data: items }, { status: 200 });
+}, { requiredPermission: "cartoning.view" });

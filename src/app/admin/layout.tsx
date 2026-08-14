@@ -16,12 +16,15 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/admin/approvals", label: "Approval Shift", icon: ClipboardCheck, permissions: ["shift.approve"] },
       { href: "/admin/roster", label: "Roster Mingguan", icon: Calendar, permissions: ["shift.member.assign"] },
       { href: "/admin/gudang", label: "Gudang Inbound", icon: Factory, permissions: ["tsg.receiving.create"] },
+      { href: "/admin/gudang-outbound", label: "Gudang Outbound", icon: Package, permissions: ["cartoning.create"] },
+      { href: "/admin/dispatch", label: "Dispatch", icon: Factory, permissions: ["dispatch.order.create"] },
       { href: "/admin/labels", label: "Cetak Label", icon: Printer, permissions: ["tsg.receiving.create"] },
     ],
   },
   {
     title: "Dashboard",
     items: [
+      { href: "/admin/plant-dashboard", label: "Dashboard Pabrik", icon: LayoutDashboard, permissions: ["dashboard.plant.view"] },
       { href: "/admin/area-dashboard", label: "Dashboard Area", icon: MapPin, permissions: ["dashboard.area.view"] },
       { href: "/admin/analytics", label: "HQ Analytics", icon: TrendingUp, permissions: ["dashboard.hq.view"] },
     ],

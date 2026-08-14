@@ -57,9 +57,13 @@ export default function LoginPage() {
       const isCoordinator = roles.some((r: string) => ["AREA_COORDINATOR", "AREA_QA"].includes(r));
       const isGudang = roles.some((r: string) => ["GUDANG_INBOUND", "GUDANG_OUTBOUND", "EKSPEDISI"].includes(r));
 
+      const isPlantManager = roles.includes("PLANT_MANAGER");
       if (isAdmin) router.push("/admin");
+      else if (isPlantManager) router.push("/admin/plant-dashboard");
       else if (isSupervisor) router.push("/admin/approvals");
       else if (isCoordinator) router.push("/admin/area-dashboard");
+      else if (roles.includes("GUDANG_OUTBOUND")) router.push("/admin/gudang-outbound");
+      else if (roles.includes("EKSPEDISI")) router.push("/admin/dispatch");
       else if (isGudang) router.push("/admin/gudang");
       else router.push("/tablet");
     } catch {

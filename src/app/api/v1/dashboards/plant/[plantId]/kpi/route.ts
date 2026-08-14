@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { eq, and, sql } from "drizzle-orm";
 import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import db from "@/db";
-import { shiftReport, shiftWaste, downtimeLog } from "@/db/schema";
+import { shiftReport, shiftWaste, downtimeLog, tsgBoxProcess } from "@/db/schema";
 
 export const GET = withAuth(
   async (_request: Request, _ctx: AuthContext, { params }: { params: Promise<{ plantId: string }> }) => {
@@ -23,11 +23,24 @@ export const GET = withAuth(
       APPROVED: shifts.filter((s) => s.status === "APPROVED").length,
     };
 
-    // Production summary (simplified — perlu aggregate query dari tsg_box_process)
+    // Production summary — agregat dari tsg_box_process hari ini
+    const [prodAgg] = await db
+      .select({
+        tsgTotal: sql<number>`COALESCE(SUM(${tsgBoxProcess.tsgWeightKg}::decimal), 0)`.mapWith(Number),
+        outputTotal: sql<number>`COALESCE(SUM(${tsgBoxProcess.outputWeightKg}::decimal), 0)`.mapWith(Number),
+        boxes: sql<number>`CAST(COUNT(${tsgBoxProcess.id}) AS INTEGER)`.mapWith(Number),
+      })
+      .from(tsgBoxProcess)
+      .innerJoin(shiftReport, sql`${tsgBoxProcess.shiftReportId} = ${shiftReport.id}`)
+      .where(and(eq(shiftReport.plantId, plantId), eq(shiftReport.reportDate, today)));
+
+    const tsgTotal = prodAgg?.tsgTotal ?? 0;
+    const outputTotal = prodAgg?.outputTotal ?? 0;
     const production = {
-      tsgTotalKg: 0,
-      batanganTotalKg: 0,
-      yieldPct: 0,
+      tsgTotalKg: Math.round(tsgTotal * 100) / 100,
+      batanganTotalKg: Math.round(outputTotal * 100) / 100,
+      yieldPct: tsgTotal > 0 ? Math.round((outputTotal / tsgTotal) * 10000) / 100 : 0,
+      boxes: prodAgg?.boxes ?? 0,
     };
 
     // Waste summary
@@ -63,7 +76,7 @@ export const GET = withAuth(
       .innerJoin(shiftReport, eq(downtimeLog.shiftReportId, shiftReport.id))
       .where(and(eq(shiftReport.plantId, plantId), eq(shiftReport.reportDate, today)))
       .groupBy(downtimeLog.category)
-      .orderBy(sql`total_minutes DESC`)
+      .orderBy(sql`COALESCE(SUM(${downtimeLog.durationMinutes}), 0) DESC`)
       .limit(5);
 
     return NextResponse.json(
