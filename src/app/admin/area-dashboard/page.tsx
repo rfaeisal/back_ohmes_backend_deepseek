@@ -9,7 +9,23 @@ export default function AreaDashboardPage() {
   const [kpi, setKpi] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  const [mode, setMode] = useState<"day" | "week">("day");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [weekStart, setWeekStart] = useState(() => {
+    // Senin minggu ini
+    const now = new Date();
+    const day = now.getDay(); // 0 = Minggu
+    const diff = day === 0 ? -6 : 1 - day;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + diff);
+    return monday.toISOString().slice(0, 10);
+  });
+
+  const shiftWeek = (delta: number) => {
+    const d = new Date(weekStart + "T00:00:00");
+    d.setDate(d.getDate() + delta * 7);
+    setWeekStart(d.toISOString().slice(0, 10));
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -29,10 +45,17 @@ export default function AreaDashboardPage() {
         const regions = regionsRes?.data ?? [];
         if (regions.length > 0) regionId = regions[0].id;
       }
-      const data = await apiFetch(`/dashboards/area/${regionId}/kpi?date=${date}`);
+      const params = new URLSearchParams();
+      if (mode === "week") {
+        params.set("mode", "week");
+        params.set("weekStart", weekStart);
+      } else {
+        params.set("date", date);
+      }
+      const data = await apiFetch(`/dashboards/area/${regionId}/kpi?${params.toString()}`);
       setKpi(data);
     } catch { setKpi(null); } finally { setLoading(false); }
-  }, [date]);
+  }, [date, mode, weekStart]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -44,24 +67,57 @@ export default function AreaDashboardPage() {
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard Koordinator Area</h1>
-          <p className="text-gray-500">Rollup KPI lintas pabrik — {kpi.date}</p>
+          <p className="text-gray-500">
+            Rollup KPI lintas pabrik — {mode === "week" && kpi.weekStart ? `${kpi.weekStart} → ${kpi.weekEnd}` : kpi.date}
+          </p>
         </div>
-        <div className="flex items-end gap-2">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Tanggal</label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white"
-            />
+        <div className="flex items-end gap-3 flex-wrap">
+          <div className="flex gap-2">
+            {(["day", "week"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                  mode === m ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {m === "day" ? "📅 Hari" : "📆 Minggu"}
+              </button>
+            ))}
           </div>
+          {mode === "day" ? (
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Tanggal</label>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white"
+              />
+            </div>
+          ) : (
+            <div className="flex items-end gap-2">
+              <button onClick={() => shiftWeek(-1)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white hover:bg-gray-100">←</button>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Minggu Mulai</label>
+                <input
+                  type="date"
+                  value={weekStart}
+                  onChange={(e) => setWeekStart(e.target.value)}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white"
+                />
+              </div>
+              <button onClick={() => shiftWeek(1)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white hover:bg-gray-100">→</button>
+            </div>
+          )}
         </div>
       </div>
 
       {kpi.summary && kpi.summary.totalShifts === 0 && (
         <div className="mb-6 rounded-lg bg-yellow-50 border border-yellow-200 p-4 text-sm text-yellow-800">
-          📅 Tidak ada shift pada tanggal <strong>{kpi.date}</strong>. Pilih tanggal lain atau pastikan produksi sudah berjalan.
+          {mode === "week"
+            ? <>📆 Tidak ada shift pada minggu <strong>{kpi.weekStart} → {kpi.weekEnd}</strong>. Pilih minggu lain atau pastikan produksi sudah berjalan.</>
+            : <>📅 Tidak ada shift pada tanggal <strong>{kpi.date}</strong>. Pilih tanggal lain atau pastikan produksi sudah berjalan.</>}
         </div>
       )}
 
@@ -79,6 +135,19 @@ export default function AreaDashboardPage() {
               <p className={`text-3xl font-bold ${s.color ?? "text-gray-900"}`}>{s.value}</p>
             </Card>
           ))}
+        </div>
+      )}
+
+      {mode === "week" && kpi.perDay && (
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <Card>
+            <p className="text-xs text-gray-500">Rata-rata Shift per Hari Aktif</p>
+            <p className="text-3xl font-bold text-primary-700">{kpi.perDay.avgShiftsPerDay}</p>
+          </Card>
+          <Card>
+            <p className="text-xs text-gray-500">Hari Aktif (ada shift)</p>
+            <p className="text-3xl font-bold text-green-700">{kpi.perDay.activeDays} / 7</p>
+          </Card>
         </div>
       )}
 

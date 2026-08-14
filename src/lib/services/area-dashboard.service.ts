@@ -122,3 +122,66 @@ export async function getHqRollup(date?: string) {
 
   return { date: reportDate, regions: result };
 }
+
+// =============================================================================
+// Get Area KPI Week — agregat 7 hari dari weekStart
+// =============================================================================
+
+export async function getAreaKpiWeek(regionId: string, weekStart: string) {
+  const start = new Date(weekStart + "T00:00:00+07:00");
+  const daily: any[] = [];
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const kpi = await getAreaKpi(regionId, dateStr);
+    daily.push(kpi);
+  }
+
+  // Agregat summary
+  const summary = {
+    totalPlants: daily[0]?.summary?.totalPlants ?? 0,
+    activePlants: daily.reduce((s, k) => s + (k.summary?.activePlants ?? 0), 0),
+    totalShifts: daily.reduce((s, k) => s + (k.summary?.totalShifts ?? 0), 0),
+    approvedShifts: daily.reduce((s, k) => s + (k.summary?.approvedShifts ?? 0), 0),
+    pendingApproval: daily.reduce((s, k) => s + (k.summary?.pendingApproval ?? 0), 0),
+    runningShifts: daily.reduce((s, k) => s + (k.summary?.runningShifts ?? 0), 0),
+  };
+
+  // Per pabrik: jumlahkan shift & waste per hari
+  const plants: any[] = [];
+  const firstPlants = daily[0]?.plants ?? [];
+  for (const p of firstPlants) {
+    const shifts = { total: 0, approved: 0, running: 0 };
+    const waste: Record<string, number> = { MENIR: 0, RIJEKAN: 0, DEBU_KASAR: 0, DEBU_HALUS: 0 };
+    for (const k of daily) {
+      const pk = (k.plants ?? []).find((x: any) => x.id === p.id);
+      if (pk) {
+        shifts.total += pk.shifts?.total ?? 0;
+        shifts.approved += pk.shifts?.approved ?? 0;
+        shifts.running += pk.shifts?.running ?? 0;
+        for (const cat of Object.keys(waste)) {
+          waste[cat] += pk.waste?.[cat] ?? 0;
+        }
+      }
+    }
+    plants.push({ id: p.id, code: p.code, name: p.name, shifts, waste });
+  }
+
+  // Rata-rata per hari
+  const activeDays = daily.filter((k) => (k.summary?.totalShifts ?? 0) > 0).length;
+  const perDay = {
+    avgShiftsPerDay: activeDays > 0 ? Math.round((summary.totalShifts / activeDays) * 100) / 100 : 0,
+    activeDays,
+  };
+
+  return {
+    regionId,
+    weekStart,
+    weekEnd: daily[6]?.date ?? weekStart,
+    summary,
+    perDay,
+    plants,
+  };
+}
