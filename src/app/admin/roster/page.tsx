@@ -1,27 +1,11 @@
 "use client";
+import { apiFetch } from "@/lib/utils/api-client";
 
 import { useState, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-
-const API = "/api/v1";
-function getToken() { return typeof window !== "undefined" ? localStorage.getItem("accessToken") : null; }
-
-async function apiFetch(path: string, options?: RequestInit) {
-  const token = getToken();
-  const url = `${API}${path}${path.includes("?") ? "&" : "?"}_t=${Date.now()}`;
-  const res = await fetch(url, {
-    ...options,
-    cache: "no-store",
-    headers: { "Content-Type": "application/json", "Cache-Control": "no-cache, no-store, must-revalidate", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options?.headers || {}) },
-  });
-  if (res.status === 401 && options?.method) { localStorage.removeItem("accessToken"); window.location.href = "/tablet/login"; return { users: [], templates: [], assignments: [] }; }
-  if (!res.ok) return { users: [], templates: [], assignments: [] };
-  const data = await res.json();
-  return data;
-}
 
 function getWeekDates(weekStart: Date): Date[] {
   const dates: Date[] = [];
@@ -82,14 +66,10 @@ export default function RosterPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const token = getToken();
-      const res = await fetch(`${API}/shift-roster`, {
+      await apiFetch("/shift-roster", {
         method: "POST",
-        cache: "no-store",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ weekStart: formatDate(weekStart), assignments }),
       });
-      await res.json();
       alert(`✅ Roster disimpan! (${assignments.length} assignment)`);
     } catch { alert("❌ Gagal menyimpan"); }
     finally { setSaving(false); }

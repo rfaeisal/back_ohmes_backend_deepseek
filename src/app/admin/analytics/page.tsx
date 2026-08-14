@@ -1,19 +1,10 @@
 "use client";
+import { apiFetch, getToken } from "@/lib/utils/api-client";
 
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-
-const API = "/api/v1";
-function getToken() { return typeof window !== "undefined" ? localStorage.getItem("accessToken") : null; }
-
-async function apiFetch(path: string) {
-  const token = getToken();
-  const res = await fetch(`${API}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-  if (!res.ok) return null;
-  return res.json();
-}
 
 export default function AnalyticsPage() {
   const [data, setData] = useState<any>(null);
@@ -50,13 +41,10 @@ export default function AnalyticsPage() {
   useEffect(() => { load(); }, [load]);
 
   const handleExport = async () => {
-    const token = getToken();
-    const res = await fetch(`${API}/reports/cukai`, {
+    const job = await apiFetch("/reports/cukai", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({ from: "2026-01-01", to: "2026-12-31", format: "csv" }),
     });
-    const job = await res.json();
     setExportJob(job);
     setTimeout(async () => {
       const status = await apiFetch(`/reports/cukai?jobId=${job.jobId}`);

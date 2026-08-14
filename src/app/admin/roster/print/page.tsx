@@ -1,10 +1,9 @@
 "use client";
+import { apiFetch, isSessionExpired, redirectToLogin } from "@/lib/utils/api-client";
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
-const API = "/api/v1";
-function getToken() { return typeof window !== "undefined" ? localStorage.getItem("accessToken") : null; }
 
 export default function MonthlyPrintRoster() {
   const [monthData, setMonthData] = useState<any>(null);
@@ -13,16 +12,15 @@ export default function MonthlyPrintRoster() {
 
   useEffect(() => {
     (async () => {
-      const token = getToken();
-      if (!token) { window.location.href = "/tablet/login"; return; }
+      if (isSessionExpired()) { redirectToLogin(); return; }
       const now = new Date();
       const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
 
       // Fetch templates
       let templateList: any[] = [];
       try {
-        const tRes = await fetch(`${API}/shift-templates`, { headers: { Authorization: `Bearer ${token}` } });
-        if (tRes.ok) { const d = await tRes.json(); templateList = d.data || []; }
+        const d = await apiFetch("/shift-templates");
+        templateList = d.data || [];
       } catch {}
       setTemplates(templateList);
 
@@ -33,14 +31,9 @@ export default function MonthlyPrintRoster() {
         const from = firstDay.toISOString().slice(0, 10);
         const lastDay = new Date(firstDay.getFullYear(), firstDay.getMonth() + 1, 0);
         const to = lastDay.toISOString().slice(0, 10);
-        const res = await fetch(`${API}/shift-roster?from=${from}&to=${to}&_t=${Date.now()}`, {
-          cache: "no-store", headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          allAssignments.push(...(data.assignments || []));
-          (data.users || []).forEach((u: any) => usersSet.add(JSON.stringify(u)));
-        }
+        const data = await apiFetch(`/shift-roster?from=${from}&to=${to}`);
+        allAssignments.push(...(data.assignments || []));
+        (data.users || []).forEach((u: any) => usersSet.add(JSON.stringify(u)));
       } catch {}
 
       const users = [...usersSet].map((s: string) => JSON.parse(s));

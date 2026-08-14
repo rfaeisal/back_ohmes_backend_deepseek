@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { isSessionExpired, redirectToLogin } from "@/lib/utils/api-client";
 import Link from "next/link";
 import { LayoutDashboard, ClipboardCheck, MapPin, TrendingUp, Wrench, Users, Settings, ScrollText, Shield, Printer, FileText, FileBarChart, Factory, LogOut, Smartphone, Calendar, Package, BarChart3, Menu, X } from "lucide-react";
 
@@ -74,10 +75,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
 
   useEffect(() => {
-    const t = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
-    if (!t) { window.location.href = "/tablet/login"; return; }
+    if (typeof window === "undefined") return;
+    if (isSessionExpired()) { redirectToLogin(); return; }
     try {
-      const payload = JSON.parse(atob(t.split(".")[1]!));
+      const payload = JSON.parse(atob(localStorage.getItem("accessToken")!.split(".")[1]!));
       setIsPrivileged(payload.isPrivileged ?? false);
       setUserPermissions(payload.permissions ?? []);
     } catch {}

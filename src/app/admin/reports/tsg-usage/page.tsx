@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/utils/api-client";
 
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardTitle } from "@/components/ui/card";
@@ -6,8 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const API = "/api/v1";
-function getToken() { return typeof window !== "undefined" ? localStorage.getItem("accessToken") : null; }
 
 export default function TsgUsageReport() {
   const today = new Date().toISOString().slice(0, 10);
@@ -22,15 +21,10 @@ export default function TsgUsageReport() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const token = getToken();
       const params = new URLSearchParams();
       if (from) params.set("from", from);
       if (to) params.set("to", to);
-      const res = await fetch(`${API}/reports/tsg-usage?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.status === 401) { localStorage.removeItem("accessToken"); window.location.href = "/tablet/login"; return; }
-      const data = await res.json();
+      const data = await apiFetch(`/reports/tsg-usage?${params.toString()}`);
       setSummary(data.summary ?? { totalShifts: 0, totalBoxes: 0, totalTsgKg: 0, totalOutputKg: 0, avgYieldPct: 0 });
       setShifts(data.shifts ?? []);
     } catch { setSummary(null); setShifts([]); }

@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/utils/api-client";
 
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardTitle } from "@/components/ui/card";
@@ -7,20 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
 import { Power, PowerOff, Key, Pencil } from "lucide-react";
-
-const API = "/api/v1";
-function getToken() { return typeof window !== "undefined" ? localStorage.getItem("accessToken") : null; }
-
-async function apiFetch(path: string, options?: RequestInit) {
-  const token = getToken();
-  const res = await fetch(`${API}${path}`, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options?.headers || {}) },
-  });
-  if (res.status === 401 && options?.method) { localStorage.removeItem("accessToken"); window.location.href = "/tablet/login"; throw new Error("Sesi berakhir"); }
-  if (!res.ok) { const err = await res.json().catch(() => ({ error: { message: res.statusText } })); throw new Error(err.error?.message ?? res.statusText); }
-  return res.json();
-}
 
 const ALL_ROLES = ["SUPERADMIN","HQ_ADMIN","HQ_ANALYST","HQ_AUDITOR","AREA_COORDINATOR","AREA_QA","PLANT_MANAGER","SHIFT_SUPERVISOR","OPERATOR_KECER","OPERATOR_MEMBER","GUDANG_INBOUND","GUDANG_OUTBOUND","EKSPEDISI"];
 

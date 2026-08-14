@@ -1,21 +1,11 @@
 "use client";
+import { apiFetch } from "@/lib/utils/api-client";
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Card, CardTitle, CardSubtitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-
-const API = "/api/v1";
-function getToken() { return typeof window !== "undefined" ? localStorage.getItem("accessToken") : null; }
-
-async function apiFetch(path: string) {
-  const token = getToken();
-  const res = await fetch(`${API}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-  if (res.status === 401) { localStorage.removeItem("accessToken"); window.location.href = "/tablet/login"; return { data: [] }; }
-  if (!res.ok) return { data: [] };
-  return res.json();
-}
 
 export default function TabletHome() {
   const [machines, setMachines] = useState<any[]>([]);

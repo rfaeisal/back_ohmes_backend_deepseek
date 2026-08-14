@@ -1,28 +1,10 @@
 "use client";
+import { apiFetch } from "@/lib/utils/api-client";
 
 import { useState } from "react";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-const API = "/api/v1";
-function getToken() { return typeof window !== "undefined" ? localStorage.getItem("accessToken") : null; }
-
-async function apiFetch(path: string, options?: RequestInit) {
-  const token = getToken();
-  const res = await fetch(`${API}${path}`, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options?.headers || {}) },
-  });
-  if (res.status === 401) {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    window.location.href = "/tablet/login";
-    throw new Error("Sesi berakhir. Silakan login kembali.");
-  }
-  if (!res.ok) { const err = await res.json().catch(() => ({ error: { message: res.statusText } })); throw new Error(err.error?.message ?? res.statusText); }
-  return res.json();
-}
 
 export default function SuperAdminPage() {
   const [loading, setLoading] = useState<string | null>(null);

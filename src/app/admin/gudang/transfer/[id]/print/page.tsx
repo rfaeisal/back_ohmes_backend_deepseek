@@ -1,11 +1,10 @@
 "use client";
+import { apiFetch } from "@/lib/utils/api-client";
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
-const API = "/api/v1";
-function getToken() { return typeof window !== "undefined" ? localStorage.getItem("accessToken") : null; }
 
 const MONTHS_ID = [
   "Januari", "Februari", "Maret", "April", "Mei", "Juni",
@@ -26,12 +25,7 @@ export default function TransferPrintPage() {
   useEffect(() => {
     (async () => {
       try {
-        const token = getToken();
-        const res = await fetch(`${API}/tsg-transfers/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store",
-        });
-        if (res.ok) setData(await res.json());
+        setData(await apiFetch(`/tsg-transfers/${id}`));
       } catch {}
       setLoading(false);
     })();

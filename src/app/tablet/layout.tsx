@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { isSessionExpired, redirectToLogin, apiFetch } from "@/lib/utils/api-client";
 import Link from "next/link";
 
 export default function TabletLayout({ children }: { children: React.ReactNode }) {
@@ -10,6 +11,10 @@ export default function TabletLayout({ children }: { children: React.ReactNode }
   useEffect(() => {
     const loadUserInfo = async () => {
       try {
+        if (isSessionExpired()) {
+          if (!window.location.pathname.includes("/login")) redirectToLogin();
+          return;
+        }
         const token = localStorage.getItem("accessToken");
         if (!token) { if (!window.location.pathname.includes("/login")) window.location.href = "/tablet/login"; return; }
         // Decode JWT payload
@@ -22,15 +27,10 @@ export default function TabletLayout({ children }: { children: React.ReactNode }
 
         // Fetch plant info
         if (plantIds.length > 0) {
-          const res = await fetch(`/api/v1/plants`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (res.ok) {
-            const data = await res.json();
-            const plants = data.data ?? [];
-            if (plants.length === 1) {
-              setPlantInfo(`${plants[0].code} · ${plants[0].name}`);
-            }
+          const data = await apiFetch("/plants");
+          const plants = data.data ?? [];
+          if (plants.length === 1) {
+            setPlantInfo(`${plants[0].code} · ${plants[0].name}`);
           }
         }
       } catch {}

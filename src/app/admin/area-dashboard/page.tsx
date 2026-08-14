@@ -1,19 +1,9 @@
 "use client";
+import { apiFetch, getToken } from "@/lib/utils/api-client";
 
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-const API = "/api/v1";
-function getToken() { return typeof window !== "undefined" ? localStorage.getItem("accessToken") : null; }
-
-async function apiFetch(path: string) {
-  const token = getToken();
-  const res = await fetch(`${API}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-  if (res.status === 401) { localStorage.removeItem("accessToken"); window.location.href = "/tablet/login"; return null; }
-  if (!res.ok) return null;
-  return res.json();
-}
 
 export default function AreaDashboardPage() {
   const [kpi, setKpi] = useState<any>(null);

@@ -1,10 +1,9 @@
 "use client";
+import { apiFetch } from "@/lib/utils/api-client";
 
 import { useState, useEffect } from "react";
 import { Card, CardTitle } from "@/components/ui/card";
 
-const API = "/api/v1";
-function getToken() { return typeof window !== "undefined" ? localStorage.getItem("accessToken") : null; }
 
 export default function DashboardPage() {
   const [kpi, setKpi] = useState<any>(null);
@@ -13,9 +12,14 @@ export default function DashboardPage() {
   useEffect(() => {
     (async () => {
       try {
-        const token = getToken();
-        const res = await fetch(`${API}/dashboards/plant/PLT-MLG-01/kpi`, { headers: { Authorization: `Bearer ${token}` } });
-        if (res.ok) setKpi(await res.json());
+        // Plant ID dari scope JWT (bukan hardcoded)
+        let plantId = "";
+        const t = localStorage.getItem("accessToken");
+        if (t) {
+          const payload = JSON.parse(atob(t.split(".")[1]!));
+          plantId = payload.plantIds?.[0] ?? "";
+        }
+        if (plantId) setKpi(await apiFetch(`/dashboards/plant/${plantId}/kpi`));
       } catch {}
       setLoading(false);
     })();
@@ -26,7 +30,7 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="mb-6"><h1 className="text-3xl font-bold text-gray-900">Dashboard</h1><p className="text-lg text-gray-500">Pabrik Malang 1 · {kpi.date}</p></div>
+      <div className="mb-6"><h1 className="text-3xl font-bold text-gray-900">Dashboard</h1><p className="text-lg text-gray-500">KPI Pabrik · {kpi.date}</p></div>
       <div className="grid grid-cols-4 gap-4 mb-6">
         <Card><p className="text-xs text-gray-500">Total Shift</p><p className="text-3xl font-bold">{kpi.shifts?.total ?? 0}</p></Card>
         <Card><p className="text-xs text-gray-500">TSG Diproses</p><p className="text-3xl font-bold text-blue-700">{kpi.production?.tsgTotalKg ?? 0} kg</p></Card>

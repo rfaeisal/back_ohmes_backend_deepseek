@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/utils/api-client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -15,9 +16,9 @@ export default function GudangInboundPage() {
 
   const loadInventory = async () => {
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch("/api/v1/tsg-inventory/available?limit=200", { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) { const data = await res.json(); const items = (data.data ?? []).map((item: any) => ({ ...item, status: "AVAILABLE", id: item.inventoryId ?? item.id })); setInventory(items); }
+      const data = await apiFetch("/tsg-inventory/available?limit=200");
+      const items = (data.data ?? []).map((item: any) => ({ ...item, status: "AVAILABLE", id: item.inventoryId ?? item.id }));
+      setInventory(items);
     } catch {}
   };
 
@@ -47,14 +48,10 @@ export default function GudangInboundPage() {
 
   const loadMaterialItems = async (type: "CONSUMABLE" | "SPAREPART") => {
     try {
-      const token = localStorage.getItem("accessToken");
-      const path = type === "CONSUMABLE" ? "/api/v1/consumable-items" : "/api/v1/spareparts";
-      const res = await fetch(path, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) {
-        const data = await res.json();
-        if (type === "CONSUMABLE") setConsumableList(data.data ?? []);
-        else setSparepartList(data.data ?? []);
-      }
+      const path = type === "CONSUMABLE" ? "/consumable-items" : "/spareparts";
+      const data = await apiFetch(path);
+      if (type === "CONSUMABLE") setConsumableList(data.data ?? []);
+      else setSparepartList(data.data ?? []);
     } catch {}
   };
 
@@ -69,9 +66,8 @@ export default function GudangInboundPage() {
 
   const loadTransfers = async () => {
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch("/api/v1/tsg-transfers", { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) setTransferHistory((await res.json()).data ?? []);
+      const data = await apiFetch("/tsg-transfers");
+      setTransferHistory(data.data ?? []);
     } catch {}
   };
 
@@ -81,18 +77,14 @@ export default function GudangInboundPage() {
     setTransferSaving(true);
     setTransferError("");
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch("/api/v1/tsg-transfers", {
+      await apiFetch("/tsg-transfers", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           destinationName: transferDest.trim(),
           inventoryBoxIds: Array.from(transferSelected),
           notes: transferNotes || undefined,
         }),
       });
-      if (res.status === 401) { localStorage.removeItem("accessToken"); window.location.href = "/tablet/login"; throw new Error("Sesi berakhir"); }
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || "Gagal menyimpan"); }
       setShowTransfer(false);
       setTransferSelected(new Set());
       loadInventory();
@@ -113,9 +105,8 @@ export default function GudangInboundPage() {
 
   const loadReturns = async () => {
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch("/api/v1/tsg-returns", { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) setReturnHistory((await res.json()).data ?? []);
+      const data = await apiFetch("/tsg-returns");
+      setReturnHistory(data.data ?? []);
     } catch {}
   };
 
@@ -126,10 +117,8 @@ export default function GudangInboundPage() {
     setReturnSaving(true);
     setReturnError("");
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch("/api/v1/tsg-returns", {
+      await apiFetch("/tsg-returns", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           supplierId: returnSupplierId,
           inventoryBoxIds: Array.from(returnSelected),
@@ -137,8 +126,6 @@ export default function GudangInboundPage() {
           notes: returnNotes || undefined,
         }),
       });
-      if (res.status === 401) { localStorage.removeItem("accessToken"); window.location.href = "/tablet/login"; throw new Error("Sesi berakhir"); }
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || "Gagal menyimpan"); }
       setShowReturn(false);
       setReturnSelected(new Set());
       loadInventory();
@@ -154,10 +141,8 @@ export default function GudangInboundPage() {
     setMatSaving(true);
     setMatError("");
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch("/api/v1/material-receiving", {
+      await apiFetch("/material-receiving", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           supplierId: selectedSupplier,
           materialType: matType,
@@ -166,8 +151,6 @@ export default function GudangInboundPage() {
           items: validItems.map((i) => ({ itemId: i.itemId, quantity: parseFloat(i.qty), unitPrice: i.price ? parseFloat(i.price) : undefined })),
         }),
       });
-      if (res.status === 401) { localStorage.removeItem("accessToken"); window.location.href = "/tablet/login"; throw new Error("Sesi berakhir"); }
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || "Gagal menyimpan"); }
       setShowMaterialReceiving(false);
     } catch (e: any) { setMatError(e.message); }
     finally { setMatSaving(false); }
@@ -175,9 +158,8 @@ export default function GudangInboundPage() {
 
   const saveLocation = async (inventoryId: string) => {
     try {
-      const token = localStorage.getItem("accessToken");
-      await fetch(`/api/v1/tsg-inventory/${inventoryId}`, {
-        method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      await apiFetch(`/tsg-inventory/${inventoryId}`, {
+        method: "PATCH",
         body: JSON.stringify({ locationCode: editLocValue }),
       });
       setEditLocId(null); loadInventory();
@@ -186,9 +168,9 @@ export default function GudangInboundPage() {
 
   const loadSuppliers = async () => {
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch("/api/v1/tsg-suppliers", { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) { const data = await res.json(); setSuppliers(data.data ?? []); if (data.data?.length > 0) setSelectedSupplier(data.data[0].id); }
+      const data = await apiFetch("/tsg-suppliers");
+      setSuppliers(data.data ?? []);
+      if (data.data?.length > 0) setSelectedSupplier(data.data[0].id);
     } catch {}
   };
 
@@ -198,17 +180,14 @@ export default function GudangInboundPage() {
     if (!selectedSupplier) { setReceivingError("Pilih supplier dulu."); return; }
     setSaving(true); setReceivingError("");
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch("/api/v1/tsg-receiving", {
-        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      await apiFetch("/tsg-receiving", {
+        method: "POST",
         body: JSON.stringify({
           supplierId: selectedSupplier,
           locationCode: locationCode || undefined,
           boxes: validBoxes.map(b => ({ boxCode: b.code, weightKg: parseFloat(b.weight), tsgType: b.type })),
         }),
       });
-      if (res.status === 401) { localStorage.removeItem("accessToken"); window.location.href = "/tablet/login"; throw new Error("Sesi berakhir"); }
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || "Gagal menyimpan"); }
       setShowReceiving(false);
       setReceivingBoxes([{ code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }]);
       loadInventory();

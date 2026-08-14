@@ -1,12 +1,11 @@
 "use client";
+import { apiFetch } from "@/lib/utils/api-client";
 
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-const API = "/api/v1";
-function getToken() { return typeof window !== "undefined" ? localStorage.getItem("accessToken") : null; }
 
 export default function TsgStockReport() {
   const [inventory, setInventory] = useState<any[]>([]);
@@ -19,10 +18,7 @@ export default function TsgStockReport() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const token = getToken();
-      const res = await fetch(`${API}/tsg-inventory/available?limit=500`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.status === 401) { localStorage.removeItem("accessToken"); window.location.href = "/tablet/login"; return; }
-      const data = await res.json();
+      const data = await apiFetch("/tsg-inventory/available?limit=500");
       const items = (data.data ?? []).map((item: any) => ({ ...item, id: item.inventoryId ?? item.id }));
       setAllInventory(items);
       setInventory(items);
@@ -30,7 +26,7 @@ export default function TsgStockReport() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { (async () => { const t = getToken(); const r = await fetch(`${API}/plants`, { headers: { Authorization: `Bearer ${t}` } }); if (r.ok) setPlants((await r.json()).data ?? []); })(); }, []);
+  useEffect(() => { (async () => { try { const r = await apiFetch("/plants"); setPlants(r.data ?? []); } catch {} })(); }, []);
 
   useEffect(() => {
     let filtered = allInventory;

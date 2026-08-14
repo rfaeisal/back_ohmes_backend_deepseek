@@ -1,12 +1,11 @@
 "use client";
+import { apiFetch } from "@/lib/utils/api-client";
 
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-const API = "/api/v1";
-function getToken() { return typeof window !== "undefined" ? localStorage.getItem("accessToken") : null; }
 
 export default function MaterialStockReport() {
   const [matType, setMatType] = useState<"CONSUMABLE" | "SPAREPART">("CONSUMABLE");
@@ -16,13 +15,7 @@ export default function MaterialStockReport() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const token = getToken();
-      const res = await fetch(`${API}/material-stock?materialType=${matType}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-      if (res.status === 401) { localStorage.removeItem("accessToken"); window.location.href = "/tablet/login"; return; }
-      const data = await res.json();
+      const data = await apiFetch(`/material-stock?materialType=${matType}`);
       setItems(data.data ?? []);
     } catch { setItems([]); }
     setLoading(false);

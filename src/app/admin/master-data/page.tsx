@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/utils/api-client";
 
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardTitle } from "@/components/ui/card";
@@ -8,30 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
 import { Pencil, Trash2, Power, PowerOff } from "lucide-react";
 
-const API = "/api/v1";
-const TOKEN_KEY = "accessToken";
-
-function getToken() {
-  return typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
-}
-
-async function apiFetch(path: string, options?: RequestInit) {
-  const token = getToken();
-  const res = await fetch(`${API}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options?.headers || {}),
-    },
-  });
-  if (res.status === 401 && options?.method) { localStorage.removeItem("accessToken"); localStorage.removeItem("refreshToken"); window.location.href = "/tablet/login"; throw new Error("Sesi berakhir"); }
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: { message: res.statusText } }));
-    throw new Error(err.error?.message ?? res.statusText);
-  }
-  return res.json();
-}
 
 // =============================================================================
 

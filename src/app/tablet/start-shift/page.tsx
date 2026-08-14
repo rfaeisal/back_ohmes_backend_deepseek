@@ -1,23 +1,10 @@
 "use client";
+import { apiFetch } from "@/lib/utils/api-client";
 
 import { Suspense, useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, CardSubtitle } from "@/components/ui/card";
-
-const API = "/api/v1";
-function getToken() { return typeof window !== "undefined" ? localStorage.getItem("accessToken") : null; }
-
-async function apiFetch(path: string, options?: RequestInit) {
-  const token = getToken();
-  const res = await fetch(`${API}${path}`, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options?.headers || {}) },
-  });
-  if (res.status === 401) { localStorage.removeItem("accessToken"); window.location.href = "/tablet/login"; throw new Error("Sesi berakhir"); }
-  if (!res.ok) { const err = await res.json().catch(() => ({ error: { message: res.statusText } })); throw new Error(err.error?.message ?? res.statusText); }
-  return res.json();
-}
 
 function StartShiftForm() {
   const router = useRouter();
@@ -57,13 +44,8 @@ function StartShiftForm() {
       // Load roster for today
       const today = new Date().toISOString().slice(0, 10);
       try {
-        const token = getToken();
-        const rosterRes = await fetch(`${API}/shift-roster?weekStart=${today}&_t=${Date.now()}`, {
-          cache: "no-store",
-          headers: { Authorization: `Bearer ${token}` || "" },
-        });
-        if (rosterRes.ok) {
-          const rosterData = await rosterRes.json();
+        const rosterData = await apiFetch(`/shift-roster?weekStart=${today}`);
+        if (rosterData) {
           const todayAssignments = (rosterData.assignments || [])
             .filter((a: any) => a.date === today)
             .map((a: any) => a.userId);
@@ -96,8 +78,7 @@ function StartShiftForm() {
           shiftRoleId: shiftRoles.find((r: any) => r.code === "ketua_kecer")?.id ?? shiftRoles[0]?.id ?? userId,
         })),
       };
-      const token = getToken();
-      const res = await fetch(`${API}/shifts/start`, { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body) }).then(r => r.json());
+      const res = await apiFetch("/shifts/start", { method: "POST", body: JSON.stringify(body) });
       if (res.shiftId) {
         // Sync roster changes (operator may have added/removed members)
         if (rosterMembers.length > 0 || selectedTeam.length > 0) {
@@ -108,9 +89,8 @@ function StartShiftForm() {
             shiftRoleId: shiftRoles.find((r: any) => r.code === "ketua_kecer")?.id ?? "f57ef947-862f-4cc1-bb95-2d89e8963c11",
           }));
           try {
-            await fetch(`${API}/shift-roster`, {
-              method: "POST", cache: "no-store",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            await apiFetch("/shift-roster", {
+              method: "POST",
               body: JSON.stringify({ weekStart: today, assignments }),
             });
           } catch {}
