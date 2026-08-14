@@ -9,6 +9,7 @@ const schema = z.object({
   category: z.enum(["GANTI_MATERIAL", "KENDALA_MESIN", "TUNGGU_BAHAN", "ISTIRAHAT_IZIN", "MAINTENANCE"]),
   durationMinutes: z.number().int().min(1).max(720),
   linkedBoxId: z.string().uuid().optional(),
+  sessionId: z.string().uuid().optional(),
   description: z.string().optional(),
 });
 

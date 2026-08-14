@@ -9,6 +9,7 @@ const schema = z.object({
   sparepartId: z.string().uuid(),
   quantity: z.number().int().min(1),
   linkedBoxId: z.string().uuid().optional(),
+  sessionId: z.string().uuid().optional(),
   note: z.string().optional(),
 });
 

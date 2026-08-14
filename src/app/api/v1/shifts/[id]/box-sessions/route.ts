@@ -1,4 +1,4 @@
-// POST /shifts/:id/box-sessions — Buka sesi boks (1–6 boks FIFO sekaligus)
+// POST /shifts/:id/box-sessions — Buka sesi boks (1–6 boks pilihan operator)
 // GET  /shifts/:id/box-sessions — Daftar sesi boks shift (untuk reload tablet)
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -9,7 +9,7 @@ import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import { openBoxSession } from "@/lib/services/box.service";
 import { ServiceError } from "@/lib/services/shift.service";
 
-const openSchema = z.object({ count: z.number().int().min(1).max(6) });
+const openSchema = z.object({ inventoryBoxIds: z.array(z.string().uuid()).min(1).max(6) });
 
 export const POST = withAuth(
   async (request: Request, ctx: AuthContext, { params }: { params: Promise<{ id: string }> }) => {
@@ -26,7 +26,7 @@ export const POST = withAuth(
       const plantId = ctx.user.plantIds[0];
       if (!plantId) return NextResponse.json({ error: { code: "NO_PLANT_SCOPE", message: "Tidak ada plant dalam scope." }, requestId: ctx.requestId }, { status: 403 });
 
-      const result = await openBoxSession({ shiftReportId, plantId, count: parsed.data.count, actorUserId: ctx.user.userId });
+      const result = await openBoxSession({ shiftReportId, plantId, inventoryBoxIds: parsed.data.inventoryBoxIds, actorUserId: ctx.user.userId });
       if (!result.session) throw new ServiceError("SESSION_CREATE_FAILED", "Gagal membuat sesi boks.");
       return NextResponse.json(
         {
@@ -44,7 +44,7 @@ export const POST = withAuth(
       );
     } catch (err) {
       if (err instanceof ServiceError) {
-        const status = err.code === "TSG_BOX_NOT_ENOUGH" || err.code === "INVALID_BOX_COUNT" ? 400 : 409;
+        const status = ["TSG_BOX_NOT_AVAILABLE", "INVALID_BOX_COUNT", "DUPLICATE_BOX"].includes(err.code) ? 400 : 409;
         return NextResponse.json({ error: { code: err.code, message: err.message }, requestId: ctx.requestId }, { status });
       }
       throw err;

@@ -91,8 +91,8 @@ export const tsgBoxProcess = pgTable(
 export const tsgBoxConsumption = pgTable("tsg_box_consumption", {
   id: uuid("id").primaryKey().defaultRandom(),
   tsgBoxId: uuid("tsg_box_id")
-    .notNull()
-    .references(() => tsgBoxProcess.id, { onDelete: "cascade" }),
+    .references(() => tsgBoxProcess.id, { onDelete: "cascade" }), // NULL = pemakaian level sesi
+  sessionId: uuid("session_id").references(() => tsgBoxSession.id), // ← entry level sesi multi-boks
   plantId: uuid("plant_id")
     .notNull()
     .references(() => plant.id), // ← denormalized untuk RLS
@@ -122,6 +122,7 @@ export const downtimeLog = pgTable("downtime_log", {
   category: downtimeCategoryEnum("category").notNull(),
   durationMinutes: integer("duration_minutes").notNull(),
   linkedBoxId: uuid("linked_box_id").references(() => tsgBoxProcess.id),
+  sessionId: uuid("session_id").references(() => tsgBoxSession.id), // ← entry level sesi multi-boks
   description: text("description"),
   loggedAt: timestamp("logged_at").notNull().defaultNow(),
   loggedBy: uuid("logged_by")
@@ -146,6 +147,7 @@ export const maintenanceEvent = pgTable("maintenance_event", {
     .references(() => sparepart.id),
   quantity: integer("quantity").notNull().default(1),
   linkedBoxId: uuid("linked_box_id").references(() => tsgBoxProcess.id),
+  sessionId: uuid("session_id").references(() => tsgBoxSession.id), // ← entry level sesi multi-boks
   note: text("note"),
   loggedAt: timestamp("logged_at").notNull().defaultNow(),
   loggedBy: uuid("logged_by")

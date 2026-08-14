@@ -38,7 +38,8 @@ export interface WeighBoxInput {
 }
 
 export interface ConsumptionInput {
-  boxId: string;
+  boxId?: string; // pemakaian level boks (alur lama/parsial)
+  sessionId?: string; // pemakaian level sesi multi-boks (salah satu wajib)
   consumableItemId: string;
   quantity: number;
   note?: string;
@@ -52,6 +53,7 @@ export interface DowntimeInput {
   category: "GANTI_MATERIAL" | "KENDALA_MESIN" | "TUNGGU_BAHAN" | "ISTIRAHAT_IZIN" | "MAINTENANCE";
   durationMinutes: number;
   linkedBoxId?: string;
+  sessionId?: string; // entry level sesi multi-boks
   description?: string;
   loggedBy: string;
 }
@@ -62,6 +64,7 @@ export interface MaintenanceInput {
   sparepartId: string;
   quantity: number;
   linkedBoxId?: string;
+  sessionId?: string; // entry level sesi multi-boks
   note?: string;
   loggedBy: string;
 }
@@ -78,7 +81,7 @@ export interface HlpPackInput {
 export interface OpenBoxSessionInput {
   shiftReportId: string;
   plantId: string;
-  count: number; // 1–6 boks dibuka sekaligus
+  inventoryBoxIds: string[]; // 1–6 boks pilihan operator (dari inventory gudang)
   actorUserId: string;
 }
 
@@ -192,13 +195,16 @@ export async function openBox(input: OpenBoxInput) {
 }
 
 // =============================================================================
-// Open Box Session — buka 1–6 boks sekaligus dari inventory FIFO
+// Open Box Session — buka 1–6 boks pilihan operator dari inventory gudang
 // =============================================================================
 
 export async function openBoxSession(input: OpenBoxSessionInput) {
-  // Validasi jumlah boks
-  if (!Number.isInteger(input.count) || input.count < 1 || input.count > 6) {
+  // Validasi jumlah boks + tidak boleh ganda
+  if (!Array.isArray(input.inventoryBoxIds) || input.inventoryBoxIds.length < 1 || input.inventoryBoxIds.length > 6) {
     throw new ServiceError("INVALID_BOX_COUNT", "Jumlah boks harus 1–6.");
+  }
+  if (new Set(input.inventoryBoxIds).size !== input.inventoryBoxIds.length) {
+    throw new ServiceError("DUPLICATE_BOX", "Boks yang dipilih tidak boleh ganda.");
   }
 
   // Validasi shift RUNNING
@@ -229,35 +235,45 @@ export async function openBoxSession(input: OpenBoxSessionInput) {
     throw new ServiceError("BOX_ALREADY_ACTIVE", "Masih ada sesi boks aktif. Timbang dulu boks sebelumnya.");
   }
 
-  // Ambil N boks AVAILABLE secara FIFO (tertua dulu)
+  // Ambil boks yang dipilih operator — harus AVAILABLE di plant ini
   const available = await db
-    .select({ inventoryId: tsgInventory.id, boxId: tsgInventory.boxId })
+    .select({ inventoryId: tsgInventory.id, boxId: tsgInventory.boxId, status: tsgInventory.status })
     .from(tsgInventory)
     .where(
       and(
-        eq(tsgInventory.status, "AVAILABLE"),
+        inArray(tsgInventory.id, input.inventoryBoxIds),
         eq(tsgInventory.plantId, input.plantId)
       )
-    )
-    .orderBy(tsgInventory.createdAt) // FIFO — ASC
-    .limit(input.count);
+    );
 
-  if (available.length < input.count) {
+  if (available.length !== input.inventoryBoxIds.length) {
     throw new ServiceError(
-      "TSG_BOX_NOT_ENOUGH",
-      `Inventory tidak cukup: butuh ${input.count} boks, tersedia ${available.length}.`
+      "TSG_BOX_NOT_AVAILABLE",
+      "Ada boks yang tidak tersedia di inventory. Cek daftar boks di gudang."
     );
   }
+  for (const a of available) {
+    if (a.status !== "AVAILABLE") {
+      throw new ServiceError(
+        "TSG_BOX_NOT_AVAILABLE",
+        "Ada boks yang statusnya bukan AVAILABLE. Muat ulang daftar inventory.",
+        { inventoryBoxId: a.inventoryId, currentStatus: a.status }
+      );
+    }
+  }
+
+  // Pertahankan urutan pilihan operator
+  const ordered = input.inventoryBoxIds.map((id) => available.find((a) => a.inventoryId === id)!);
 
   // Detail boxCode & berat dari receiving
-  const boxIds = available.map((a) => a.boxId);
+  const boxIds = ordered.map((a) => a.boxId);
   const receiving = await db
     .select({ id: tsgReceivingBox.id, boxCode: tsgReceivingBox.boxCode, weightKg: tsgReceivingBox.weightKg })
     .from(tsgReceivingBox)
     .where(inArray(tsgReceivingBox.id, boxIds));
 
   const receivingMap = new Map(receiving.map((r) => [r.id, r]));
-  for (const a of available) {
+  for (const a of ordered) {
     if (!receivingMap.has(a.boxId)) {
       throw new ServiceError("BOX_WEIGHT_NOT_FOUND", "Data berat boks tidak ditemukan di receiving. Pastikan boks sudah diterima dengan benar.");
     }
@@ -283,8 +299,8 @@ export async function openBoxSession(input: OpenBoxSessionInput) {
       .returning();
 
     const created: (typeof tsgBoxProcess.$inferSelect)[] = [];
-    for (let i = 0; i < available.length; i++) {
-      const a = available[i]!;
+    for (let i = 0; i < ordered.length; i++) {
+      const a = ordered[i]!;
       const rec = receivingMap.get(a.boxId)!;
 
       // Tandai inventory USED
@@ -559,11 +575,28 @@ export async function weighBoxSession(input: WeighBoxSessionInput) {
 // =============================================================================
 
 export async function logConsumption(input: ConsumptionInput) {
+  if (!input.boxId && !input.sessionId) {
+    throw new ServiceError("INVALID_TARGET", "Pilih boks atau sesi untuk mencatat pemakaian.");
+  }
+
+  // Sesi → plantId diambil dari sesi
+  let plantId = input.plantId;
+  if (input.sessionId) {
+    const [session] = await db
+      .select({ plantId: tsgBoxSession.plantId })
+      .from(tsgBoxSession)
+      .where(eq(tsgBoxSession.id, input.sessionId))
+      .limit(1);
+    if (!session) throw new ServiceError("SESSION_NOT_FOUND", "Sesi boks tidak ditemukan.");
+    plantId = session.plantId;
+  }
+
   const [consumption] = await db
     .insert(tsgBoxConsumption)
     .values({
-      tsgBoxId: input.boxId,
-      plantId: input.plantId,
+      tsgBoxId: input.boxId ?? null,
+      sessionId: input.sessionId ?? null,
+      plantId,
       consumableItemId: input.consumableItemId,
       quantity: String(input.quantity),
       loggedBy: input.loggedBy,
@@ -591,6 +624,7 @@ export async function logDowntime(input: DowntimeInput) {
       category: input.category,
       durationMinutes: input.durationMinutes,
       linkedBoxId: input.linkedBoxId ?? null,
+      sessionId: input.sessionId ?? null,
       description: input.description ?? null,
       loggedBy: input.loggedBy,
     })
@@ -612,6 +646,7 @@ export async function logMaintenance(input: MaintenanceInput) {
       sparepartId: input.sparepartId,
       quantity: input.quantity,
       linkedBoxId: input.linkedBoxId ?? null,
+      sessionId: input.sessionId ?? null,
       note: input.note ?? null,
       loggedBy: input.loggedBy,
     })
