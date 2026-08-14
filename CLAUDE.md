@@ -6,14 +6,18 @@ Proyek MES + WMS Hummer — **Fase 0–6 Complete** (Agustus 2026).
 
 ## Status Terkini
 
-- ✅ 22 halaman UI, 60+ API endpoint, 43 tabel DB
+- ✅ 30+ halaman UI, 75+ API endpoint, 46 tabel DB
 - ✅ Deploy Vercel + Neon PostgreSQL 16
 - ✅ 13 test users (semua role ter-cover, password seragam 12345678 — lihat README)
 - ✅ 8 boks TSG sample di inventory (REGULER, MILD, PUTIHAN)
 - ✅ Roster mingguan + cetak bulanan
-- ✅ Laporan stok TSG, laporan receiving, laporan per shift
-- ✅ Label print (waterproof BOPP 100x60mm)
-- ✅ Auth JWT + OTP bypass + session management
+- ✅ Laporan TSG lengkap: masuk, stok, pakai, keluar (transfer antar pabrik + retur supplier)
+- ✅ Material & sparepart: receiving, stok, pemakaian, keluar — dengan harga beli & rekap biaya
+- ✅ Dokumen formal cetak: Berita Acara Serah Terima & Berita Acara Retur
+- ✅ Handoff sisa TSG antar shift (bisa beda mesin)
+- ✅ RBAC: permission enforcement di API + sidebar per role
+- ✅ Dashboard per role: plant (grafik), area (hari/minggu), HQ (grafik)
+- ✅ Auth JWT + OTP 2 lapis + session management
 
 ---
 

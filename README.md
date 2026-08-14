@@ -2,7 +2,7 @@
 
 Sistem terintegrasi **Manufacturing Execution System (MES) + Warehouse Management System (WMS)** untuk operasi pabrik rokok multi-cabang. Produk utama: **Hummer**. Target skala: 30+ pabrik heterogen dengan hirarki `Kantor Pusat → Koordinator Area → Pabrik`.
 
-**Status**: ✅ **Fase 0–6 Complete** · 22 halaman UI · 60+ API endpoint · 43 tabel database · Deploy Vercel + Neon PostgreSQL 16
+**Status**: ✅ **Fase 0–6 Complete** · 30+ halaman UI · 75+ API endpoint · 46 tabel database · Deploy Vercel + Neon PostgreSQL 16
 
 ---
 
@@ -58,33 +58,58 @@ Login: admin / (password dari output seed-superadmin) / OTP `000000`
 
 ---
 
-## Halaman UI (22 pages)
+## Halaman UI (30+ pages)
 
+### Tablet Operator
 | Halaman | URL | Role |
 |---|---|---|
-| **Tablet Operator** | `/tablet` | OPERATOR_KECER |
-| Start Shift | `/tablet/start-shift` | OPERATOR_KECER |
-| Shift Aktif (produksi) | `/tablet/shift/[id]` | OPERATOR_KECER |
-| Gudang Inbound | `/tablet/gudang` | GUDANG_INBOUND |
-| Dashboard KPI | `/tablet/dashboard` | Semua |
-| Cetak Label | `/tablet/labels` | GUDANG_INBOUND |
-| **Admin Dashboard** | `/admin` | SUPERADMIN/HQ |
-| Approval Shift | `/admin/approvals` | SHIFT_SUPERVISOR |
-| Dashboard Area | `/admin/area-dashboard` | AREA_COORDINATOR |
-| HQ Analytics | `/admin/analytics` | HQ_ANALYST |
-| CORRECTION | `/admin/corrections` | HQ_AUDITOR |
-| Users & Roles | `/admin/users` | HQ_ADMIN |
-| Master Data | `/admin/master-data` | HQ_ADMIN |
+| Tablet Operator (lantai produksi) | `/tablet` | OPERATOR_KECER |
+| Start Shift (+ pilih handoff) | `/tablet/start-shift` | OPERATOR_KECER |
+| Shift Aktif (produksi, handoff, material) | `/tablet/shift/[id]` | OPERATOR_KECER |
+| Dashboard KPI Pabrik | `/tablet/dashboard` | Operator |
+| Login (OTP 2 lapis untuk SUPERADMIN) | `/tablet/login` | Semua |
+
+### Admin — Operasional
+| Halaman | URL | Role |
+|---|---|---|
+| Admin Dashboard (grafik) | `/admin` | Semua admin |
+| Approval Shift (pending + approved) | `/admin/approvals` | SHIFT_SUPERVISOR |
+| Dashboard Pabrik | `/admin/plant-dashboard` | PLANT_MANAGER |
+| Gudang Inbound (TSG + material + retur + transfer) | `/admin/gudang` | GUDANG_INBOUND |
+| Gudang Outbound (FG + kartoning) | `/admin/gudang-outbound` | GUDANG_OUTBOUND |
+| Dispatch Order | `/admin/dispatch` | EKSPEDISI |
+| Roster Mingguan + Cetak | `/admin/roster` | Supervisor |
+| Cetak Label | `/admin/labels` | Gudang |
+
+### Admin — Dashboard & Laporan
+| Halaman | URL | Role |
+|---|---|---|
+| Dashboard Area (hari/minggu + grafik) | `/admin/area-dashboard` | AREA_COORDINATOR/QA |
+| HQ Analytics (periode + grafik) | `/admin/analytics` | HQ_ANALYST |
+| Laporan Per Shift | `/admin/reports/shifts` | shift.view |
+| Penggunaan TSG | `/admin/reports/tsg-usage` | shift.view |
+| Stok TSG | `/admin/reports/tsg-stock` | tsg.inventory.view |
+| Laporan TSG Masuk | `/admin/reports/tsg-receiving` | tsg.receiving.view |
+| TSG Keluar (transfer + retur) | `/admin/reports/tsg-out` | tsg.inventory.view |
+| Stok Material | `/admin/reports/material-stock` | tsg.inventory.view |
+| Material Masuk | `/admin/reports/material-receiving` | tsg.receiving.view |
+| Pemakaian Material | `/admin/reports/material-usage` | shift.view |
+| Material Keluar | `/admin/reports/material-out` | tsg.inventory.view |
+
+### Admin — Administrasi (SUPERADMIN)
+| Halaman | URL | Role |
+|---|---|---|
+| Correction | `/admin/corrections` | SUPERADMIN |
+| Users & Roles | `/admin/users` | SUPERADMIN |
+| Master Data | `/admin/master-data` | SUPERADMIN |
+| Master Consumable | `/admin/master-consumables` | SUPERADMIN |
+| Master Sparepart | `/admin/master-spareparts` | SUPERADMIN |
 | Audit Log | `/admin/audit` | SUPERADMIN |
-| Laporan TSG Masuk | `/admin/reports/tsg-receiving` | Admin |
-| Laporan Stok TSG | `/admin/reports/tsg-stock` | Admin |
-| Laporan Per Shift | `/admin/reports/shifts` | Admin |
-| Roster Mingguan | `/admin/roster` | Admin |
-| Cetak Bulanan | `/admin/roster/print` | Admin |
 | Manajemen Sesi | `/admin/sessions` | SUPERADMIN |
 | SUPERADMIN Tools | `/admin/super` | SUPERADMIN |
 
 ---
+
 
 ## Test Users
 

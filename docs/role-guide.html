@@ -175,7 +175,7 @@
     <p class="role-tag">Scope: COMPANY · Read-only + export</p>
     <p><b>Tugas &amp; fungsi:</b></p>
     <ul class="duty-list">
-      <li>Analisis yield trend per bulan, produk, dan pabrik</li>
+      <li>Analisis yield trend (grafik), waste benchmark, penyebab downtime — periode Hari/Minggu</li>
       <li>Benchmark waste antar pabrik</li>
       <li>Analisis consumption rate TSG &amp; inventory age</li>
       <li>Export laporan cukai (CSV/XLSX) untuk pelaporan bea cukai</li>
@@ -205,7 +205,7 @@
     <p class="role-tag">Scope: REGION · Lintas pabrik dalam 1 area</p>
     <p><b>Tugas &amp; fungsi:</b></p>
     <ul class="duty-list">
-      <li>Dashboard area: rollup KPI semua pabrik dalam region (shift, approval, waste per pabrik)</li>
+      <li>Dashboard area: rollup KPI per pabrik — toggle Hari/Minggu, grafik yield &amp; downtime, waste per pabrik</li>
       <li>Lihat detail shift, penggunaan TSG, stok TSG &amp; material semua pabrik di area</li>
       <li>Export laporan operasional area untuk pelaporan ke HQ</li>
       <li>Akses audit log area</li>
@@ -240,7 +240,8 @@
       <li>Terima material &amp; sparepart, pantau stok &amp; pemakaian</li>
       <li>Terima finished goods, dispute, kartoning, buat dispatch order</li>
       <li>Edit shift template &amp; shift role pabrik, assign produk</li>
-      <li>Dashboard pabrik, export laporan operasional, audit log</li>
+      <li>Dashboard Pabrik sendiri (KPI, status mesin, yield &amp; waste chart, downtime)</li>
+      <li>Export laporan operasional, audit log</li>
     </ul>
     <div class="example"><strong>Contoh nyata:</strong> Operator kehabisan TSG REGULER. Plant Manager membuka inventory — ternyata ada 2 boks REGULER tapi umurnya 35 hari, sedangkan ada 3 boks MILD umur 2 hari. Dia memutuskan pakai MILD dengan override FIFO (alasan: "REGULER terlalu tua, risiko kualitas"), sistem mencatat override + audit trail lengkap.</div>
     <div class="no-do">Tidak boleh: edit master mesin/produk (HQ), kelola user (HQ), koreksi shift LOCKED (auditor).</div>
@@ -273,7 +274,7 @@
       <li>Catat pemakaian consumable per boks (bobbin, lem, dll)</li>
       <li>Log downtime &amp; maintenance saat produksi</li>
       <li>Akhiri shift: input 4 kategori waste + pemakaian material akhir shift (karton, dus)</li>
-      <li>Buat handoff TSG sisa ke shift berikutnya</li>
+      <li>Buat handoff TSG sisa ke shift berikutnya (bisa mesin lain — shift berikutnya memilih handoff saat mulai)</li>
     </ul>
     <div class="example"><strong>Contoh nyata:</strong> Shift Pagi dimulai. Kecer memulai shift di MKR-02, memilih 3 anggota dari roster. Dia buka boks TSG-001 (29.75 kg), produksi berjalan, di tengah jalan bobbin habis → catat "+ Tambah Pemakaian" Bobbin 3 roll + downtime GANTI_MATERIAL 10 menit. Boks selesai → timbang 33.32 kg → yield 112% NORMAL. Akhir shift → input waste (MENIR 0.5 kg, dst) + pemakaian Karton 2 pcs → Akhiri Shift.</div>
     <div class="no-do">Tidak boleh: approve shift, edit master data, terima barang dari supplier.</div>
@@ -301,6 +302,9 @@
       <li>Terima TSG dari supplier (kode boks, berat, jenis) → auto masuk inventory FIFO</li>
       <li>Terima material &amp; sparepart (item, qty, harga beli)</li>
       <li>Atur lokasi rak, alokasi TSG ke shift, write-off boks rusak</li>
+      <li>Kirim TSG ke pabrik lain + cetak Berita Acara Serah Terima</li>
+      <li>Retur TSG ke supplier + cetak Berita Acara Retur</li>
+      <li>Keluar material/sparepart (kirim pabrik / retur supplier)</li>
       <li>Settle waste (MENIR dsb) dari pabrik</li>
     </ul>
     <div class="example"><strong>Contoh nyata:</strong> Truk supplier datang membawa 8 boks TSG + 40 roll bobbin. Gudang Inbound klik "Terima TSG Baru" → input 8 boks dengan berat &amp; jenis → klik "Terima Material" → 40 roll Bobbin @ Rp 240.000. Sistem membuat kode receiving + stok langsung bertambah.</div>
@@ -313,9 +317,9 @@
     <p class="role-tag">Scope: PLANT · Gudang barang jadi &amp; kartoning</p>
     <p><b>Tugas &amp; fungsi:</b></p>
     <ul class="duty-list">
-      <li>Terima finished goods dari produksi (confirm penerimaan)</li>
+      <li>Halaman khusus Gudang Outbound: finished goods (konfirmasi pack dari shift APPROVED) &amp; kartoning</li>
+      <li>Buat karton baru (produk + kapasitas) &amp; tutup karton → status READY</li>
       <li>Dispute barang yang tidak sesuai</li>
-      <li>Buat kartoning: bungkus batangan ke karton, catat isi per pack, reject</li>
       <li>Lihat shift produksi untuk perencanaan kartoning</li>
     </ul>
     <div class="example"><strong>Contoh nyata:</strong> Shift selesai menghasilkan 33 kg batangan. Gudang Outbound menerima finished goods → mulai kartoning: 10 karton, masing-masing 10 pack × 20 batang → 2.000 batang lolos, 15 batang reject (keriput). Data reject tercatat untuk evaluasi mutu.</div>
@@ -328,8 +332,8 @@
     <p class="role-tag">Scope: PLANT · Distribusi ke gudang distributor</p>
     <p><b>Tugas &amp; fungsi:</b></p>
     <ul class="duty-list">
-      <li>Buat dispatch order (surat jalan pengiriman)</li>
-      <li>Eksekusi dispatch: kapan, lewat mana, ke distributor mana</li>
+      <li>Halaman Dispatch: buat dispatch order dari karton READY (pelanggan, alamat, sopir, kendaraan)</li>
+      <li>Eksekusi dispatch: tandai order DISPATCHED saat truk berangkat</li>
       <li>Generate dokumen pengiriman (DO/SJ)</li>
       <li>Lihat stok karton &amp; finished goods yang siap kirim</li>
     </ul>
