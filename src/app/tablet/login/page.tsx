@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [needOtp, setNeedOtp] = useState(false); // layer tambahan untuk SUPERADMIN
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +35,11 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.error?.code === "OTP_REQUIRED") {
+          setNeedOtp(true);
+          setError("");
+          return;
+        }
         setError(data.error?.message ?? "Login gagal");
         return;
       }
@@ -72,7 +78,7 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleLogin} className="rounded-2xl border border-gray-200 bg-white p-8 shadow-lg">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Login</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">{needOtp ? "Verifikasi 2FA" : "Login"}</h2>
 
           {error && (
             <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
@@ -81,38 +87,59 @@ export default function LoginPage() {
           )}
 
           <div className="space-y-4">
-            <Input
-              label="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Masukkan username"
-              autoFocus
-              inputMode="text"
-            />
-            <Input
-              label="Password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-            />
-            <Input
-              label="Kode OTP"
-              type="text"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              placeholder="Masukkan kode OTP"
-            />
+            {needOtp ? (
+              <>
+                <p className="text-sm text-gray-500">
+                  Akun ini membutuhkan verifikasi 2FA. Masukkan kode OTP yang dikirim ke WhatsApp terdaftar.
+                </p>
+                <Input
+                  label="Kode OTP"
+                  type="text"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  placeholder="Masukkan kode OTP"
+                  autoFocus
+                  inputMode="numeric"
+                />
+              </>
+            ) : (
+              <>
+                <Input
+                  label="Username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Masukkan username"
+                  autoFocus
+                  inputMode="text"
+                />
+                <Input
+                  label="Password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+              </>
+            )}
           </div>
 
           <Button
             type="submit"
             size="operator"
             className="w-full mt-6"
-            disabled={loading || !username || !password}
+            disabled={loading || (needOtp ? !otp : !username || !password)}
           >
-            {loading ? <Spinner size="md" /> : "Masuk"}
+            {loading ? <Spinner size="md" /> : needOtp ? "Verifikasi OTP" : "Masuk"}
           </Button>
+          {needOtp && (
+            <button
+              type="button"
+              onClick={() => { setNeedOtp(false); setOtp(""); setError(""); }}
+              className="mt-4 w-full text-center text-sm text-gray-500 hover:underline"
+            >
+              ← Kembali
+            </button>
+          )}
         </form>
       </div>
     </div>
