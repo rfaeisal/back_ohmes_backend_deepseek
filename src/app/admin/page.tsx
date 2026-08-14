@@ -6,6 +6,10 @@ import { plant, user, shiftReport, shiftWaste, tsgBoxProcess } from "@/db/schema
 import { machine } from "@/db/schema/master-product";
 import OverviewCharts from "@/components/overview-charts";
 
+// Halaman ini query database langsung — wajib dynamic supaya tidak
+// dieksekusi saat `next build` (prerender) yang tidak punya akses DB.
+export const dynamic = "force-dynamic";
+
 export default async function AdminOverview() {
   // Real data dari database
   const plants = await db.select().from(plant);
