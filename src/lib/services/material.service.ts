@@ -9,6 +9,9 @@ import {
   consumableReceivingItem,
   sparepartReceivingItem,
   tsgSupplier,
+  materialOut,
+  consumableOutItem,
+  sparepartOutItem,
 } from "@/db/schema";
 import { tsgBoxConsumption, maintenanceEvent, tsgBoxProcess, shiftConsumption } from "@/db/schema/box";
 import { shiftReport } from "@/db/schema/shift";
@@ -232,6 +235,15 @@ export async function getMaterialStock(plantId: string, materialType: MaterialTy
       .where(eq(shiftConsumption.plantId, plantId))
       .groupBy(shiftConsumption.consumableItemId);
 
+    const outRows = await db
+      .select({
+        itemId: consumableOutItem.consumableItemId,
+        total: sql<number>`COALESCE(SUM(${consumableOutItem.quantity}::decimal), 0)`.mapWith(Number),
+      })
+      .from(consumableOutItem)
+      .where(eq(consumableOutItem.plantId, plantId))
+      .groupBy(consumableOutItem.consumableItemId);
+
     const items = await db
       .select({ id: consumableItem.id, code: consumableItem.code, name: consumableItem.name, unit: consumableItem.unit })
       .from(consumableItem)
@@ -241,6 +253,10 @@ export async function getMaterialStock(plantId: string, materialType: MaterialTy
     const usedMap = new Map(boxUsedRows.map((r) => [r.itemId, r.total]));
     // Gabungkan pemakaian shift-level
     for (const r of shiftUsedRows) {
+      usedMap.set(r.itemId, (usedMap.get(r.itemId) ?? 0) + r.total);
+    }
+    // Gabungkan keluar (transfer/retur)
+    for (const r of outRows) {
       usedMap.set(r.itemId, (usedMap.get(r.itemId) ?? 0) + r.total);
     }
 
@@ -285,6 +301,15 @@ export async function getMaterialStock(plantId: string, materialType: MaterialTy
     .where(eq(maintenanceEvent.plantId, plantId))
     .groupBy(maintenanceEvent.sparepartId);
 
+  const outRows = await db
+    .select({
+      itemId: sparepartOutItem.sparepartId,
+      total: sql<number>`COALESCE(SUM(${sparepartOutItem.quantity}), 0)`.mapWith(Number),
+    })
+    .from(sparepartOutItem)
+    .where(eq(sparepartOutItem.plantId, plantId))
+    .groupBy(sparepartOutItem.sparepartId);
+
   const items = await db
     .select({ id: sparepart.id, code: sparepart.code, name: sparepart.name, unit: sparepart.unit })
     .from(sparepart)
@@ -292,6 +317,9 @@ export async function getMaterialStock(plantId: string, materialType: MaterialTy
 
   const receivedMap = new Map(receivedRows.map((r) => [r.itemId, { total: r.total, totalValue: r.totalValue }]));
   const usedMap = new Map(usedRows.map((r) => [r.itemId, r.total]));
+  for (const r of outRows) {
+    usedMap.set(r.itemId, (usedMap.get(r.itemId) ?? 0) + r.total);
+  }
 
   return items.map((it) => {
     const masuk = receivedMap.get(it.id)?.total ?? 0;
@@ -485,4 +513,164 @@ export async function getMaterialUsage(params: {
         biaya: Math.round(r.total * avgPrice * 100) / 100,
       };
     });
+}
+
+// =============================================================================
+// Material Out — keluar consumable/sparepart (transfer antar pabrik / retur)
+// =============================================================================
+
+export type MaterialOutType = "TRANSFER" | "RETUR";
+
+export interface CreateMaterialOutInput {
+  plantId: string;
+  materialType: MaterialType;
+  outType: MaterialOutType;
+  counterpartName: string;
+  reason: string;
+  notes?: string;
+  outBy: string;
+  items: Array<{ itemId: string; quantity: number }>;
+}
+
+export async function createMaterialOut(input: CreateMaterialOutInput) {
+  if (input.items.length === 0) throw new ServiceError("EMPTY_ITEMS", "Minimal 1 item.");
+  if (!input.counterpartName.trim()) throw new ServiceError("COUNTERPART_REQUIRED", "Tujuan/supplier wajib diisi.");
+  if (!input.reason.trim() || input.reason.trim().length < 3) {
+    throw new ServiceError("REASON_REQUIRED", "Alasan keluar wajib diisi (min 3 karakter).");
+  }
+
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const existingCount = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(materialOut)
+    .where(
+      and(
+        eq(materialOut.plantId, input.plantId),
+        sql`created_at::date = CURRENT_DATE`
+      )
+    );
+  const seq = Number(existingCount[0]?.count ?? 0) + 1;
+  const outCode = `MTR-${today}-${String(seq).padStart(2, "0")}`;
+
+  const result = await db.transaction(async (tx) => {
+    const [header] = await tx
+      .insert(materialOut)
+      .values({
+        plantId: input.plantId,
+        materialType: input.materialType,
+        outType: input.outType,
+        counterpartName: input.counterpartName.trim(),
+        outCode,
+        reason: input.reason.trim(),
+        notes: input.notes ?? null,
+        outBy: input.outBy,
+      })
+      .returning();
+
+    if (!header) throw new Error("MATERIAL_OUT_CREATE_FAILED");
+
+    for (let i = 0; i < input.items.length; i++) {
+      const item = input.items[i]!;
+      if (input.materialType === "CONSUMABLE") {
+        await tx.insert(consumableOutItem).values({
+          outId: header.id,
+          plantId: input.plantId,
+          consumableItemId: item.itemId,
+          quantity: String(item.quantity),
+          seq: i + 1,
+        });
+      } else {
+        await tx.insert(sparepartOutItem).values({
+          outId: header.id,
+          plantId: input.plantId,
+          sparepartId: item.itemId,
+          quantity: Math.round(item.quantity),
+          seq: i + 1,
+        });
+      }
+    }
+
+    return header;
+  });
+
+  return {
+    outId: result.id,
+    outCode: result.outCode,
+    materialType: input.materialType,
+    outType: input.outType,
+    totalItems: input.items.length,
+  };
+}
+
+export async function listMaterialOutReport(
+  plantId: string,
+  params: { from?: string; to?: string; materialType?: MaterialType; outType?: MaterialOutType }
+) {
+  const conditions = [eq(materialOut.plantId, plantId)];
+  if (params.materialType) conditions.push(eq(materialOut.materialType, params.materialType));
+  if (params.outType) conditions.push(eq(materialOut.outType, params.outType));
+  if (params.from) conditions.push(gte(materialOut.outAt, new Date(params.from)));
+  if (params.to) conditions.push(lte(materialOut.outAt, new Date(params.to + "T23:59:59.999Z")));
+
+  const rows = await db
+    .select({
+      id: materialOut.id,
+      outCode: materialOut.outCode,
+      materialType: materialOut.materialType,
+      outType: materialOut.outType,
+      counterpartName: materialOut.counterpartName,
+      reason: materialOut.reason,
+      notes: materialOut.notes,
+      outAt: materialOut.outAt,
+      outByName: sql<string>`u.full_name`.mapWith(String),
+    })
+    .from(materialOut)
+    .leftJoin(sql`"user" u`, eq(materialOut.outBy, sql`u.id`))
+    .where(and(...conditions))
+    .orderBy(sql`${materialOut.outAt} DESC`)
+    .limit(200);
+
+  for (const r of rows) {
+    if (r.materialType === "CONSUMABLE") {
+      const items = await db
+        .select({
+          id: consumableOutItem.id,
+          itemId: consumableOutItem.consumableItemId,
+          quantity: consumableOutItem.quantity,
+          itemName: consumableItem.name,
+          itemUnit: consumableItem.unit,
+        })
+        .from(consumableOutItem)
+        .leftJoin(consumableItem, eq(consumableOutItem.consumableItemId, consumableItem.id))
+        .where(eq(consumableOutItem.outId, r.id))
+        .orderBy(consumableOutItem.seq);
+      (r as any).items = items;
+    } else {
+      const items = await db
+        .select({
+          id: sparepartOutItem.id,
+          itemId: sparepartOutItem.sparepartId,
+          quantity: sparepartOutItem.quantity,
+          itemName: sparepart.name,
+          itemUnit: sparepart.unit,
+        })
+        .from(sparepartOutItem)
+        .leftJoin(sparepart, eq(sparepartOutItem.sparepartId, sparepart.id))
+        .where(eq(sparepartOutItem.outId, r.id))
+        .orderBy(sparepartOutItem.seq);
+      (r as any).items = items;
+    }
+  }
+
+  const totalItems = rows.reduce((s, r) => s + ((r as any).items?.length ?? 0), 0);
+
+  return {
+    summary: {
+      totalOut: rows.length,
+      totalItems,
+      totalTransfer: rows.filter((r) => r.outType === "TRANSFER").length,
+      totalReturn: rows.filter((r) => r.outType === "RETUR").length,
+    },
+    data: rows,
+  };
 }

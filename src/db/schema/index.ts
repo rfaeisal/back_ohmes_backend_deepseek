@@ -55,6 +55,10 @@ export {
   consumableReceivingItem,
   sparepartReceivingItem,
   materialTypeEnum,
+  materialOut,
+  materialOutTypeEnum,
+  consumableOutItem,
+  sparepartOutItem,
 } from "./material";
 export {
   finishedGoodsReceiving,

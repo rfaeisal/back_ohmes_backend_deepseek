@@ -42,6 +42,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/admin/reports/material-stock", label: "Stok Material", icon: Package, permissions: ["tsg.inventory.view"] },
       { href: "/admin/reports/material-receiving", label: "Material Masuk", icon: FileBarChart, permissions: ["tsg.receiving.view"] },
       { href: "/admin/reports/material-usage", label: "Pemakaian Material", icon: BarChart3, permissions: ["shift.view"] },
+      { href: "/admin/reports/material-out", label: "Material Keluar", icon: FileText, permissions: ["tsg.inventory.view"] },
       { href: "/admin/master-consumables", label: "Master Consumable", icon: Package, permissions: ["masterdata.consumable.edit"] },
       { href: "/admin/master-spareparts", label: "Master Sparepart", icon: Wrench, permissions: ["masterdata.sparepart.edit"] },
     ],

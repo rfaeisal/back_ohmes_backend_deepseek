@@ -134,6 +134,39 @@ export default function GudangInboundPage() {
     finally { setReturnSaving(false); }
   };
 
+  // Material out (kirim pabrik lain / retur supplier)
+  const [showMatOut, setShowMatOut] = useState(false);
+  const [matOutType, setMatOutType] = useState<"CONSUMABLE" | "SPAREPART">("CONSUMABLE");
+  const [matOutFlow, setMatOutFlow] = useState<"TRANSFER" | "RETUR">("TRANSFER");
+  const [matOutCounterpart, setMatOutCounterpart] = useState("");
+  const [matOutReason, setMatOutReason] = useState("");
+  const [matOutItems, setMatOutItems] = useState<Array<{ itemId: string; qty: string }>>([{ itemId: "", qty: "" }]);
+  const [matOutError, setMatOutError] = useState("");
+  const [matOutSaving, setMatOutSaving] = useState(false);
+
+  const handleSaveMaterialOut = async () => {
+    const validItems = matOutItems.filter((i) => i.itemId && parseFloat(i.qty) > 0);
+    if (!matOutCounterpart.trim()) { setMatOutError("Tujuan/supplier wajib diisi."); return; }
+    if (!matOutReason.trim() || matOutReason.trim().length < 3) { setMatOutError("Alasan wajib diisi (min 3 karakter)."); return; }
+    if (validItems.length === 0) { setMatOutError("Minimal 1 item dengan quantity > 0."); return; }
+    setMatOutSaving(true);
+    setMatOutError("");
+    try {
+      await apiFetch("/material-out", {
+        method: "POST",
+        body: JSON.stringify({
+          materialType: matOutType,
+          outType: matOutFlow,
+          counterpartName: matOutCounterpart.trim(),
+          reason: matOutReason.trim(),
+          items: validItems.map((i) => ({ itemId: i.itemId, quantity: parseFloat(i.qty) })),
+        }),
+      });
+      setShowMatOut(false);
+    } catch (e: any) { setMatOutError(e.message); }
+    finally { setMatOutSaving(false); }
+  };
+
   const handleSaveMaterialReceiving = async () => {
     const validItems = matItems.filter((i) => i.itemId && parseFloat(i.qty) > 0);
     if (validItems.length === 0) { setMatError("Minimal 1 item dengan quantity > 0."); return; }
@@ -239,6 +272,9 @@ export default function GudangInboundPage() {
           </Button>
           <Button size="xl" variant="outline" onClick={() => { loadSuppliers(); setReturnReason(""); setReturnNotes(""); setReturnSelected(new Set()); setReturnError(""); setShowReturn(true); }}>
             ↩️ Retur TSG ke Supplier
+          </Button>
+          <Button size="xl" variant="outline" onClick={() => { setMatOutFlow("TRANSFER"); setMatOutCounterpart(""); setMatOutReason(""); setMatOutItems([{ itemId: "", qty: "" }]); setMatOutError(""); loadMaterialItems(matOutType); setShowMatOut(true); }}>
+            📤 Keluar Material & Sparepart
           </Button>
         </div>
       </div>
@@ -604,6 +640,99 @@ export default function GudangInboundPage() {
           </div>
         </Card>
       )}
+
+      {/* Keluar Material & Sparepart Dialog */}
+      <Dialog
+        open={showMatOut}
+        onClose={() => setShowMatOut(false)}
+        title="Keluar Material & Sparepart"
+        className="max-w-3xl"
+      >
+        <div className="space-y-4">
+          {/* Toggle jenis material */}
+          <div className="flex gap-2">
+            {(["CONSUMABLE", "SPAREPART"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => { setMatOutType(t); setMatOutItems([{ itemId: "", qty: "" }]); loadMaterialItems(t); }}
+                className={`flex-1 rounded-lg border-2 px-4 py-2 text-sm font-medium transition-colors ${
+                  matOutType === t ? "border-primary-500 bg-primary-50 text-primary-700" : "border-gray-200 text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                {t === "CONSUMABLE" ? "🧵 Consumable" : "🔧 Sparepart"}
+              </button>
+            ))}
+          </div>
+
+          {/* Toggle alur keluar */}
+          <div className="flex gap-2">
+            {(["TRANSFER", "RETUR"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setMatOutFlow(f)}
+                className={`flex-1 rounded-lg border-2 px-4 py-2 text-sm font-medium transition-colors ${
+                  matOutFlow === f ? "border-orange-500 bg-orange-50 text-orange-700" : "border-gray-200 text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                {f === "TRANSFER" ? "🚚 Kirim Pabrik Lain" : "↩️ Retur Supplier"}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label={matOutFlow === "TRANSFER" ? "Pabrik Tujuan" : "Nama Supplier"}
+              value={matOutCounterpart}
+              onChange={e => setMatOutCounterpart(e.target.value)}
+              placeholder={matOutFlow === "TRANSFER" ? "cth: Pabrik Pamekasan" : "cth: Supplier Jawa 1"}
+            />
+            <Input label="Alasan *" value={matOutReason} onChange={e => setMatOutReason(e.target.value)} placeholder="cth: Cacat / transfer stok / salah kirim" />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-lg">Daftar Item</h3>
+              <span className="text-sm text-gray-500">{matOutItems.length} item</span>
+            </div>
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              {matOutItems.map((item, i) => {
+                const list = matOutType === "CONSUMABLE" ? consumableList : sparepartList;
+                return (
+                  <div key={i} className="flex items-center gap-3 rounded-lg border border-gray-200 p-3">
+                    <span className="w-8 text-center font-bold text-gray-400">{i + 1}</span>
+                    <select
+                      className="flex-1 rounded-lg border border-gray-300 px-2 py-3 text-sm bg-white"
+                      value={item.itemId}
+                      onChange={e => { const next = [...matOutItems]; next[i] = { ...next[i]!, itemId: e.target.value }; setMatOutItems(next); }}
+                    >
+                      <option value="">Pilih {matOutType === "CONSUMABLE" ? "Item" : "Sparepart"}</option>
+                      {list.map((c: any) => <option key={c.id} value={c.id}>{c.name} ({c.unit})</option>)}
+                    </select>
+                    <Input
+                      type="number"
+                      value={item.qty}
+                      onChange={e => { const next = [...matOutItems]; next[i] = { ...next[i]!, qty: e.target.value }; setMatOutItems(next); }}
+                      placeholder="Qty"
+                      className="w-28"
+                    />
+                    {matOutItems.length > 1 && (
+                      <button className="text-red-400 hover:text-red-600" onClick={() => setMatOutItems(matOutItems.filter((_, j) => j !== i))}>✕</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <Button variant="outline" size="sm" className="mt-2" onClick={() => setMatOutItems([...matOutItems, { itemId: "", qty: "" }])}>
+              + Tambah Item
+            </Button>
+          </div>
+
+          {matOutError && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{matOutError}</div>}
+          <Button size="operator" className="w-full" onClick={handleSaveMaterialOut} disabled={matOutSaving}>
+            {matOutSaving ? "Menyimpan..." : `Keluar · ${matOutItems.filter(i => i.itemId && parseFloat(i.qty) > 0).length} Item`}
+          </Button>
+        </div>
+      </Dialog>
 
       {/* Riwayat Kirim Antar Pabrik */}
       {transferHistory.length > 0 && (

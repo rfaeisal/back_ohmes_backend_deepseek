@@ -1,0 +1,23 @@
+// GET /api/v1/reports/material-out — Laporan material/sparepart keluar
+import { NextResponse } from "next/server";
+import { withAuth, type AuthContext } from "@/lib/auth/middleware";
+import { listMaterialOutReport, type MaterialType, type MaterialOutType } from "@/lib/services/material.service";
+
+export const GET = withAuth(async (request: Request, ctx: AuthContext) => {
+  const url = new URL(request.url);
+  const from = url.searchParams.get("from") ?? undefined;
+  const to = url.searchParams.get("to") ?? undefined;
+  const materialType = (url.searchParams.get("materialType") ?? undefined) as MaterialType | undefined;
+  const outType = (url.searchParams.get("outType") ?? undefined) as MaterialOutType | undefined;
+
+  const plantId = ctx.user.plantIds[0];
+  if (!plantId) {
+    return NextResponse.json(
+      { error: { code: "NO_PLANT_SCOPE", message: "Tidak ada plant dalam scope." }, requestId: ctx.requestId },
+      { status: 403 }
+    );
+  }
+
+  const result = await listMaterialOutReport(plantId, { from, to, materialType, outType });
+  return NextResponse.json(result, { status: 200 });
+}, { requiredPermission: "tsg.inventory.view" });

@@ -112,3 +112,77 @@ export const sparepartReceivingItem = pgTable(
     uniqueSeqInReceiving: unique().on(t.receivingId, t.seq),
   })
 );
+
+
+// =============================================================================
+// Material Out — keluar consumable/sparepart (kirim pabrik lain / retur supplier)
+// =============================================================================
+
+export const materialOutTypeEnum = pgEnum("material_out_type", ["TRANSFER", "RETUR"]);
+
+export const materialOut = pgTable(
+  "material_out",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    plantId: uuid("plant_id")
+      .notNull()
+      .references(() => plant.id), // ← untuk RLS
+    materialType: materialTypeEnum("material_type").notNull(),
+    outType: materialOutTypeEnum("out_type").notNull(),
+    counterpartName: text("counterpart_name").notNull(), // pabrik tujuan / nama supplier
+    outCode: text("out_code").notNull(), // 'MTR-20260814-01' unique per plant
+    reason: text("reason").notNull(),
+    notes: text("notes"),
+    outAt: timestamp("out_at").notNull().defaultNow(),
+    outBy: uuid("out_by")
+      .notNull()
+      .references(() => user.id),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueCodePerPlant: unique().on(t.plantId, t.outCode),
+    idxPlantDate: index("idx_material_out_plant").on(t.plantId, t.outAt),
+  })
+);
+
+export const consumableOutItem = pgTable(
+  "consumable_out_item",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    outId: uuid("out_id")
+      .notNull()
+      .references(() => materialOut.id, { onDelete: "cascade" }),
+    plantId: uuid("plant_id")
+      .notNull()
+      .references(() => plant.id),
+    consumableItemId: uuid("consumable_item_id")
+      .notNull()
+      .references(() => consumableItem.id),
+    quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull(),
+    seq: integer("seq").notNull(),
+  },
+  (t) => ({
+    uniqueSeqInOut: unique().on(t.outId, t.seq),
+  })
+);
+
+export const sparepartOutItem = pgTable(
+  "sparepart_out_item",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    outId: uuid("out_id")
+      .notNull()
+      .references(() => materialOut.id, { onDelete: "cascade" }),
+    plantId: uuid("plant_id")
+      .notNull()
+      .references(() => plant.id),
+    sparepartId: uuid("sparepart_id")
+      .notNull()
+      .references(() => sparepart.id),
+    quantity: integer("quantity").notNull(),
+    seq: integer("seq").notNull(),
+  },
+  (t) => ({
+    uniqueSeqInOut: unique().on(t.outId, t.seq),
+  })
+);
