@@ -12,6 +12,7 @@ export default function TabletHome() {
   const [activeShifts, setActiveShifts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [canGudang, setCanGudang] = useState(false);
+  const [canHlp, setCanHlp] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -38,6 +39,7 @@ export default function TabletHome() {
         const payload = JSON.parse(atob(t.split(".")[1]!));
         const perms: string[] = payload.permissions ?? [];
         setCanGudang(payload.isPrivileged || perms.includes("tsg.receiving.create"));
+        setCanHlp(payload.isPrivileged || perms.includes("hlp.pack"));
       }
     } catch {}
   }, [load]);
@@ -125,6 +127,19 @@ export default function TabletHome() {
                 <div>
                   <CardTitle>Gudang Inbound</CardTitle>
                   <CardSubtitle>Terima TSG dari supplier · Inventory FIFO</CardSubtitle>
+                </div>
+              </div>
+            </Card>
+          </Link>
+        )}
+        {canHlp && (
+          <Link href="/tablet/hlp">
+            <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
+              <div className="flex items-center gap-4">
+                <span className="text-3xl">🏭</span>
+                <div>
+                  <CardTitle>Mesin HLP</CardTitle>
+                  <CardSubtitle>Catat packing boks batangan · pilih batch btc_...</CardSubtitle>
                 </div>
               </div>
             </Card>
