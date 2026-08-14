@@ -134,6 +134,7 @@ async function seed() {
     // TSG & WMS Inbound
     "tsg.receiving.create", "tsg.receiving.view", "tsg.inventory.view",
     "tsg.inventory.allocate", "tsg.inventory.allocate.override", "tsg.inventory.writeoff",
+    "tsg.inventory.transfer",
     // WMS Outbound
     "finishedgoods.receive", "finishedgoods.dispute", "finishedgoods.view",
     "cartoning.create", "cartoning.add_pack", "cartoning.close", "cartoning.view",
@@ -225,7 +226,7 @@ async function seed() {
       "hlp.pack", "batch.view",
       "tsg.receiving.create", "tsg.receiving.view", "tsg.inventory.view",
       "tsg.inventory.allocate", "tsg.inventory.allocate.override",
-      "tsg.inventory.writeoff",
+      "tsg.inventory.writeoff", "tsg.inventory.transfer",
       "finishedgoods.receive", "finishedgoods.dispute", "finishedgoods.view",
       "cartoning.create", "cartoning.add_pack", "cartoning.close", "cartoning.view",
       "dispatch.order.create", "dispatch.order.dispatch", "dispatch.order.view",
@@ -258,7 +259,7 @@ async function seed() {
     ],
     GUDANG_INBOUND: [
       "tsg.receiving.create", "tsg.receiving.view", "tsg.inventory.view",
-      "tsg.inventory.allocate", "tsg.inventory.writeoff",
+      "tsg.inventory.allocate", "tsg.inventory.writeoff", "tsg.inventory.transfer",
       "shift.waste.settle", "shift.view", "batch.view",
       "dashboard.plant.view",
     ],

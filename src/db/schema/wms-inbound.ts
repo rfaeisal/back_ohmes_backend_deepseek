@@ -26,6 +26,7 @@ export const tsgInventoryStatusEnum = pgEnum("tsg_inventory_status", [
   "ALLOCATED",
   "USED",
   "WRITTEN_OFF",
+  "TRANSFERRED",
 ]);
 
 // =============================================================================
@@ -139,5 +140,56 @@ export const tsgInventory = pgTable(
     idxAllocated: index("idx_inv_allocated")
       .on(t.allocatedToShiftId)
       .where(sql`status = 'ALLOCATED'`),
+  })
+);
+
+
+// =============================================================================
+// TSG Transfer Out — kirim TSG ke pabrik lain (eksternal, di luar sistem)
+// =============================================================================
+
+export const tsgTransferOut = pgTable(
+  "tsg_transfer_out",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    plantId: uuid("plant_id")
+      .notNull()
+      .references(() => plant.id), // ← untuk RLS
+    destinationName: text("destination_name").notNull(), // 'Pabrik Pamekasan'
+    transferCode: text("transfer_code").notNull(), // 'TRF-20260814-01' unique per plant
+    totalBoxCount: integer("total_box_count").notNull(),
+    totalWeightKg: decimal("total_weight_kg", { precision: 12, scale: 2 }).notNull(),
+    notes: text("notes"),
+    sentAt: timestamp("sent_at").notNull().defaultNow(),
+    sentBy: uuid("sent_by")
+      .notNull()
+      .references(() => user.id),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueCodePerPlant: unique().on(t.plantId, t.transferCode),
+    idxPlantDate: index("idx_tsg_transfer_plant").on(t.plantId, t.sentAt),
+  })
+);
+
+export const tsgTransferOutItem = pgTable(
+  "tsg_transfer_out_item",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    transferId: uuid("transfer_id")
+      .notNull()
+      .references(() => tsgTransferOut.id, { onDelete: "cascade" }),
+    plantId: uuid("plant_id")
+      .notNull()
+      .references(() => plant.id), // ← denormalized untuk RLS
+    inventoryId: uuid("inventory_id")
+      .notNull()
+      .references(() => tsgInventory.id),
+    boxCode: text("box_code").notNull(),
+    weightKg: decimal("weight_kg", { precision: 10, scale: 2 }).notNull(),
+    seq: integer("seq").notNull(),
+  },
+  (t) => ({
+    uniqueSeqInTransfer: unique().on(t.transferId, t.seq),
   })
 );

@@ -45,6 +45,8 @@ export {
   tsgInventory,
   tsgInventoryStatusEnum,
   tsgTypeEnum,
+  tsgTransferOut,
+  tsgTransferOutItem,
 } from "./wms-inbound";
 export {
   materialReceiving,

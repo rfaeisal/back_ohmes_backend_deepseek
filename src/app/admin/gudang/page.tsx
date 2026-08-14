@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,7 @@ export default function GudangInboundPage() {
     } catch {}
   };
 
-  useEffect(() => { loadInventory(); }, []);
+  useEffect(() => { loadInventory(); loadTransfers(); }, []);
   const [receivingBoxes, setReceivingBoxes] = useState<Array<{ code: string; weight: string; type: string }>>([
     { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" },
   ]);
@@ -56,6 +56,49 @@ export default function GudangInboundPage() {
         else setSparepartList(data.data ?? []);
       }
     } catch {}
+  };
+
+  // TSG transfer ke pabrik lain
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferDest, setTransferDest] = useState("");
+  const [transferNotes, setTransferNotes] = useState("");
+  const [transferSelected, setTransferSelected] = useState<Set<string>>(new Set());
+  const [transferSaving, setTransferSaving] = useState(false);
+  const [transferError, setTransferError] = useState("");
+  const [transferHistory, setTransferHistory] = useState<any[]>([]);
+
+  const loadTransfers = async () => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch("/api/v1/tsg-transfers", { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setTransferHistory((await res.json()).data ?? []);
+    } catch {}
+  };
+
+  const handleSaveTransfer = async () => {
+    if (!transferDest.trim()) { setTransferError("Nama pabrik tujuan wajib diisi."); return; }
+    if (transferSelected.size === 0) { setTransferError("Pilih minimal 1 boks."); return; }
+    setTransferSaving(true);
+    setTransferError("");
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch("/api/v1/tsg-transfers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          destinationName: transferDest.trim(),
+          inventoryBoxIds: Array.from(transferSelected),
+          notes: transferNotes || undefined,
+        }),
+      });
+      if (res.status === 401) { localStorage.removeItem("accessToken"); window.location.href = "/tablet/login"; throw new Error("Sesi berakhir"); }
+      if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || "Gagal menyimpan"); }
+      setShowTransfer(false);
+      setTransferSelected(new Set());
+      loadInventory();
+      loadTransfers();
+    } catch (e: any) { setTransferError(e.message); }
+    finally { setTransferSaving(false); }
   };
 
   const handleSaveMaterialReceiving = async () => {
@@ -165,6 +208,9 @@ export default function GudangInboundPage() {
           </Button>
           <Button size="xl" variant="outline" onClick={() => { loadSuppliers(); setMatType("CONSUMABLE"); setMatItems([{ itemId: "", qty: "", price: "" }]); setMatDocRef(""); setMatNotes(""); setMatError(""); setShowMaterialReceiving(true); }}>
             📦 Terima Material & Sparepart
+          </Button>
+          <Button size="xl" variant="outline" onClick={() => { setTransferDest(""); setTransferNotes(""); setTransferSelected(new Set()); setTransferError(""); setShowTransfer(true); }}>
+            🚚 Kirim TSG ke Pabrik Lain
           </Button>
         </div>
       </div>
@@ -388,6 +434,89 @@ export default function GudangInboundPage() {
           </Button>
         </div>
       </Dialog>
+
+      {/* Kirim TSG ke Pabrik Lain Dialog */}
+      <Dialog
+        open={showTransfer}
+        onClose={() => setShowTransfer(false)}
+        title="Kirim TSG ke Pabrik Lain"
+        className="max-w-3xl"
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input label="Pabrik Tujuan" value={transferDest} onChange={e => setTransferDest(e.target.value)} placeholder="cth: Pabrik Pamekasan" />
+            <Input label="Catatan (opsional)" value={transferNotes} onChange={e => setTransferNotes(e.target.value)} placeholder="Alasan pengiriman" />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-lg">Pilih Boks TSG</h3>
+              <span className="text-sm text-gray-500">{transferSelected.size} boks dipilih</span>
+            </div>
+            <div className="space-y-1 max-h-[300px] overflow-y-auto">
+              {inventory.length === 0 ? (
+                <p className="text-sm text-gray-400 py-4 text-center">Tidak ada boks AVAILABLE.</p>
+              ) : inventory.map((item) => (
+                <label key={item.id} className="flex items-center gap-3 rounded-lg border border-gray-200 p-3 cursor-pointer hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    checked={transferSelected.has(item.id)}
+                    onChange={(e) => {
+                      const next = new Set(transferSelected);
+                      if (e.target.checked) next.add(item.id); else next.delete(item.id);
+                      setTransferSelected(next);
+                    }}
+                    className="size-4"
+                  />
+                  <span className="font-mono text-sm">{item.boxCode}</span>
+                  <span className="text-sm text-gray-500">{item.weightKg} kg</span>
+                  <span className="text-sm text-gray-400">{item.tsgType}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {transferError && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{transferError}</div>}
+          <Button size="operator" className="w-full" onClick={handleSaveTransfer} disabled={transferSaving}>
+            {transferSaving ? "Menyimpan..." : `Kirim · ${transferSelected.size} Boks`}
+          </Button>
+        </div>
+      </Dialog>
+
+      {/* Riwayat Kirim Antar Pabrik */}
+      {transferHistory.length > 0 && (
+        <Card className="mt-6">
+          <CardTitle>Riwayat Kirim TSG Antar Pabrik ({transferHistory.length})</CardTitle>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="border-b border-gray-200">
+                <tr>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Kode</th>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Pabrik Tujuan</th>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Tanggal</th>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Boks</th>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Total Berat</th>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Detail</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transferHistory.map((t) => (
+                  <tr key={t.id} className="border-b border-gray-100">
+                    <td className="py-3 font-mono text-sm">{t.transferCode}</td>
+                    <td className="py-3 font-medium">{t.destinationName}</td>
+                    <td className="py-3 text-sm">{t.sentAt ? new Date(t.sentAt).toLocaleString("id-ID") : "-"}</td>
+                    <td className="py-3"><Badge variant="info">{t.totalBoxCount} boks</Badge></td>
+                    <td className="py-3 font-bold">{parseFloat(t.totalWeightKg || "0").toFixed(1)} kg</td>
+                    <td className="py-3 text-sm text-gray-500">
+                      {(t.items ?? []).map((it: any) => it.boxCode).join(", ")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
