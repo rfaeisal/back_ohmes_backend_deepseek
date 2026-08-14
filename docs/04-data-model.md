@@ -15,11 +15,13 @@ Skema data final untuk **Fase 0 (Foundation)** dan **Fase 1 (Pilot)**. Fase 2–
 | **Master Data** | `product`, `plant_product`, `machine`, `machine_template`, `consumable_item`, `sparepart`, `shift_role`, `shift_template`, `downtime_category`, `reject_reason`, `waste_category` (enum), `tsg_supplier` | 0 |
 | **WMS Inbound** | `tsg_receiving`, `tsg_receiving_box`, `tsg_inventory` | 1 |
 | **Operasional Shift** | `shift_report`, `shift_member`, `shift_waste`, `shift_handoff` | 1 |
-| **Operasional Boks & Produksi** | `tsg_box_process` (+ FK inventory), `tsg_box_consumption`, `downtime_log`, `maintenance_event`, `batch`, `hlp_pack` | 1 |
+| **Operasional Boks & Produksi** | `tsg_box_session` (+ FK batch), `tsg_box_process` (+ FK session & inventory), `tsg_box_consumption` (boks opsional, + FK session), `downtime_log`, `maintenance_event`, `batch`, `hlp_pack` | 1 |
 | **WMS Outbound** | `finished_goods_receiving`, `carton`, `carton_content` | 5 |
 | **Distribusi** | `dispatch_order`, `dispatch_item`, `dispatch_document` | 6 |
 | **Compliance** | `audit_log`, `qr_registry` | 0 (QR skeleton), 1 (audit aktif) |
 | **Agregasi** | `mv_area_daily_kpi`, `mv_hq_monthly_rollup` | 2, 4 |
+
+**Total tabel terdefinisi: 48** (per Agustus 2026; materialized view & enum tidak dihitung).
 
 ---
 
@@ -48,6 +50,12 @@ erDiagram
     SHIFT_REPORT ||--o{ SHIFT_MEMBER : includes
     SHIFT_REPORT ||--o{ SHIFT_WASTE : records
     SHIFT_REPORT ||--o{ TSG_BOX_PROCESS : contains
+    SHIFT_REPORT ||--o{ TSG_BOX_SESSION : hosts
+    TSG_BOX_SESSION ||--o{ TSG_BOX_PROCESS : groups
+    TSG_BOX_SESSION ||--o| BATCH : weighs_into
+    TSG_BOX_SESSION ||--o{ TSG_BOX_CONSUMPTION : logs
+    TSG_BOX_SESSION ||--o{ DOWNTIME_LOG : has
+    TSG_BOX_SESSION ||--o{ MAINTENANCE_EVENT : has
     SHIFT_REPORT ||--o{ DOWNTIME_LOG : has
     SHIFT_REPORT ||--o{ MAINTENANCE_EVENT : has
     SHIFT_REPORT ||--o{ BATCH : produces
@@ -440,9 +448,24 @@ export const shiftHandoff = pgTable('shift_handoff', {
 
 ```ts
 // src/db/schema/box.ts
+// Sesi boks — buka 1–6 boks TSG sekaligus + timbang batangan kolektif
+export const tsgBoxSession = pgTable('tsg_box_session', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  shiftReportId: uuid('shift_report_id').notNull().references(() => shiftReport.id, { onDelete: 'cascade' }),
+  plantId: uuid('plant_id').notNull().references(() => plant.id),  // ← denormalized untuk RLS
+  batchId: uuid('batch_id').references(() => batch.id),  // batch batangan, dibuat saat timbang kolektif
+  status: text('status').notNull().default('OPEN'),      // OPEN | WEIGHED | HANDOFF
+  totalBatanganKg: decimal('total_batangan_kg', { precision: 10, scale: 2 }),
+  openedAt: timestamp('opened_at').notNull().defaultNow(),
+  weighedAt: timestamp('weighed_at'),
+}, (t) => ({
+  idxSessionActive: index('idx_box_session_active').on(t.shiftReportId).where(sql`status = 'OPEN'`),
+}));
+
 export const tsgBoxProcess = pgTable('tsg_box_process', {
   id: uuid('id').primaryKey().defaultRandom(),
   shiftReportId: uuid('shift_report_id').notNull().references(() => shiftReport.id, { onDelete: 'cascade' }),
+  sessionId: uuid('session_id').references(() => tsgBoxSession.id),  // ← sesi multi-boks
   plantId: uuid('plant_id').notNull().references(() => plant.id),  // ← denormalized untuk RLS
   boxNumber: integer('box_number').notNull(),  // 1, 2, ..., n per shift
   boxCode: text('box_code'),                   // dari QR receiving gudang (Fase 3)
@@ -460,7 +483,8 @@ export const tsgBoxProcess = pgTable('tsg_box_process', {
 
 export const tsgBoxConsumption = pgTable('tsg_box_consumption', {
   id: uuid('id').primaryKey().defaultRandom(),
-  tsgBoxId: uuid('tsg_box_id').notNull().references(() => tsgBoxProcess.id, { onDelete: 'cascade' }),
+  tsgBoxId: uuid('tsg_box_id').references(() => tsgBoxProcess.id, { onDelete: 'cascade' }),  // NULL = pemakaian level sesi
+  sessionId: uuid('session_id').references(() => tsgBoxSession.id),  // ← pemakaian level sesi multi-boks
   plantId: uuid('plant_id').notNull().references(() => plant.id),  // ← denormalized untuk RLS
   consumableItemId: uuid('consumable_item_id').notNull().references(() => consumableItem.id),
   quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
@@ -476,6 +500,7 @@ export const downtimeLog = pgTable('downtime_log', {
   category: downtimeCategoryEnum('category').notNull(),
   durationMinutes: integer('duration_minutes').notNull(),
   linkedBoxId: uuid('linked_box_id').references(() => tsgBoxProcess.id),
+  sessionId: uuid('session_id').references(() => tsgBoxSession.id),  // ← downtime level sesi multi-boks
   description: text('description'),
   loggedAt: timestamp('logged_at').notNull().defaultNow(),
   loggedBy: uuid('logged_by').notNull().references(() => user.id),
@@ -488,6 +513,7 @@ export const maintenanceEvent = pgTable('maintenance_event', {
   sparepartId: uuid('sparepart_id').notNull().references(() => sparepart.id),
   quantity: integer('quantity').notNull().default(1),
   linkedBoxId: uuid('linked_box_id').references(() => tsgBoxProcess.id),
+  sessionId: uuid('session_id').references(() => tsgBoxSession.id),  // ← maintenance level sesi multi-boks
   note: text('note'),
   loggedAt: timestamp('logged_at').notNull().defaultNow(),
   loggedBy: uuid('logged_by').notNull().references(() => user.id),
@@ -498,7 +524,7 @@ export const batch = pgTable('batch', {
   shiftReportId: uuid('shift_report_id').notNull().references(() => shiftReport.id),
   plantId: uuid('plant_id').notNull().references(() => plant.id),
   machineId: uuid('machine_id').notNull().references(() => machine.id),   // Maker asal
-  code: text('code').notNull().unique(),   // 'btc_MKR01_20260810_03'
+  code: text('code').notNull().unique(),   // 'btc_MKR01_20260815_01' — dibuat otomatis saat timbang sesi
   batanganKg: decimal('batangan_kg', { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
@@ -516,6 +542,13 @@ export const hlpPack = pgTable('hlp_pack', {
   packedAt: timestamp('packed_at').notNull().defaultNow(),
 });
 ```
+
+**Business rules Sesi Boks (multi-boks)**:
+1. Operator membuka **1–6 boks TSG sekaligus** dalam satu `tsg_box_session` — memilih sendiri dari inventory (badge FIFO hanya saran, bukan auto-pick). Tiap boks menjadi `tsg_box_process` dengan `sessionId`.
+2. Saat timbang sesi (`POST /box-sessions/:id/weigh`): input `totalBatanganKg`, sistem membagi proporsional bobot TSG tiap boks (`splitBatanganProportional`), sisa pembulatan ke boks terakhir → update `outputWeightKg` + `yieldPct` tiap boks, status sesi → `WEIGHED`.
+3. Batch dibuat otomatis saat timbang: kode `btc_<kodeMesin>_<YYYYMMDD>_<urutan>` (urutan per hari per mesin) → `tsg_box_session.batchId` terisi → penanda boks batangan yang masuk mesin HLP.
+4. **Event level sesi**: consumable / downtime / maintenance bisa dicatat dengan `sessionId` tanpa `tsg_box_id` (`tsg_box_id` opsional). Alur per-boks (`linkedBoxId` / `tsgBoxId`) tetap jalan untuk boks parsial handoff.
+5. Boks parsial handoff: sesi berstatus `HANDOFF` di-end tanpa timbang kolektif — sisa TSG + batangan sementara ditimbang manual via alur `shift_handoff` lama.
 
 ---
 
@@ -798,6 +831,7 @@ ALTER TABLE shift_member ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shift_waste ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shift_handoff ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tsg_box_process ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tsg_box_session ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tsg_box_consumption ENABLE ROW LEVEL SECURITY;
 ALTER TABLE downtime_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE maintenance_event ENABLE ROW LEVEL SECURITY;
@@ -888,6 +922,8 @@ Index utama:
 | `shift_report` | `(plant_id, report_date DESC)` | List shift terbaru per plant |
 | `shift_report` | `(machine_id) WHERE status = 'RUNNING'` (partial) | Cek mesin sedang aktif |
 | `tsg_box_process` | `(shift_report_id) WHERE completed_at IS NULL` (partial) | Cari boks aktif per shift |
+| `tsg_box_process` | `(session_id)` | Ambil boks dalam satu sesi multi-boks |
+| `tsg_box_session` | `(shift_report_id) WHERE status = 'OPEN'` (partial) | Cari sesi boks aktif per shift |
 | `shift_handoff` | `(machine_id) WHERE claimed_by_shift_id IS NULL` (partial unique) | Constraint 1 handoff per mesin |
 | `audit_log` | `(entity_table, entity_id)` | Trace history satu record |
 | `audit_log` | `(actor_user_id, created_at DESC)` | Aktivitas user |
@@ -911,6 +947,7 @@ Draft (`docs/draft.txt`) tetap sebagai referensi. Perubahan mayor dari draft:
 | Team | 1 `kecerId` FK | Tabel `shift_member` many-to-many dengan `shift_role` |
 | Shift | Enum `ShiftType` hardcode | Tabel `shift_template` fleksibel per plant |
 | Handoff | Tidak ada | Tabel `shift_handoff` |
+| Sesi boks | Satu boks diproses & ditimbang sendiri-sendiri | `tsg_box_session` — 1–6 boks per sesi, timbang batangan kolektif proporsional + kode batch `btc_*` |
 | Maintenance | Tidak dibedakan | Tabel `maintenance_event` terpisah dari consumables |
 | **TSG source** | Tidak ada | `tsg_supplier`, `tsg_receiving`, `tsg_receiving_box`, `tsg_inventory` (WMS Inbound Fase 1) |
 | **Pack downstream** | Tidak ada (end at hlp_pack) | `finished_goods_receiving`, `carton`, `carton_content` (WMS Outbound Fase 5) |

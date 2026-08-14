@@ -264,6 +264,11 @@ Grup ini menangani siklus shift end-to-end.
 ```
 Server otomatis cek `shift_handoff` unclaimed untuk `machineId` — kalau ada, di-claim.
 
+**Error 400** kalau `machineId` bukan mesin MAKER (enum `machine_type`: `MAKER` | `HLP`):
+```json
+{ "error": { "code": "MACHINE_NOT_MAKER", "message": "Shift produksi hanya bisa dimulai di mesin MAKER. Mesin HLP punya alur sendiri." } }
+```
+
 **Response 201**:
 ```json
 {
@@ -335,6 +340,7 @@ Server validasi:
   "note": "Boks 27 sisa sekitar 50%"
 }
 ```
+Server menutup **semua** boks aktif shift ini (tanpa timbangan — sisa sudah dipindah via handoff) dan menandai sesi boks yang masih `OPEN` → `HANDOFF`. Kalau tidak ada boks aktif sama sekali → 400 `NO_ACTIVE_BOX`.
 **Response 201**:
 ```json
 {
@@ -387,8 +393,10 @@ Server membuat record `shift_correction` (link ke shift asli), **tidak** UPDATE 
 
 ### 4.2. TSG Box
 
+**Alur utama (multi-boks)**: operator **memilih sendiri** 1–6 boks TSG dari inventory (tidak lagi auto-FIFO) lalu membukanya sekaligus dalam satu **sesi boks** (`tsg_box_session`, status `OPEN` | `WEIGHED` | `HANDOFF`). Sesi ditimbang kolektif → bobot dibagi proporsional per boks → yield dihitung server-side → membuat `batch` batangan (`btc_<machineCode>_<YYYYMMDD>_<seq>`) sebagai penanda bahan masuk HLP. Endpoint single-box di bawah tetap ada untuk kompatibilitas (boks di luar sesi), tapi alur utama memakai endpoint sesi.
+
 ### `POST /shifts/:id/boxes`
-**Permission**: `shift.box.open`.
+**Permission**: `shift.box.open`. *(Legacy — kompatibilitas; alur utama pakai `POST /shifts/:id/box-sessions`.)*
 **Body**:
 ```json
 {
@@ -444,6 +452,94 @@ Server hitung `yieldPct` dari MachineTemplate produk shift.
 ```
 Kalau yield keluar range, `indicator: "WARNING"` dan response menyertakan pertanyaan wajib alasan.
 
+### `POST /shifts/:id/box-sessions`
+**Permission**: `shift.box.open`. Buka sesi multi-boks (1–6 boks pilihan operator).
+**Body**:
+```json
+{
+  "inventoryBoxIds": ["inv_x9f2a", "inv_x9f2b", "inv_x9f2c"]
+}
+```
+Validasi server:
+1. Jumlah 1–6 UUID → 400 `INVALID_BOX_COUNT`.
+2. Tidak ada duplikat → 400 `DUPLICATE_BOX`.
+3. Semua boks status `AVAILABLE` di plant sesuai scope → kalau tidak, 400 `TSG_BOX_NOT_AVAILABLE`.
+4. Auto-fill `boxCode` & `tsgWeightKg` dari inventory record, update `tsg_inventory.status = 'USED'`, set `usedAt`.
+5. Assign `boxNumber` otomatis (max+1 per shift).
+
+**Response 201**:
+```json
+{
+  "sessionId": "bxs_9f3a",
+  "boxes": [
+    { "boxId": "box_a1c", "boxNumber": 1, "boxCode": "TSG-20260808-042", "tsgWeightKg": 29.70, "isPartial": false, "openedAt": "2026-08-10T16:35:00+07:00" },
+    { "boxId": "box_a1d", "boxNumber": 2, "boxCode": "TSG-20260809-011", "tsgWeightKg": 30.05, "isPartial": false, "openedAt": "2026-08-10T16:35:01+07:00" }
+  ]
+}
+```
+
+### `GET /shifts/:id/box-sessions`
+**Permission**: `shift.view`. Daftar sesi boks shift (untuk reload tablet) + boksnya + `batchCode` kalau sudah ditimbang.
+**Response 200**:
+```json
+{
+  "data": [
+    {
+      "id": "bxs_9f3a",
+      "status": "OPEN",
+      "totalBatanganKg": null,
+      "openedAt": "2026-08-10T16:35:00+07:00",
+      "weighedAt": null,
+      "batchCode": null,
+      "boxes": [
+        { "boxId": "box_a1c", "boxNumber": 1, "boxCode": "TSG-20260808-042", "tsgWeightKg": 29.70, "outputWeightKg": null, "yieldPct": null, "isPartial": false, "openedAt": "2026-08-10T16:35:00+07:00", "completedAt": null }
+      ]
+    }
+  ]
+}
+```
+`status`: `OPEN` | `WEIGHED` | `HANDOFF`.
+
+### `POST /box-sessions/:id/weigh`
+**Permission**: `shift.box.weigh`. Timbang batangan kolektif sesi.
+**Body**:
+```json
+{ "totalBatanganKg": 100.05 }
+```
+Server:
+1. Validasi sesi ada (404 `SESSION_NOT_FOUND`), status `OPEN` (409 `SESSION_ALREADY_WEIGHED`), punya boks (409 `SESSION_EMPTY`), tidak ada boks yang sudah ditimbang (409 `SESSION_HAS_COMPLETED_BOX`).
+2. Bagi `totalBatanganKg` **proporsional bobot TSG** tiap boks.
+3. Hitung `yieldPct` per boks dari MachineTemplate produk shift.
+4. Buat `batch` dengan kode `btc_<machineCode>_<YYYYMMDD>_<seq>` (urutan per hari per mesin).
+5. Selesaikan **semua** boks (`completedAt`), sesi → `WEIGHED`, catat `weighedAt` + `totalBatanganKg`.
+
+**Response 200**:
+```json
+{
+  "sessionId": "bxs_9f3a",
+  "batchId": "btc_5f1a",
+  "batchCode": "btc_MKR01_20260814_03",
+  "totalBatanganKg": 100.05,
+  "boxes": [
+    { "boxId": "box_a1c", "boxNumber": 1, "outputWeightKg": 33.15, "yieldPct": 111.62, "indicator": "NORMAL" }
+  ],
+  "yieldRange": "110-114%"
+}
+```
+Kalau yield keluar range, `indicator: "WARNING"`.
+
+### `POST /box-sessions/:id/consumption`
+**Permission**: `shift.consumption.log`. Pemakaian consumable level sesi (tanpa pilih boks).
+**Body**:
+```json
+{
+  "consumableItemId": "item_bobbin_hmr",
+  "quantity": 1,
+  "note": "Roll 3 habis"
+}
+```
+**Response 201**: created consumption record.
+
 ### 4.3. Event Log (Consumables, Downtime, Maintenance)
 
 ### `POST /boxes/:id/consumption`
@@ -494,6 +590,14 @@ Kalau yield keluar range, `indicator: "WARNING"` dan response menyertakan pertan
 Server hitung: `totalBatang = 820*20 + 147 = 16547`. `beratPerBatangGram` dihitung dari agregat batangan Maker yang mengirim batch.
 
 **Response 201** dengan hasil kalkulasi.
+
+### `GET /hlp/packs`
+**Permission**: `hlp.pack`.
+Riwayat packing HLP (50 terakhir, desc): `batchCode`, `batanganKg`, `hlpMachineCode`, `packsLolos`, `isiPerPack`, `rejectBatangan`, `totalBatang`, `beratPerBatangGram`, `packedAt`. Dipakai halaman `/tablet/hlp`.
+
+### `GET /batches`
+**Permission**: `hlp.pack`.
+Daftar boks batangan dari Maker untuk dipilih operator HLP (100 terakhir, desc): `id`, `code` (`btc_<mesin>_<YYYYMMDD>_<seq>`), `batanganKg`, `machineCode`, `createdAt`.
 
 ### 4.5. Waste Settlement (setelah shift COMPLETED)
 

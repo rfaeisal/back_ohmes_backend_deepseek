@@ -80,7 +80,7 @@ Satu pabrik pilot menjalankan **alur end-to-end dari receiving TSG sampai shift 
 - Tablet UI (Next.js RSC + Tailwind + Shadcn):
   - Login → pilih plant & machine.
   - Halaman "Start Shift" — pilih template, produk, tim.
-  - Halaman utama: boks aktif + tombol besar "BOKS SELESAI · TIMBANG".
+  - Halaman utama: boks aktif + tombol besar "BOKS SELESAI · TIMBANG". — **Selesai (Agustus 2026)**: alur diganti sesi multi-boks 1–6 boks (lihat bawah).
   - Modal Tambah Consumables / Log Downtime / Log Maintenance.
   - Halaman "Akhiri Shift" — input waste 4 kategori + izin tim + handoff jika perlu.
   - Halaman "Approval" untuk supervisor.
@@ -125,6 +125,14 @@ Satu pabrik pilot menjalankan **alur end-to-end dari receiving TSG sampai shift 
 - **Tablet baterai / koneksi drop** — mid-shift disconnect. Mitigasi: idempotency + local draft buffer sederhana (form state di localStorage).
 - **Handoff flow bingung** — operator lama vs baru miskomunikasi. Mitigasi: SOP tertulis + banner UI jelas.
 
+### Selesai (Agustus 2026) — Penambahan Pasca-Plan
+
+- **Sesi multi-boks (1–6 boks)**: operator memilih sendiri boks TSG dari inventory (badge FIFO hanya saran, bukan auto-FIFO). Timbang batangan **kolektif** di akhir sesi — total dibagi proporsional bobot TSG tiap boks (`splitBatanganProportional`), sisa pembulatan ke boks terakhir.
+- **Timbang kolektif + kode batch**: saat sesi ditimbang, dibuat record `batch` dengan kode `btc_<kodeMesin>_<YYYYMMDD>_<urutan>` (contoh `btc_MKR01_20260815_01`) sebagai penanda boks batangan yang akan masuk mesin HLP.
+- **Event level sesi**: pemakaian consumable, downtime, dan maintenance bisa dicatat level sesi (tanpa pilih boks); alur per-boks tetap jalan untuk boks parsial handoff.
+- **Halaman HLP tablet** (`/tablet/hlp`): pilih batch `btc_*` → pilih mesin HLP (filter `type = HLP`) → input packs lolos / isi per pack / reject batangan → preview total batang + berat per batang (gram) → riwayat packing. Quick link di `/tablet` untuk user dengan permission `hlp.pack`.
+- **Validasi jenis mesin**: start shift produksi hanya di mesin `type = MAKER` (validasi server + filter UI). Enum `machine_type`: `MAKER` | `HLP`.
+
 ---
 
 ## Fase 2 — Rollout Multi-Pabrik + Dashboard Area (4 minggu)
@@ -135,7 +143,7 @@ Rollout ke 5–10 pabrik lain di area yang sama. Koordinator area bisa lihat rol
 ### In Scope
 - Onboarding pabrik: setup Plant, Machine, MachineTemplate, ShiftTemplate per lokasi.
 - Materialized view `mv_area_daily_kpi`: refresh saat shift APPROVED.
-- Dashboard Koordinator Area:
+- Dashboard Koordinator Area: — **Selesai (Agustus 2026)**; scope GLOBAL rollup semua pabrik (lihat bawah).
   - List pabrik + status (aktif, downtime, closing).
   - KPI harian: yield rata-rata, total produksi, waste 4 kategori, top downtime.
   - Drill-down ke pabrik → shift → boks.
@@ -155,6 +163,10 @@ Rollout ke 5–10 pabrik lain di area yang sama. Koordinator area bisa lihat rol
 ### Risk
 - **MV refresh lambat / lock** — dengan 30+ pabrik nanti. Mitigasi: incremental refresh, test dengan seed data volume tinggi.
 - **Onboarding pabrik lama** — master data harus diinput. Mitigasi: import CSV tool untuk HQ_ADMIN.
+
+### Selesai (Agustus 2026) — Penambahan Pasca-Plan
+
+- **Area dashboard — scope GLOBAL**: scope dengan UUID kosong (`00000000-0000-0000-0000-000000000000`) rollup **semua** pabrik. Kartu per pabrik menampilkan shift hari ini (berjalan/approved), boks diproses, TSG diproses, hasil batangan, yield (warna hijau 110–114%), waste; plus grafik perbandingan TSG vs batangan dan waste antar pabrik.
 
 ---
 

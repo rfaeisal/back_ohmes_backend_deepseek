@@ -6,8 +6,8 @@ Proyek MES + WMS Hummer — **Fase 0–6 Complete** (Agustus 2026).
 
 ## Status Terkini
 
-- ✅ 30+ halaman UI, 75+ API endpoint, 46 tabel DB
-- ✅ Deploy Vercel + Neon PostgreSQL 16
+- ✅ 30+ halaman UI, 78+ API endpoint, 48 tabel DB
+- ✅ Deploy Vercel + Neon PostgreSQL 16 (+ Coolify Docker: fix build selesai, migrasi manual)
 - ✅ 13 test users (semua role ter-cover, password seragam 12345678 — lihat README)
 - ✅ 8 boks TSG sample di inventory (REGULER, MILD, PUTIHAN)
 - ✅ Roster mingguan + cetak bulanan
@@ -16,8 +16,12 @@ Proyek MES + WMS Hummer — **Fase 0–6 Complete** (Agustus 2026).
 - ✅ Dokumen formal cetak: Berita Acara Serah Terima & Berita Acara Retur
 - ✅ Handoff sisa TSG antar shift (bisa beda mesin)
 - ✅ RBAC: permission enforcement di API + sidebar per role
-- ✅ Dashboard per role: plant (grafik), area (hari/minggu), HQ (grafik)
+- ✅ Dashboard per role: plant (grafik), area (hari/minggu, perbandingan antar pabrik, scope GLOBAL), HQ (grafik)
 - ✅ Auth JWT + OTP 2 lapis + session management
+- ✅ Sesi multi-boks (1–6): pilih boks TSG manual → timbang batangan kolektif (proporsional) → kode batch `btc_<mesin>_<tgl>_<seq>` untuk HLP
+- ✅ Halaman HLP tablet (`/tablet/hlp`): pilih batch, catat packing, berat per batang
+- ✅ Event level sesi: pemakaian/downtime/maintenance tanpa pilih boks
+- ✅ Start shift hanya mesin MAKER (filter UI + validasi server)
 
 ---
 
@@ -99,6 +103,8 @@ src/
 5. **Next.js fetch cache** — tambah `cache: "no-store"` + `_t=Date.now()` untuk client fetch
 6. **Print CSS** — `print-color-adjust: exact` agar warna tetap muncul
 7. **Admin layout** — ada auth guard (`useEffect` cek token, redirect `/tablet/login`)
+8. **Jangan `pnpm build` saat dev server jalan** — `.next` dipakai bersama; build menimpa state dev → MODULE_NOT_FOUND / UI rusak (tombol disabled). Fix: matikan dev → `rm -rf .next` → `pnpm dev` ulang
+9. **Migrasi 0004 & 0005 di luar journal drizzle** — diaplikasikan manual via psql; deploy Docker/Coolify hanya meng-copy file migrasi, TIDAK menjalankannya — wajib jalankan manual di DB produksi
 
 ---
 

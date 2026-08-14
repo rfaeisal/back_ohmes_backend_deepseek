@@ -80,6 +80,18 @@ Fase 0-1 = detail dengan acceptance criteria. Fase 2-4 = epic titles saja.
 **US-1.OP.10** — Sebagai Ketua Kecer, saya ingin timbang sisa TSG dan batangan sementara ketika mengakhiri shift dengan boks belum habis, supaya carry-over ter-attribusi bersih.
 - **Acceptance**: POST `/shifts/:id/handoff` dengan `sisaTsgKg` + `batanganSementaraKg` → record `shift_handoff` dibuat, otomatis available untuk claim shift berikutnya.
 
+**US-1.OP.11** ✅ — Sebagai Operator Maker, saya ingin membuka 5–6 boks TSG sekaligus dalam satu sesi, memilih sendiri boks dari inventory gudang (bukan dipaksa FIFO), lalu menimbang batangan TOTAL di akhir sesi, supaya pergantian bahan lebih cepat.
+- **Acceptance**: POST `/shifts/:id/box-sessions` dengan `inventoryBoxIds` (array 1–6, pilihan bebas dari boks AVAILABLE — FIFO hanya saran) → 201 return `sessionId` + per-boks `boxNumber`/`tsgWeightKg`/`isPartial`; boks tidak AVAILABLE / jumlah < 1 atau > 6 / duplikat → 400 `TSG_BOX_NOT_AVAILABLE` / `INVALID_BOX_COUNT` / `DUPLICATE_BOX`. POST `/box-sessions/:id/weigh` dengan `totalBatanganKg` → server membagi berat total proporsional bobot TSG tiap boks dan menghitung `yieldPct` per boks otomatis; dialog timbang menampilkan warning yield kalau di luar rentang normal `machine_template.yieldRange` (110–114%).
+
+**US-1.OP.12** ✅ — Sebagai Operator Maker, setelah sesi selesai saya mendapat kode batch `btc_<mesin>_<tanggal>_<urutan>` yang saya tempel di boks batangan, supaya bahan yang masuk mesin HLP punya penanda asal-usul.
+- **Acceptance**: POST `/box-sessions/:id/weigh` otomatis membuat batch dengan kode `btc_<kodeMesin>_<YYYYMMDD>_<urutan>` (urutan per hari per mesin dihitung dari batch ber-prefix sama) dan return `batchCode`; GET `/batches` menampilkan daftar batch (`code`, `batanganKg`, `machineCode`).
+
+**US-1.OP.13** ✅ — Sebagai Operator, saya ingin mencatat pemakaian consumable, downtime, dan maintenance TANPA memilih boks, supaya event otomatis tercatat untuk sesi aktif.
+- **Acceptance**: POST `/box-sessions/:id/consumption` dengan `consumableItemId` + `quantity` tanpa `boxId` → 201 tercatat di level sesi; POST `/shifts/:id/downtime` dan POST `/shifts/:id/maintenance` menerima `sessionId` opsional tanpa `linkedBoxId` → event ter-link ke sesi/shift aktif; kalau boks maupun sesi tidak diberikan → 409 `INVALID_TARGET`.
+
+**US-1.OP.14** ✅ — Sebagai Operator HLP, saya ingin memilih boks batangan berdasarkan kode btc_, memilih mesin HLP, mencatat pack lolos / isi per pack / reject batangan, melihat total batang & berat per batang (g) otomatis, dan melihat riwayat packing, supaya packing ter-trace dari batch ke mesin.
+- **Acceptance**: GET `/batches` menampilkan batch untuk dipilih lewat kode `btc_*`; POST `/hlp/pack` dengan `batchId` + `hlpMachineId` + `packsLolos` + `isiPerPack` + `rejectBatangan` → 201, server hitung `totalBatang` dan `beratPerBatangGram`; GET `/hlp/packs` menampilkan riwayat packing (`batchCode`, `hlpMachineCode`, `packsLolos`, `isiPerPack`, `rejectBatangan`, `totalBatang`, `beratPerBatangGram`, `packedAt`).
+
 ### Supervisor Pabrik (SUP)
 
 **US-1.SUP.01** — Sebagai Supervisor Pabrik, saya ingin melihat daftar shift yang menunggu approval, supaya bisa review satu-satu.
@@ -93,6 +105,9 @@ Fase 0-1 = detail dengan acceptance criteria. Fase 2-4 = epic titles saja.
 
 **US-1.SUP.04** — Sebagai Supervisor Pabrik, saya ingin reopen shift yang belum ter-approve kalau ada koreksi, supaya operator bisa perbaiki.
 - **Acceptance**: POST `/shifts/:id/reopen` dari status `COMPLETED` → status `RUNNING`. Audit log mencatat alasan.
+
+**US-1.SUP.05** ✅ — Sebagai Supervisor Pabrik, saya ingin memastikan hanya mesin MAKER yang bisa memulai shift produksi, supaya mesin HLP tidak terisi shift produksi yang salah.
+- **Acceptance**: Daftar mesin di layar mulai shift hanya menampilkan `machine.type = MAKER` (mesin HLP tidak muncul — HLP punya alur sendiri); POST `/shifts/start` di mesin non-MAKER ditolak server → 409 `MACHINE_NOT_MAKER`.
 
 ### Gudang Inbound (GDI) — WMS Inbound Fase 1
 
@@ -231,7 +246,7 @@ Fase 0-1 = detail dengan acceptance criteria. Fase 2-4 = epic titles saja.
 | Fase | Jumlah Stories | Prioritas Delivery |
 |---|---|---|
 | Fase 0 | 6 detailed (HQD 5 + SYS 1) | P0 — fondasi wajib |
-| Fase 1 | 15 detailed (OP 10 + SUP 4 + GDG 2) | P0 — pilot value |
+| Fase 1 | 21 detailed (OP 14 + SUP 5 + GDG 2) | P0 — pilot value |
 | Fase 2 | 5 epic | P1 — post-pilot |
 | Fase 3 | 6 epic | P1/P2 — mobile bisa paralel |
 | Fase 4 | 6 epic | P2 — value bertingkat |

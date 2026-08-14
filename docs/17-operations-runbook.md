@@ -359,7 +359,42 @@ Jadwal: setiap Q1/Q2/Q3/Q4 minggu kedua. Coordinate dengan tim tidak saat pilot 
 
 ---
 
-## 11. Post-Mortem Template
+## 11. Reset Data Produksi (Uji Coba) & Catatan Deployment Docker/Coolify
+
+### 11.1. Reset data produksi ("kosongkan produksi")
+
+Untuk testing manual alur produksi berulang kali dari data bersih (dev/UAT). Jalankan via psql (contoh dev: `docker exec mes_dev_postgres psql -U mes_user -d mes_dev`):
+
+```sql
+DELETE FROM tsg_box_consumption;
+DELETE FROM downtime_log;
+DELETE FROM maintenance_event;
+DELETE FROM shift_waste;
+DELETE FROM tsg_box_process;
+DELETE FROM hlp_pack;
+DELETE FROM tsg_box_session;
+DELETE FROM batch;
+DELETE FROM shift_handoff;
+DELETE FROM shift_member;
+DELETE FROM shift_correction;
+DELETE FROM shift_report;
+UPDATE tsg_inventory SET status = 'AVAILABLE', used_at = NULL,
+       allocated_to_shift_id = NULL, allocated_at = NULL
+WHERE status IN ('USED', 'ALLOCATED');
+```
+
+Urutan penting: tabel child (`tsg_box_process`, `tsg_box_session`, `batch`, `hlp_pack`) sebelum `shift_report` (FK).
+
+### 11.2. Deployment Docker/Coolify
+
+- **Migrasi 0004 & 0005 di luar journal drizzle** — diaplikasikan manual via psql. Dockerfile hanya meng-*copy* file migrasi, TIDAK menjalankannya → setelah deploy, jalankan manual `0004_box_session.sql` dan `0005_session_events.sql` ke DB produksi. Gejala kalau lupa: `relation "tsg_box_session" does not exist` saat buka boks.
+- **Build gagal yang pernah terjadi & fix-nya** (sudah ter-commit):
+  - `ERROR packages field missing or empty` (pnpm@9) → `pnpm-workspace.yaml` wajib punya field `packages`.
+  - Halaman yang query DB saat build harus `export const dynamic = "force-dynamic"` (contoh `/admin`) — build stage Docker memakai `DATABASE_URL` placeholder.
+  - `COPY /app/public` gagal → folder `public/` wajib ada (ada `.gitkeep`).
+- **GOTCHA: jangan jalankan `pnpm build` saat dev server jalan** — `.next` dipakai bersama; build menimpa state dev → `MODULE_NOT_FOUND` / UI rusak (tombol disabled). Fix: matikan dev (`kill $(lsof -t -i :3001)`) → `rm -rf .next` → `pnpm dev` ulang.
+
+## 12. Post-Mortem Template
 
 Setiap P1/P2 wajib post-mortem dalam 5 hari kerja. Simpan di `docs/postmortems/YYYY-MM-DD-slug.md`.
 
@@ -404,7 +439,7 @@ Setiap P1/P2 wajib post-mortem dalam 5 hari kerja. Simpan di `docs/postmortems/Y
 
 ---
 
-## 12. Referensi
+## 13. Referensi
 
 - [`16-observability.md`](./16-observability.md) — alert rules & dashboard.
 - [`18-backup-recovery.md`](./18-backup-recovery.md) — restore prosedur.

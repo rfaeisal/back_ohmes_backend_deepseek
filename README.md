@@ -2,7 +2,7 @@
 
 Sistem terintegrasi **Manufacturing Execution System (MES) + Warehouse Management System (WMS)** untuk operasi pabrik rokok multi-cabang. Produk utama: **Hummer**. Target skala: 30+ pabrik heterogen dengan hirarki `Kantor Pusat → Koordinator Area → Pabrik`.
 
-**Status**: ✅ **Fase 0–6 Complete** · 30+ halaman UI · 75+ API endpoint · 46 tabel database · Deploy Vercel + Neon PostgreSQL 16
+**Status**: ✅ **Fase 0–6 Complete** · 30+ halaman UI · 78+ API endpoint · 48 tabel database · Deploy Vercel + Neon PostgreSQL 16 (+ Coolify Docker)
 
 ---
 
@@ -10,7 +10,7 @@ Sistem terintegrasi **Manufacturing Execution System (MES) + Warehouse Managemen
 
 1. **Terima TSG dari supplier** (WMS Inbound) ✅
 2. **Simpan TSG di gudang** dengan inventory FIFO ✅
-3. **Produksi** (Maker + HLP + shift) ✅
+3. **Produksi** (Maker + HLP + shift) ✅ — sesi multi-boks (1–6), timbang batangan kolektif, kode batch `btc_...` untuk HLP
 4. **Simpan barang jadi** + cartoning traceability (WMS Outbound) ✅
 5. **Distribusi basic** dengan surat jalan PDF (Dispatch) ✅
 
@@ -66,6 +66,7 @@ Login: admin / (password dari output seed-superadmin) / OTP `000000`
 | Tablet Operator (lantai produksi) | `/tablet` | OPERATOR_KECER |
 | Start Shift (+ pilih handoff) | `/tablet/start-shift` | OPERATOR_KECER |
 | Shift Aktif (produksi, handoff, material) | `/tablet/shift/[id]` | OPERATOR_KECER |
+| Mesin HLP (pilih batch, catat packing) | `/tablet/hlp` | OPERATOR_HLP |
 | Dashboard KPI Pabrik | `/tablet/dashboard` | Operator |
 | Login (OTP 2 lapis untuk SUPERADMIN) | `/tablet/login` | Semua |
 

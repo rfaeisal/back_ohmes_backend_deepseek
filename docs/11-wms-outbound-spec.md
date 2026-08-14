@@ -16,6 +16,11 @@ Dokumen operasional untuk **modul WMS Outbound** — dieksekusi di Fase 5, setel
 4. Pack dibundle jadi karton (biasanya 40-50 pack per karton, satu produk sama).
 5. Karton tersimpan di gudang jadi menunggu dispatch.
 
+**Catatan implementasi (Agustus 2026)** — langkah 1 kini tercatat digital:
+- Maker menimbang batangan per **sesi multi-boks** → menghasilkan `batch` dengan kode `btc_<mesin>_<YYYYMMDD>_<seq>` (penanda boks batangan masuk HLP).
+- Operator HLP mencatat hasil packing di **`/tablet/hlp`**: pilih batch (kode `btc_...`), pilih mesin HLP, input `packsLolos`/`isiPerPack`/`rejectBatangan` → server hitung `totalBatang` dan `beratPerBatangGram`.
+- Riwayat packing tersedia via `GET /hlp/packs`; data ini dipakai konfirmasi receiving di §2.1.
+
 **Masalah yang dihindari**:
 - Discrepancy count HLP vs gudang jadi tidak ter-follow-up.
 - Pack tercampur produk berbeda dalam satu karton (isu QA).

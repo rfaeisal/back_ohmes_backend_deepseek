@@ -15,7 +15,7 @@ Istilah operasional pabrik rokok yang dipakai di seluruh documentation pack. **W
 | **Lem** | Perekat untuk menyambung bobin & tipping. Consumable minor. |
 | **Batangan** | Rokok mentah keluar dari Maker sebelum dikemas. Diukur berat (kg) dan jumlah (batang). |
 | **Pack** | Rokok yang sudah dikemas HLP siap distribusi. Default: 20 batang per pack. |
-| **Batch** | Satu tray/trolley batangan yang keluar dari Maker, diberi identitas untuk dikemas HLP. |
+| **Batch / Boks Batangan** | Tray/trolley batangan yang keluar dari Maker, siap dikemas HLP. Record dibuat otomatis saat **Sesi Boks** ditimbang, ditandai **Kode Batch `btc_*`** sebagai penanda boks batangan yang akan masuk mesin HLP. |
 | **SKU / Produk / Merek** | Contoh: **Hummer** (produk utama). Sistem multi-merek — satu mesin bisa memproduksi produk berbeda antar shift, tapi tidak dalam satu shift yang sama. |
 
 ## Mesin
@@ -71,6 +71,9 @@ Istilah operasional pabrik rokok yang dipakai di seluruh documentation pack. **W
 | Istilah | Definisi |
 |---|---|
 | **Boks Parsial (`isPartial=true`)** | Boks TSG yang bukan boks baru utuh — merupakan carry-over sisa TSG dari shift sebelumnya via handoff. |
+| **Sesi Boks** | Unit kerja boks dalam shift: operator membuka **1–6 boks TSG sekaligus** (memilih sendiri dari inventory; badge FIFO hanya saran) lalu **menimbang batangan kolektif** di akhir sesi. Total batangan dibagi proporsional bobot TSG tiap boks (`splitBatanganProportional`), sisa pembulatan ke boks terakhir. Status sesi: `OPEN` → `WEIGHED`, atau `HANDOFF` bila boks parsial dilanjutkan ke shift berikutnya. |
+| **Boks Aktif** | Boks TSG yang sedang diproses operator — bagian dari **Sesi Boks** berstatus `OPEN` (belum ditimbang). |
+| **Kode Batch (`btc_`)** | Identitas batch batangan: `btc_{kodeMesin}_{YYYYMMDD}_{urutan}` (contoh `btc_MKR01_20260815_01`). Dibuat otomatis saat sesi ditimbang — penanda boks batangan yang akan masuk mesin HLP. |
 | **Shift Handoff** | Mekanisme serah-terima antar shift saat masih ada boks TSG aktif di feeder. Operator lama timbang sisa TSG + batangan sementara → dijadikan record `ShiftHandoff` → shift baru auto-claim. |
 | **CORRECTION** | Mekanisme mengoreksi shift yang sudah LOCKED. Bukan UPDATE langsung — dibuat record turunan baru dengan audit trail. Hanya HQ_AUDITOR yang boleh. |
 | **Idempotency-Key** | Header HTTP yang memastikan request POST duplikat (mis. karena retry) tidak menciptakan record ganda. Server menyimpan mapping key → response. |
@@ -103,5 +106,5 @@ Sepanjang dokumentasi & aplikasi:
 - Machine: `MKR-{urut}` untuk Maker, `HLP-{urut}` untuk HLP — unik per plant
 - Product: `PRD-{brand-short}-{variant}` — contoh `PRD-HMR-STD`, `PRD-HMR-LTS`
 - Shift ID: `shf_{ulid}` — server-generated ULID (sortable timestamp)
-- Batch ID: `btc_{machine}_{yyyymmdd}_{urut}` — contoh `btc_MKR01_20260810_03`
+- Batch ID: `btc_{kodeMesin}_{yyyymmdd}_{urut}` — dibuat otomatis saat timbang sesi, contoh `btc_MKR01_20260815_01`
 - Boks number: integer 1-N per shift (bukan global unique)
