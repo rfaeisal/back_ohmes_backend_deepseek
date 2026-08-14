@@ -75,7 +75,7 @@ export default function AnalyticsPage() {
       {/* OEE */}
       {oee && (
         <Card className="mb-6">
-          <CardTitle>OEE — {oee.plantId} ({oee.from} → {oee.to})</CardTitle>
+          <CardTitle>OEE — {oee.plantName} ({oee.plantCode}) · {oee.from} → {oee.to}</CardTitle>
           <div className="grid grid-cols-4 gap-4 mt-4">
             {[
               { label: "OEE", value: `${oee.avgOee}%`, color: oee.avgOee > 80 ? "text-green-700" : oee.avgOee > 60 ? "text-yellow-700" : "text-red-700" },
