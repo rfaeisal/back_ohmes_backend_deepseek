@@ -11,6 +11,7 @@
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import db from "@/db";
 import { shiftReport, downtimeLog, tsgBoxProcess, hlpPack } from "@/db/schema";
+import { shiftTemplate } from "@/db/schema/master-product";
 
 export interface OeeResult {
   shiftId: string;
@@ -35,10 +36,18 @@ export async function calculateOeePerShift(shiftId: string): Promise<OeeResult> 
 
   if (!shift) throw new Error("SHIFT_NOT_FOUND");
 
-  // Planned Production Time = actualEnd - actualStart (minutes)
-  const plannedMinutes = shift.actualEnd
+  // Planned Production Time = durasi terjadwal dari template shift.
+  // (actual elapsed bisa 0 menit di data test / rounding — template lebih akurat)
+  const [tpl] = await db
+    .select({ durationMinutes: shiftTemplate.durationMinutes })
+    .from(shiftTemplate)
+    .where(eq(shiftTemplate.id, shift.shiftTemplateId))
+    .limit(1);
+
+  const elapsedMinutes = shift.actualEnd
     ? Math.round((shift.actualEnd.getTime() - shift.actualStart.getTime()) / 60000)
     : 0;
+  const plannedMinutes = tpl?.durationMinutes ?? elapsedMinutes;
 
   // Downtime total
   const downtimes = await db
@@ -50,9 +59,10 @@ export async function calculateOeePerShift(shiftId: string): Promise<OeeResult> 
 
   const downtimeMinutes = downtimes[0]?.total ?? 0;
 
-  // Availability
+  // Availability — clamp 0..100
+  const effectiveDowntime = Math.min(downtimeMinutes, plannedMinutes);
   const availability = plannedMinutes > 0
-    ? Math.round(((plannedMinutes - downtimeMinutes) / plannedMinutes) * 10000) / 100
+    ? Math.max(0, Math.min(100, Math.round(((plannedMinutes - effectiveDowntime) / plannedMinutes) * 10000) / 100))
     : 100;
 
   // Box output
