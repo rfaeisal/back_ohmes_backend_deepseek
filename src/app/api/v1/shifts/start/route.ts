@@ -16,6 +16,7 @@ const startSchema = z.object({
       })
     )
     .min(1, "Minimal 1 anggota tim"),
+  handoffId: z.string().uuid().optional(),
 });
 
 export const POST = withAuth(async (request: Request, ctx: AuthContext) => {

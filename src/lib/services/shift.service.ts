@@ -34,6 +34,8 @@ export interface StartShiftInput {
   }>;
   plantId: string;
   createdBy: string;
+  /** Handoff spesifik yang mau diklaim (opsional — default: handoff mesin ini) */
+  handoffId?: string;
 }
 
 export interface EndShiftInput {
@@ -92,16 +94,19 @@ export async function startShift(input: StartShiftInput) {
   // 3. Validasi minimal 1 anggota dengan canEndShift
   // (via shift_role — simplified)
 
-  // 4. Cek ShiftHandoff unclaimed untuk mesin ini
+  // 4. Cek ShiftHandoff unclaimed — eksplisit via handoffId ATAU auto untuk mesin ini
   const [unclaimedHandoff] = await db
     .select()
     .from(shiftHandoff)
     .where(
       and(
-        eq(shiftHandoff.machineId, input.machineId),
-        isNull(shiftHandoff.claimedByShiftId)
+        isNull(shiftHandoff.claimedByShiftId),
+        input.handoffId
+          ? eq(shiftHandoff.id, input.handoffId)
+          : eq(shiftHandoff.machineId, input.machineId)
       )
     )
+    .orderBy(shiftHandoff.weighedAt)
     .limit(1);
 
   // 5. Create shift report dalam transaksi

@@ -19,6 +19,8 @@ function StartShiftForm() {
   const [selectedProduct, setSelectedProduct] = useState("");
   const [selectedTeam, setSelectedTeam] = useState<string[]>([]);
   const [rosterMembers, setRosterMembers] = useState<string[]>([]);
+  const [unclaimedHandoffs, setUnclaimedHandoffs] = useState<any[]>([]);
+  const [selectedHandoffId, setSelectedHandoffId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -40,6 +42,12 @@ function StartShiftForm() {
       }
       if (u.status === "fulfilled" && u.value.data?.length > 0) setUsers(u.value.data);
       if (r.status === "fulfilled" && r.value.data?.length > 0) setShiftRoles(r.value.data);
+
+      // Load unclaimed handoffs (bisa dari mesin lain)
+      try {
+        const hRes = await apiFetch("/shifts/handoffs/unclaimed");
+        setUnclaimedHandoffs(hRes.data ?? []);
+      } catch {}
 
       // Load roster for today
       const today = new Date().toISOString().slice(0, 10);
@@ -78,6 +86,7 @@ function StartShiftForm() {
           shiftRoleId: shiftRoles.find((r: any) => r.code === "ketua_kecer")?.id ?? shiftRoles[0]?.id ?? userId,
         })),
       };
+      if (selectedHandoffId) body.handoffId = selectedHandoffId;
       const res = await apiFetch("/shifts/start", { method: "POST", body: JSON.stringify(body) });
       if (res.shiftId) {
         // Sync roster changes (operator may have added/removed members)
@@ -127,6 +136,51 @@ function StartShiftForm() {
           </div>
         </div>
       </Card>
+
+      {/* Handoff Tersedia — klaim sisa TSG dari shift sebelumnya (bisa mesin lain) */}
+      {unclaimedHandoffs.length > 0 && (
+        <Card className="mb-4" highlight="yellow">
+          <CardTitle>🤝 Handoff Tersedia ({unclaimedHandoffs.length})</CardTitle>
+          <CardSubtitle>Sisa TSG dari shift sebelumnya — pilih kalau mau dipakai di shift ini.</CardSubtitle>
+          <div className="mt-3 space-y-2">
+            {unclaimedHandoffs.map((h: any) => (
+              <label
+                key={h.id}
+                className={`flex items-center justify-between rounded-lg border-2 p-3 cursor-pointer transition-colors ${
+                  selectedHandoffId === h.id ? "border-yellow-500 bg-yellow-50" : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <input
+                    type="radio"
+                    name="handoff"
+                    checked={selectedHandoffId === h.id}
+                    onChange={() => setSelectedHandoffId(h.id)}
+                    className="size-4"
+                  />
+                  <div>
+                    <p className="font-medium">
+                      {h.machineCode ?? "Mesin ?"} — sisa {Number(h.sisaTsgKg).toFixed(1)} kg TSG
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Batangan sementara: {Number(h.batanganSementaraKg ?? 0).toFixed(1)} kg
+                      {h.note ? ` · ${h.note}` : ""}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs text-gray-400">
+                  {h.weighedAt ? new Date(h.weighedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : ""}
+                </span>
+              </label>
+            ))}
+            {selectedHandoffId && (
+              <Button size="sm" variant="outline" onClick={() => setSelectedHandoffId("")}>
+                Batal pilih handoff
+              </Button>
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* Template Picker */}
       <Card className="mb-4">
