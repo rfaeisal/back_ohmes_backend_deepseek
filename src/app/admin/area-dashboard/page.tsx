@@ -161,7 +161,7 @@ export default function AreaDashboardPage() {
               const y = p.production?.yieldPct;
               return (
                 <div key={p.id} className="flex items-center gap-3">
-                  <span className="w-28 text-sm font-medium flex-shrink-0">{p.code}</span>
+                  <span className="w-32 text-sm font-medium flex-shrink-0">{p.name}</span>
                   <div className="flex-1 h-6 bg-gray-100 rounded relative">
                     {/* band target 110-114 */}
                     <div className="absolute inset-y-0 bg-green-50 border-x border-dashed border-green-500" style={{ left: "42%", width: "12%" }} />
@@ -192,7 +192,7 @@ export default function AreaDashboardPage() {
           <div className="mt-3 space-y-3">
             {kpi.plants.map((p: any) => (
               <div key={p.id} className="flex items-center gap-3">
-                <span className="w-28 text-sm font-medium flex-shrink-0">{p.code}</span>
+                <span className="w-32 text-sm font-medium flex-shrink-0">{p.name}</span>
                 <div className="flex-1 h-5 bg-gray-100 rounded">
                   <div
                     className="h-full bg-yellow-500 rounded"
