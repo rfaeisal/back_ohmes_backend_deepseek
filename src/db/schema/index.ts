@@ -47,6 +47,8 @@ export {
   tsgTypeEnum,
   tsgTransferOut,
   tsgTransferOutItem,
+  tsgReturnOut,
+  tsgReturnOutItem,
 } from "./wms-inbound";
 export {
   materialReceiving,

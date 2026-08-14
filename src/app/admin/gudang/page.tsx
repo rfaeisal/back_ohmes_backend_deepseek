@@ -21,7 +21,7 @@ export default function GudangInboundPage() {
     } catch {}
   };
 
-  useEffect(() => { loadInventory(); loadTransfers(); }, []);
+  useEffect(() => { loadInventory(); loadTransfers(); loadReturns(); }, []);
   const [receivingBoxes, setReceivingBoxes] = useState<Array<{ code: string; weight: string; type: string }>>([
     { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" },
   ]);
@@ -99,6 +99,52 @@ export default function GudangInboundPage() {
       loadTransfers();
     } catch (e: any) { setTransferError(e.message); }
     finally { setTransferSaving(false); }
+  };
+
+  // TSG retur ke supplier
+  const [showReturn, setShowReturn] = useState(false);
+  const [returnSupplierId, setReturnSupplierId] = useState("");
+  const [returnReason, setReturnReason] = useState("");
+  const [returnNotes, setReturnNotes] = useState("");
+  const [returnSelected, setReturnSelected] = useState<Set<string>>(new Set());
+  const [returnSaving, setReturnSaving] = useState(false);
+  const [returnError, setReturnError] = useState("");
+  const [returnHistory, setReturnHistory] = useState<any[]>([]);
+
+  const loadReturns = async () => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch("/api/v1/tsg-returns", { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setReturnHistory((await res.json()).data ?? []);
+    } catch {}
+  };
+
+  const handleSaveReturn = async () => {
+    if (!returnSupplierId) { setReturnError("Pilih supplier dulu."); return; }
+    if (!returnReason.trim() || returnReason.trim().length < 3) { setReturnError("Alasan retur wajib diisi (min 3 karakter)."); return; }
+    if (returnSelected.size === 0) { setReturnError("Pilih minimal 1 boks."); return; }
+    setReturnSaving(true);
+    setReturnError("");
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch("/api/v1/tsg-returns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          supplierId: returnSupplierId,
+          inventoryBoxIds: Array.from(returnSelected),
+          reason: returnReason.trim(),
+          notes: returnNotes || undefined,
+        }),
+      });
+      if (res.status === 401) { localStorage.removeItem("accessToken"); window.location.href = "/tablet/login"; throw new Error("Sesi berakhir"); }
+      if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || "Gagal menyimpan"); }
+      setShowReturn(false);
+      setReturnSelected(new Set());
+      loadInventory();
+      loadReturns();
+    } catch (e: any) { setReturnError(e.message); }
+    finally { setReturnSaving(false); }
   };
 
   const handleSaveMaterialReceiving = async () => {
@@ -211,6 +257,9 @@ export default function GudangInboundPage() {
           </Button>
           <Button size="xl" variant="outline" onClick={() => { setTransferDest(""); setTransferNotes(""); setTransferSelected(new Set()); setTransferError(""); setShowTransfer(true); }}>
             🚚 Kirim TSG ke Pabrik Lain
+          </Button>
+          <Button size="xl" variant="outline" onClick={() => { loadSuppliers(); setReturnReason(""); setReturnNotes(""); setReturnSelected(new Set()); setReturnError(""); setShowReturn(true); }}>
+            ↩️ Retur TSG ke Supplier
           </Button>
         </div>
       </div>
@@ -482,6 +531,100 @@ export default function GudangInboundPage() {
           </Button>
         </div>
       </Dialog>
+
+      {/* Retur TSG ke Supplier Dialog */}
+      <Dialog
+        open={showReturn}
+        onClose={() => setShowReturn(false)}
+        title="Retur TSG ke Supplier"
+        className="max-w-3xl"
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Supplier</label>
+              <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white" value={returnSupplierId} onChange={e => setReturnSupplierId(e.target.value)}>
+                <option value="">Pilih Supplier</option>
+                {suppliers.map((s: any) => <option key={s.id} value={s.id}>{s.name} ({s.code})</option>)}
+              </select>
+            </div>
+            <Input label="Alasan Retur *" value={returnReason} onChange={e => setReturnReason(e.target.value)} placeholder="cth: Boks cacat / kadar air tinggi / salah kirim" />
+          </div>
+          <Input label="Catatan (opsional)" value={returnNotes} onChange={e => setReturnNotes(e.target.value)} placeholder="Detail tambahan" />
+
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-lg">Pilih Boks TSG</h3>
+              <span className="text-sm text-gray-500">{returnSelected.size} boks dipilih</span>
+            </div>
+            <div className="space-y-1 max-h-[300px] overflow-y-auto">
+              {inventory.length === 0 ? (
+                <p className="text-sm text-gray-400 py-4 text-center">Tidak ada boks AVAILABLE.</p>
+              ) : inventory.map((item) => (
+                <label key={item.id} className="flex items-center gap-3 rounded-lg border border-gray-200 p-3 cursor-pointer hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    checked={returnSelected.has(item.id)}
+                    onChange={(e) => {
+                      const next = new Set(returnSelected);
+                      if (e.target.checked) next.add(item.id); else next.delete(item.id);
+                      setReturnSelected(next);
+                    }}
+                    className="size-4"
+                  />
+                  <span className="font-mono text-sm">{item.boxCode}</span>
+                  <span className="text-sm text-gray-500">{item.weightKg} kg</span>
+                  <span className="text-sm text-gray-400">{item.tsgType}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {returnError && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{returnError}</div>}
+          <Button size="operator" className="w-full" onClick={handleSaveReturn} disabled={returnSaving}>
+            {returnSaving ? "Menyimpan..." : `Retur · ${returnSelected.size} Boks`}
+          </Button>
+        </div>
+      </Dialog>
+
+      {/* Riwayat Retur TSG */}
+      {returnHistory.length > 0 && (
+        <Card className="mt-6">
+          <CardTitle>Riwayat Retur TSG ke Supplier ({returnHistory.length})</CardTitle>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="border-b border-gray-200">
+                <tr>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Kode</th>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Supplier</th>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Tanggal</th>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Boks</th>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Total Berat</th>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Alasan</th>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {returnHistory.map((r) => (
+                  <tr key={r.id} className="border-b border-gray-100">
+                    <td className="py-3 font-mono text-sm">{r.returnCode}</td>
+                    <td className="py-3 font-medium">{r.supplierName}</td>
+                    <td className="py-3 text-sm">{r.returnedAt ? new Date(r.returnedAt).toLocaleString("id-ID") : "-"}</td>
+                    <td className="py-3"><Badge variant="error">{r.totalBoxCount} boks</Badge></td>
+                    <td className="py-3 font-bold">{parseFloat(r.totalWeightKg || "0").toFixed(1)} kg</td>
+                    <td className="py-3 text-sm text-gray-500 max-w-[200px] truncate" title={r.reason}>{r.reason}</td>
+                    <td className="py-3">
+                      <Link href={`/admin/gudang/return/${r.id}/print`} target="_blank">
+                        <Button size="sm" variant="outline">🖨 Cetak</Button>
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       {/* Riwayat Kirim Antar Pabrik */}
       {transferHistory.length > 0 && (

@@ -11,7 +11,10 @@ import {
   tsgInventory,
   tsgTransferOut,
   tsgTransferOutItem,
+  tsgReturnOut,
+  tsgReturnOutItem,
 } from "@/db/schema";
+import { plant } from "@/db/schema/tenancy";
 import { ServiceError } from "./shift.service";
 
 // =============================================================================
@@ -349,4 +352,190 @@ export async function listTsgTransfers(plantId: string, limit = 50) {
   }
 
   return { data: transfers };
+}
+
+// =============================================================================
+// TSG Return Out — retur TSG ke supplier
+// =============================================================================
+
+export interface CreateTsgReturnInput {
+  plantId: string;
+  supplierId: string;
+  inventoryBoxIds: string[];
+  reason: string;
+  notes?: string;
+  returnedBy: string;
+}
+
+export async function createTsgReturn(input: CreateTsgReturnInput) {
+  if (input.inventoryBoxIds.length === 0) {
+    throw new ServiceError("EMPTY_BOXES", "Pilih minimal 1 boks.");
+  }
+  if (!input.reason.trim()) {
+    throw new ServiceError("REASON_REQUIRED", "Alasan retur wajib diisi.");
+  }
+
+  const [supplier] = await db
+    .select({ id: tsgSupplier.id })
+    .from(tsgSupplier)
+    .where(eq(tsgSupplier.id, input.supplierId))
+    .limit(1);
+  if (!supplier) throw new ServiceError("SUPPLIER_NOT_FOUND", "Supplier tidak ditemukan.");
+
+  const inventoryBoxes: Array<{ inventoryId: string; boxCode: string; weightKg: number }> = [];
+  for (const invId of input.inventoryBoxIds) {
+    const [inv] = await db
+      .select({ id: tsgInventory.id, status: tsgInventory.status, boxId: tsgInventory.boxId })
+      .from(tsgInventory)
+      .where(and(eq(tsgInventory.id, invId), eq(tsgInventory.plantId, input.plantId)))
+      .limit(1);
+
+    if (!inv) throw new ServiceError("INVENTORY_NOT_FOUND", `Boks ${invId} tidak ditemukan.`);
+    if (inv.status !== "AVAILABLE") {
+      throw new ServiceError("INVENTORY_NOT_AVAILABLE", "Boks tidak dalam status AVAILABLE.", { inventoryId: invId, currentStatus: inv.status });
+    }
+    const [rb] = await db
+      .select({ boxCode: tsgReceivingBox.boxCode, weightKg: tsgReceivingBox.weightKg })
+      .from(tsgReceivingBox)
+      .where(eq(tsgReceivingBox.id, inv.boxId))
+      .limit(1);
+    inventoryBoxes.push({ inventoryId: inv.id, boxCode: rb?.boxCode ?? "-", weightKg: Number(rb?.weightKg ?? 0) });
+  }
+
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const existingCount = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(tsgReturnOut)
+    .where(
+      and(
+        eq(tsgReturnOut.plantId, input.plantId),
+        sql`created_at::date = CURRENT_DATE`
+      )
+    );
+  const seq = Number(existingCount[0]?.count ?? 0) + 1;
+  const returnCode = `RTR-${today}-${String(seq).padStart(2, "0")}`;
+
+  const totalWeight = inventoryBoxes.reduce((s, b) => s + b.weightKg, 0);
+
+  const result = await db.transaction(async (tx) => {
+    const [header] = await tx
+      .insert(tsgReturnOut)
+      .values({
+        plantId: input.plantId,
+        supplierId: input.supplierId,
+        returnCode,
+        totalBoxCount: inventoryBoxes.length,
+        totalWeightKg: String(totalWeight),
+        reason: input.reason.trim(),
+        notes: input.notes ?? null,
+        returnedBy: input.returnedBy,
+      })
+      .returning();
+
+    if (!header) throw new Error("RETURN_CREATE_FAILED");
+
+    for (let i = 0; i < inventoryBoxes.length; i++) {
+      const b = inventoryBoxes[i]!;
+      await tx.insert(tsgReturnOutItem).values({
+        returnId: header.id,
+        plantId: input.plantId,
+        inventoryId: b.inventoryId,
+        boxCode: b.boxCode,
+        weightKg: String(b.weightKg),
+        seq: i + 1,
+      });
+
+      await tx
+        .update(tsgInventory)
+        .set({ status: "RETURNED", usedAt: new Date() })
+        .where(eq(tsgInventory.id, b.inventoryId));
+    }
+
+    return header;
+  });
+
+  return {
+    returnId: result.id,
+    returnCode: result.returnCode,
+    totalBoxCount: inventoryBoxes.length,
+    totalWeightKg: Math.round(totalWeight * 100) / 100,
+  };
+}
+
+export async function listTsgReturns(plantId: string, limit = 50) {
+  const returns = await db
+    .select({
+      id: tsgReturnOut.id,
+      returnCode: tsgReturnOut.returnCode,
+      supplierName: tsgSupplier.name,
+      supplierCode: tsgSupplier.code,
+      totalBoxCount: tsgReturnOut.totalBoxCount,
+      totalWeightKg: tsgReturnOut.totalWeightKg,
+      reason: tsgReturnOut.reason,
+      notes: tsgReturnOut.notes,
+      returnedAt: tsgReturnOut.returnedAt,
+      returnedByName: sql<string>`u.full_name`.mapWith(String),
+    })
+    .from(tsgReturnOut)
+    .leftJoin(tsgSupplier, eq(tsgReturnOut.supplierId, tsgSupplier.id))
+    .leftJoin(sql`"user" u`, eq(tsgReturnOut.returnedBy, sql`u.id`))
+    .where(eq(tsgReturnOut.plantId, plantId))
+    .orderBy(sql`${tsgReturnOut.returnedAt} DESC`)
+    .limit(Math.min(limit, 200));
+
+  for (const r of returns) {
+    const items = await db
+      .select({
+        id: tsgReturnOutItem.id,
+        boxCode: tsgReturnOutItem.boxCode,
+        weightKg: tsgReturnOutItem.weightKg,
+      })
+      .from(tsgReturnOutItem)
+      .where(eq(tsgReturnOutItem.returnId, r.id))
+      .orderBy(tsgReturnOutItem.seq);
+    (r as any).items = items;
+  }
+
+  return { data: returns };
+}
+
+export async function getTsgReturnDetail(returnId: string) {
+  const [r] = await db
+    .select({
+      id: tsgReturnOut.id,
+      returnCode: tsgReturnOut.returnCode,
+      supplierName: tsgSupplier.name,
+      supplierCode: tsgSupplier.code,
+      supplierAddress: tsgSupplier.address,
+      totalBoxCount: tsgReturnOut.totalBoxCount,
+      totalWeightKg: tsgReturnOut.totalWeightKg,
+      reason: tsgReturnOut.reason,
+      notes: tsgReturnOut.notes,
+      returnedAt: tsgReturnOut.returnedAt,
+      returnerName: sql<string>`u.full_name`.mapWith(String),
+      plantCode: plant.code,
+      plantName: plant.name,
+    })
+    .from(tsgReturnOut)
+    .leftJoin(tsgSupplier, eq(tsgReturnOut.supplierId, tsgSupplier.id))
+    .leftJoin(sql`"user" u`, eq(tsgReturnOut.returnedBy, sql`u.id`))
+    .leftJoin(plant, eq(tsgReturnOut.plantId, plant.id))
+    .where(eq(tsgReturnOut.id, returnId))
+    .limit(1);
+
+  if (!r) return null;
+
+  const items = await db
+    .select({
+      id: tsgReturnOutItem.id,
+      boxCode: tsgReturnOutItem.boxCode,
+      weightKg: tsgReturnOutItem.weightKg,
+      tsgType: tsgReceivingBox.tsgType,
+    })
+    .from(tsgReturnOutItem)
+    .leftJoin(tsgReceivingBox, sql`${tsgReceivingBox.boxCode} = ${tsgReturnOutItem.boxCode}`)
+    .where(eq(tsgReturnOutItem.returnId, returnId))
+    .orderBy(tsgReturnOutItem.seq);
+
+  return { ...r, items };
 }

@@ -27,6 +27,7 @@ export const tsgInventoryStatusEnum = pgEnum("tsg_inventory_status", [
   "USED",
   "WRITTEN_OFF",
   "TRANSFERRED",
+  "RETURNED",
 ]);
 
 // =============================================================================
@@ -191,5 +192,59 @@ export const tsgTransferOutItem = pgTable(
   },
   (t) => ({
     uniqueSeqInTransfer: unique().on(t.transferId, t.seq),
+  })
+);
+
+
+// =============================================================================
+// TSG Return Out — retur TSG ke supplier (cacat, salah kirim, dll)
+// =============================================================================
+
+export const tsgReturnOut = pgTable(
+  "tsg_return_out",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    plantId: uuid("plant_id")
+      .notNull()
+      .references(() => plant.id), // ← untuk RLS
+    supplierId: uuid("supplier_id")
+      .notNull()
+      .references(() => tsgSupplier.id),
+    returnCode: text("return_code").notNull(), // 'RTR-20260814-01' unique per plant
+    totalBoxCount: integer("total_box_count").notNull(),
+    totalWeightKg: decimal("total_weight_kg", { precision: 12, scale: 2 }).notNull(),
+    reason: text("reason").notNull(), // alasan retur
+    notes: text("notes"),
+    returnedAt: timestamp("returned_at").notNull().defaultNow(),
+    returnedBy: uuid("returned_by")
+      .notNull()
+      .references(() => user.id),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueCodePerPlant: unique().on(t.plantId, t.returnCode),
+    idxPlantDate: index("idx_tsg_return_plant").on(t.plantId, t.returnedAt),
+  })
+);
+
+export const tsgReturnOutItem = pgTable(
+  "tsg_return_out_item",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    returnId: uuid("return_id")
+      .notNull()
+      .references(() => tsgReturnOut.id, { onDelete: "cascade" }),
+    plantId: uuid("plant_id")
+      .notNull()
+      .references(() => plant.id), // ← denormalized untuk RLS
+    inventoryId: uuid("inventory_id")
+      .notNull()
+      .references(() => tsgInventory.id),
+    boxCode: text("box_code").notNull(),
+    weightKg: decimal("weight_kg", { precision: 10, scale: 2 }).notNull(),
+    seq: integer("seq").notNull(),
+  },
+  (t) => ({
+    uniqueSeqInReturn: unique().on(t.returnId, t.seq),
   })
 );
