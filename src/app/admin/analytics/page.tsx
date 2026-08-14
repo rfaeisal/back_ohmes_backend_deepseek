@@ -11,6 +11,29 @@ export default function AnalyticsPage() {
   const [oee, setOee] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [exportJob, setExportJob] = useState<any>(null);
+  const [mode, setMode] = useState<"day" | "week">("week");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [weekStart, setWeekStart] = useState(() => {
+    const now = new Date();
+    const day = now.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + diff);
+    return monday.toISOString().slice(0, 10);
+  });
+
+  const getPeriod = () => {
+    if (mode === "day") return { from: date, to: date };
+    const end = new Date(weekStart + "T00:00:00");
+    end.setDate(end.getDate() + 6);
+    return { from: weekStart, to: end.toISOString().slice(0, 10) };
+  };
+
+  const shiftWeek = (delta: number) => {
+    const d = new Date(weekStart + "T00:00:00");
+    d.setDate(d.getDate() + delta * 7);
+    setWeekStart(d.toISOString().slice(0, 10));
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -29,14 +52,16 @@ export default function AnalyticsPage() {
         plantId = plantsRes?.data?.[0]?.id ?? "";
       }
 
+      const { from, to } = getPeriod();
+
       const [analytics, oeeData] = await Promise.all([
-        apiFetch("/dashboards/hq/analytics"),
-        plantId ? apiFetch(`/dashboards/oee/${plantId}`) : Promise.resolve(null),
+        apiFetch(`/dashboards/hq/analytics?from=${from}&to=${to}`),
+        plantId ? apiFetch(`/dashboards/oee/${plantId}?from=${from}&to=${to}`) : Promise.resolve(null),
       ]);
       setData(analytics);
       setOee(oeeData);
     } catch { } finally { setLoading(false); }
-  }, []);
+  }, [mode, date, weekStart]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -60,6 +85,40 @@ export default function AnalyticsPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">HQ Analytics</h1>
           <p className="text-gray-500">Analitik lintas pabrik untuk HQ Analyst</p>
+        </div>
+        <div className="flex items-end gap-3 flex-wrap">
+          <div className="flex gap-2">
+            {(["day", "week"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                  mode === m ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {m === "day" ? "📅 Hari" : "📆 Minggu"}
+              </button>
+            ))}
+          </div>
+          {mode === "day" ? (
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white"
+            />
+          ) : (
+            <div className="flex items-center gap-2">
+              <button onClick={() => shiftWeek(-1)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white hover:bg-gray-100">←</button>
+              <input
+                type="date"
+                value={weekStart}
+                onChange={(e) => setWeekStart(e.target.value)}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white"
+              />
+              <button onClick={() => shiftWeek(1)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white hover:bg-gray-100">→</button>
+            </div>
+          )}
         </div>
         <Button onClick={handleExport}>📥 Export Cukai</Button>
       </div>
