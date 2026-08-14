@@ -14,11 +14,14 @@ import { region, plant } from "@/db/schema/tenancy";
 export async function getAreaKpi(regionId: string, date?: string) {
   const reportDate = date ?? new Date().toISOString().slice(0, 10);
 
-  // Get all plants in region
+  // GLOBAL scope (zero UUID) → rollup semua pabrik tanpa filter region
+  const isGlobal = !regionId || regionId === "00000000-0000-0000-0000-000000000000";
+
+  // Get all plants in region (atau semua pabrik untuk scope GLOBAL)
   const plants = await db
     .select({ id: plant.id, code: plant.code, name: plant.name })
     .from(plant)
-    .where(eq(plant.regionId, regionId));
+    .where(isGlobal ? undefined : eq(plant.regionId, regionId));
 
   const plantIds = plants.map((p) => p.id);
 
