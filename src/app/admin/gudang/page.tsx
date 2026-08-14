@@ -497,6 +497,7 @@ export default function GudangInboundPage() {
                   <th className="pb-3 text-sm font-semibold text-gray-600">Boks</th>
                   <th className="pb-3 text-sm font-semibold text-gray-600">Total Berat</th>
                   <th className="pb-3 text-sm font-semibold text-gray-600">Detail</th>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -509,6 +510,11 @@ export default function GudangInboundPage() {
                     <td className="py-3 font-bold">{parseFloat(t.totalWeightKg || "0").toFixed(1)} kg</td>
                     <td className="py-3 text-sm text-gray-500">
                       {(t.items ?? []).map((it: any) => it.boxCode).join(", ")}
+                    </td>
+                    <td className="py-3">
+                      <Link href={`/admin/gudang/transfer/${t.id}/print`} target="_blank">
+                        <Button size="sm" variant="outline">🖨 Cetak</Button>
+                      </Link>
                     </td>
                   </tr>
                 ))}
