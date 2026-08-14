@@ -75,17 +75,14 @@ export async function calculateOeePerShift(shiftId: string): Promise<OeeResult> 
     .from(tsgBoxProcess)
     .where(eq(tsgBoxProcess.shiftReportId, shiftId));
 
-  // Performance: actual output vs theoretical max
-  // Simplified: each box should complete in ~30 min ideal, so theoretical = (available minutes / 30) × avg box weight
-  const avgBoxWeight = boxes[0] && boxes[0]!.count > 0
-    ? boxes[0]!.totalInput / boxes[0]!.count
-    : 30;
-  const availableMinutes = plannedMinutes - downtimeMinutes;
-  const theoreticalOutput = availableMinutes > 0
-    ? (availableMinutes / 30) * avgBoxWeight
-    : boxes[0]?.totalOutput ?? 0;
-  const performance = theoreticalOutput > 0
-    ? Math.min(100, Math.round((boxes[0]?.totalOutput ?? 0) / theoreticalOutput * 10000) / 100)
+  // Performance: kecepatan aktual vs target.
+  // Target: 1 boks ideal = 30 menit. Base = waktu aktual shift berjalan
+  // (bukan durasi template) — downtime sudah dihitung di Availability.
+  const boxCount = boxes[0]?.count ?? 0;
+  const elapsedForPerf = elapsedMinutes > 0 ? elapsedMinutes : plannedMinutes;
+  const idealCycleMin = 30; // menit ideal per boks
+  const performance = boxCount > 0 && elapsedForPerf > 0
+    ? Math.min(100, Math.round((idealCycleMin * boxCount / elapsedForPerf) * 10000) / 100)
     : 100;
 
   // Quality: dari HLP pack reject rate
