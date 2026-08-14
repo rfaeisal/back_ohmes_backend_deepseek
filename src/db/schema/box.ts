@@ -22,6 +22,33 @@ import { shiftReport, shiftHandoff } from "./shift";
 import { tsgInventory } from "./wms-inbound";
 
 // =============================================================================
+// TSG Box Session — sesi buka 1–6 boks sekaligus + timbang batangan kolektif
+// =============================================================================
+
+export const tsgBoxSession = pgTable(
+  "tsg_box_session",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    shiftReportId: uuid("shift_report_id")
+      .notNull()
+      .references(() => shiftReport.id, { onDelete: "cascade" }),
+    plantId: uuid("plant_id")
+      .notNull()
+      .references(() => plant.id), // ← denormalized untuk RLS
+    batchId: uuid("batch_id").references(() => batch.id), // batch batangan setelah timbang kolektif
+    status: text("status").notNull().default("OPEN"), // OPEN | WEIGHED | HANDOFF
+    totalBatanganKg: decimal("total_batangan_kg", { precision: 10, scale: 2 }),
+    openedAt: timestamp("opened_at").notNull().defaultNow(),
+    weighedAt: timestamp("weighed_at"),
+  },
+  (t) => ({
+    idxSessionActive: index("idx_box_session_active")
+      .on(t.shiftReportId)
+      .where(sql`status = 'OPEN'`),
+  })
+);
+
+// =============================================================================
 // TSG Box Process — tracking per boks dalam shift
 // =============================================================================
 
@@ -32,6 +59,7 @@ export const tsgBoxProcess = pgTable(
     shiftReportId: uuid("shift_report_id")
       .notNull()
       .references(() => shiftReport.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id").references(() => tsgBoxSession.id), // ← sesi multi-boks
     plantId: uuid("plant_id")
       .notNull()
       .references(() => plant.id), // ← denormalized untuk RLS

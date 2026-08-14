@@ -30,6 +30,7 @@ export {
   shiftStatusEnum,
 } from "./shift";
 export {
+  tsgBoxSession,
   tsgBoxProcess,
   tsgBoxConsumption,
   downtimeLog,

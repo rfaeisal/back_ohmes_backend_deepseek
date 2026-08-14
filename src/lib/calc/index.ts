@@ -133,3 +133,27 @@ export function getInventoryAgeIndicator(
   if (ageInDays > 14) return "CAUTION";
   return "NORMAL";
 }
+
+// =============================================================================
+// Sesi Multi-Boks — pembagian berat batangan kolektif
+// =============================================================================
+// Total batangan dibagi proporsional bobot TSG tiap boks (2 desimal).
+// Sisa pembulatan diserap boks terakhir supaya jumlah bagian = total.
+
+export function splitBatanganProportional(
+  totalKg: number,
+  tsgWeightsKg: number[]
+): number[] {
+  if (tsgWeightsKg.length === 0) return [];
+  const totalTsg = tsgWeightsKg.reduce((s, w) => s + w, 0);
+  if (totalTsg <= 0) return tsgWeightsKg.map(() => 0);
+
+  const rounded = tsgWeightsKg.map((w) =>
+    Math.round(((totalKg * w) / totalTsg) * 100) / 100
+  );
+  const sum = Math.round(rounded.reduce((s, v) => s + v, 0) * 100) / 100;
+  const diff = Math.round((totalKg - sum) * 100) / 100;
+  rounded[rounded.length - 1] =
+    Math.round((rounded[rounded.length - 1]! + diff) * 100) / 100;
+  return rounded;
+}

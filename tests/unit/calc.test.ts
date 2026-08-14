@@ -11,6 +11,7 @@ import {
   calculateTotalBatang,
   calculateWasteTotalKg,
   calculateWasteRatio,
+  splitBatanganProportional,
   calculateInventoryAgeInDays,
   getInventoryAgeIndicator,
   type YieldRange,
@@ -235,5 +236,45 @@ describe("getInventoryAgeIndicator", () => {
     expect(getInventoryAgeIndicator(31)).toBe("ALERT");
     expect(getInventoryAgeIndicator(60)).toBe("ALERT");
     expect(getInventoryAgeIndicator(365)).toBe("ALERT");
+  });
+});
+
+// =============================================================================
+// splitBatanganProportional — pembagian berat batangan sesi multi-boks
+// =============================================================================
+
+describe("splitBatanganProportional", () => {
+  it("should split proportionally to TSG weights", () => {
+    // 100 kg total, TSG 50+50 → 50/50
+    expect(splitBatanganProportional(100, [50, 50])).toEqual([50, 50]);
+    // 100 kg total, TSG 60+40 → 60/40
+    expect(splitBatanganProportional(100, [60, 40])).toEqual([60, 40]);
+  });
+
+  it("should absorb rounding remainder into the last box", () => {
+    // 10 kg dibagi 3 boks sama rata → 3.33, 3.33, 3.34
+    const result = splitBatanganProportional(10, [30, 30, 30]);
+    expect(result[0]).toBe(3.33);
+    expect(result[1]).toBe(3.33);
+    expect(result[2]).toBe(3.34);
+    // Total harus persis kembali
+    expect(result.reduce((s, v) => s + v, 0)).toBe(10);
+  });
+
+  it("should keep total exact for 6 boxes session", () => {
+    const weights = [12.4, 12.1, 11.8, 12.6, 11.9, 12.2];
+    const total = 70.5;
+    const result = splitBatanganProportional(total, weights);
+    expect(result).toHaveLength(6);
+    expect(Math.round(result.reduce((s, v) => s + v, 0) * 100) / 100).toBe(total);
+  });
+
+  it("should return zeros when TSG weights are zero", () => {
+    expect(splitBatanganProportional(50, [0, 0])).toEqual([0, 0]);
+    expect(splitBatanganProportional(50, [])).toEqual([]);
+  });
+
+  it("should give all weight to the only box", () => {
+    expect(splitBatanganProportional(37.75, [14.2])).toEqual([37.75]);
   });
 });

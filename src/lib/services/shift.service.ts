@@ -12,6 +12,7 @@ import {
   shiftMember,
   shiftWaste,
   shiftHandoff,
+  tsgBoxSession,
   tsgBoxProcess,
   downtimeLog,
   shiftConsumption,
@@ -206,8 +207,8 @@ export async function endShift(input: EndShiftInput) {
     }
   }
 
-  // 3. Cek tidak ada boks aktif tanpa handoff
-  const [activeBox] = await db
+  // 3. Cek tidak ada boks aktif tanpa handoff (bisa lebih dari satu — sesi multi-boks)
+  const activeBoxes = await db
     .select({ id: tsgBoxProcess.id })
     .from(tsgBoxProcess)
     .where(
@@ -215,10 +216,9 @@ export async function endShift(input: EndShiftInput) {
         eq(tsgBoxProcess.shiftReportId, input.shiftId),
         isNull(tsgBoxProcess.completedAt)
       )
-    )
-    .limit(1);
+    );
 
-  if (activeBox) {
+  if (activeBoxes.length > 0) {
     // Cek apakah handoff sudah dibuat
     const [handoff] = await db
       .select()
@@ -229,8 +229,8 @@ export async function endShift(input: EndShiftInput) {
     if (!handoff) {
       throw new ServiceError(
         "SHIFT_HAS_ACTIVE_BOX",
-        "Masih ada boks aktif. Buat handoff terlebih dahulu.",
-        { activeBoxIds: [activeBox.id] }
+        "Masih ada boks aktif. Timbang atau buat handoff terlebih dahulu.",
+        { activeBoxIds: activeBoxes.map((b) => b.id) }
       );
     }
   }
@@ -298,8 +298,8 @@ export async function createHandoff(input: HandoffInput) {
     );
   }
 
-  // Validasi ada boks aktif
-  const [activeBox] = await db
+  // Validasi ada boks aktif (bisa lebih dari satu — sesi multi-boks)
+  const activeBoxes = await db
     .select({ id: tsgBoxProcess.id })
     .from(tsgBoxProcess)
     .where(
@@ -307,10 +307,9 @@ export async function createHandoff(input: HandoffInput) {
         eq(tsgBoxProcess.shiftReportId, input.shiftId),
         isNull(tsgBoxProcess.completedAt)
       )
-    )
-    .limit(1);
+    );
 
-  if (!activeBox) {
+  if (activeBoxes.length === 0) {
     throw new ServiceError(
       "NO_ACTIVE_BOX",
       "Tidak ada boks aktif untuk di-handoff."
@@ -341,11 +340,27 @@ export async function createHandoff(input: HandoffInput) {
       })
       .returning();
 
-    // Tutup boks aktif tanpa timbangan (boks partial — sisa sudah di-handoff)
+    // Tutup semua boks aktif tanpa timbangan (sisa sudah di-handoff)
     await tx
       .update(tsgBoxProcess)
       .set({ completedAt: new Date() })
-      .where(eq(tsgBoxProcess.id, activeBox.id));
+      .where(
+        inArray(
+          tsgBoxProcess.id,
+          activeBoxes.map((b) => b.id)
+        )
+      );
+
+    // Sesi OPEN di shift ini ditutup via handoff (tidak ditimbang kolektif)
+    await tx
+      .update(tsgBoxSession)
+      .set({ status: "HANDOFF", weighedAt: new Date() })
+      .where(
+        and(
+          eq(tsgBoxSession.shiftReportId, input.shiftId),
+          eq(tsgBoxSession.status, "OPEN")
+        )
+      );
 
     return created;
   });

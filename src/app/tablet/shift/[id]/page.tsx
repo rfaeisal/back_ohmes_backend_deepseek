@@ -1,5 +1,6 @@
 "use client";
 import { apiFetch } from "@/lib/utils/api-client";
+import { splitBatanganProportional } from "@/lib/calc";
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
@@ -25,6 +26,20 @@ interface BoxData {
   indicator?: "NORMAL" | "WARNING";
 }
 
+interface SessionData {
+  id: string;
+  status: string;
+  totalBatanganKg?: string | null;
+  batchCode?: string | null;
+  boxes: BoxData[];
+}
+
+interface SessionWeighResult {
+  batchCode: string;
+  totalBatanganKg: number;
+  boxes: Array<{ boxId: string; boxNumber: number; outputWeightKg: number; yieldPct: number; indicator: "NORMAL" | "WARNING" }>;
+}
+
 // =============================================================================
 // Page Component
 // =============================================================================
@@ -42,9 +57,10 @@ export default function ShiftActivePage() {
   const loadData = useCallback(async () => {
     if (!shiftId || shiftId === "test-id") { setDataLoading(false); return; }
     try {
-      const [detail, inv] = await Promise.all([
+      const [detail, inv, sessionsResp] = await Promise.all([
         apiFetch(`/shifts/${shiftId}`),
         apiFetch("/tsg-inventory/available?limit=50"),
+        apiFetch(`/shifts/${shiftId}/box-sessions`),
       ]);
       setShiftData(detail);
       setApiInventory((inv.data ?? []).map((item: any) => ({ ...item, id: item.inventoryId ?? item.id })));
@@ -59,14 +75,40 @@ export default function ShiftActivePage() {
           indicator: b.yieldPct ? (parseFloat(b.yieldPct) >= 110 && parseFloat(b.yieldPct) <= 114 ? "NORMAL" as const : "WARNING" as const) : undefined,
         }));
         setCompletedBoxes(completed);
-        // Check for active box
-        const active = detail.boxes.find((b: any) => !b.completedAt);
-        if (active) setActiveBox({
-          id: active.id, boxNumber: active.boxNumber, boxCode: active.boxCode,
-          tsgWeightKg: parseFloat(active.tsgWeightKg), isPartial: active.isPartial,
-          openedAt: new Date(active.openedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
-        });
+        // Semua boks aktif (bisa >1 dalam satu sesi)
+        const active = detail.boxes.filter((b: any) => !b.completedAt).map((b: any) => ({
+          id: b.id, boxNumber: b.boxNumber, boxCode: b.boxCode,
+          tsgWeightKg: parseFloat(b.tsgWeightKg), isPartial: b.isPartial,
+          openedAt: new Date(b.openedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+        }));
+        setActiveBoxes(active);
       }
+      // Map sesi → boks + kode batch
+      const sessions: any[] = sessionsResp?.data ?? [];
+      const openSession = sessions.find((s: any) => s.status === "OPEN");
+      if (openSession) {
+        setActiveSession({
+          id: openSession.id,
+          status: openSession.status,
+          batchCode: openSession.batchCode ?? null,
+          totalBatanganKg: openSession.totalBatanganKg ?? null,
+          boxes: (openSession.boxes ?? []).map((b: any) => ({
+            id: b.boxId, boxNumber: b.boxNumber, boxCode: b.boxCode,
+            tsgWeightKg: parseFloat(b.tsgWeightKg), isPartial: b.isPartial,
+            openedAt: new Date(b.openedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+          })),
+        });
+      } else {
+        setActiveSession(null);
+      }
+      // Map boxId → batchCode untuk tampilan boks selesai
+      const map = new Map<string, string>();
+      for (const s of sessions) {
+        if (s.batchCode && s.boxes) {
+          for (const b of s.boxes) map.set(b.boxId, s.batchCode);
+        }
+      }
+      setBatchByBox(map);
     } catch { /* tetap pakai data kosong */ }
     finally { setDataLoading(false); }
   }, [shiftId]);
@@ -76,16 +118,29 @@ export default function ShiftActivePage() {
   const inventoryList = apiInventory;
 
   // State
-  const [activeBox, setActiveBox] = useState<BoxData | null>(null);
+  const [activeBoxes, setActiveBoxes] = useState<BoxData[]>([]);
+  const [activeSession, setActiveSession] = useState<SessionData | null>(null);
+  const [batchByBox, setBatchByBox] = useState<Map<string, string>>(new Map());
+  const [selectedBoxId, setSelectedBoxId] = useState("");
   const [completedBoxes, setCompletedBoxes] = useState<BoxData[]>([]);
   const [consumptionEvents, setConsumptionEvents] = useState<any[]>([]);
   const [downtimeEvents, setDowntimeEvents] = useState<any[]>([]);
   const [maintenanceEvents, setMaintenanceEvents] = useState<any[]>([]);
   const [actionMsg, setActionMsg] = useState("");
+  const [lastSessionResult, setLastSessionResult] = useState<SessionWeighResult | null>(null);
+
+  // Sinkronkan boks terpilih untuk event consumable/downtime/maintenance
+  useEffect(() => {
+    if (activeBoxes.length > 0 && !activeBoxes.some((b) => b.id === selectedBoxId)) {
+      setSelectedBoxId(activeBoxes[0]!.id);
+    }
+  }, [activeBoxes, selectedBoxId]);
 
   // Dialog states
   const [showWeigh, setShowWeigh] = useState(false);
+  const [showSessionWeigh, setShowSessionWeigh] = useState(false);
   const [showOpenBox, setShowOpenBox] = useState(false);
+  const [openCount, setOpenCount] = useState(1);
   const [showConsumption, setShowConsumption] = useState(false);
   const [showDowntime, setShowDowntime] = useState(false);
   const [showMaintenance, setShowMaintenance] = useState(false);
@@ -130,10 +185,13 @@ export default function ShiftActivePage() {
     if (showConsumption || showMaintenance || showEndShift) loadMasterItems();
   }, [showConsumption, showMaintenance, showEndShift, loadMasterItems]);
 
-  // Weigh form
+  // =============================================================
+  // Weigh — legacy boks tunggal tanpa sesi (boks parsial handoff)
+  // =============================================================
   const [outputWeight, setOutputWeight] = useState("");
-  const yieldPreview = activeBox && outputWeight
-    ? ((parseFloat(outputWeight) / activeBox.tsgWeightKg) * 100).toFixed(2)
+  const legacyActiveBox = !activeSession && activeBoxes.length === 1 ? activeBoxes[0] : null;
+  const yieldPreview = legacyActiveBox && outputWeight
+    ? ((parseFloat(outputWeight) / legacyActiveBox.tsgWeightKg) * 100).toFixed(2)
     : null;
   const yieldIndicator = yieldPreview
     ? parseFloat(yieldPreview) >= 110 && parseFloat(yieldPreview) <= 114
@@ -142,40 +200,68 @@ export default function ShiftActivePage() {
     : null;
 
   const handleWeigh = async () => {
-    if (activeBox && shiftId && shiftId !== "test-id") {
+    if (legacyActiveBox && shiftId && shiftId !== "test-id") {
       try {
-        const result = await apiFetch(`/boxes/${activeBox.id}`, {
+        const result = await apiFetch(`/boxes/${legacyActiveBox.id}`, {
           method: "PATCH",
           body: JSON.stringify({ outputWeightKg: parseFloat(outputWeight) }),
         });
-        setCompletedBoxes(prev => [...prev, { ...activeBox, outputWeightKg: parseFloat(outputWeight), yieldPct: result.yieldPct, indicator: result.indicator, completedAt: new Date().toISOString() }]);
+        setCompletedBoxes(prev => [...prev, { ...legacyActiveBox, outputWeightKg: parseFloat(outputWeight), yieldPct: result.yieldPct, indicator: result.indicator, completedAt: new Date().toISOString() }]);
         loadData();
       } catch (e: any) { alert(e.message); }
     }
-    setActiveBox(null);
+    setActiveBoxes([]);
     setShowWeigh(false);
     setOutputWeight("");
   };
 
-  const handleOpenBox = async (inventoryId: string) => {
+  // =============================================================
+  // Sesi multi-boks — buka 1–6 boks & timbang kolektif
+  // =============================================================
+  const handleOpenSession = async () => {
     if (shiftId && shiftId !== "test-id") {
       try {
-        const result = await apiFetch(`/shifts/${shiftId}/boxes`, {
+        const result = await apiFetch(`/shifts/${shiftId}/box-sessions`, {
           method: "POST",
-          body: JSON.stringify({ inventoryBoxId: inventoryId }),
+          body: JSON.stringify({ count: openCount }),
         });
-        setActiveBox({
-          id: result.boxId,
-          boxNumber: result.boxNumber,
-          boxCode: result.boxCode,
-          tsgWeightKg: parseFloat(result.tsgWeightKg),
-          isPartial: result.isPartial,
-          openedAt: new Date(result.openedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
-        });
+        setActiveBoxes(
+          result.boxes.map((b: any) => ({
+            id: b.boxId,
+            boxNumber: b.boxNumber,
+            boxCode: b.boxCode,
+            tsgWeightKg: parseFloat(b.tsgWeightKg),
+            isPartial: b.isPartial,
+            openedAt: new Date(b.openedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+          }))
+        );
+        setLastSessionResult(null);
         loadData();
       } catch (e: any) { alert(e.message); }
     }
     setShowOpenBox(false);
+    setOpenCount(1);
+  };
+
+  const [sessionWeight, setSessionWeight] = useState("");
+  const sessionSplitPreview = activeSession && sessionWeight && parseFloat(sessionWeight) > 0
+    ? splitBatanganProportional(parseFloat(sessionWeight), activeSession.boxes.map((b) => b.tsgWeightKg))
+    : null;
+
+  const handleSessionWeigh = async () => {
+    if (!activeSession || !shiftId || shiftId === "test-id") return;
+    try {
+      const result = await apiFetch(`/box-sessions/${activeSession.id}/weigh`, {
+        method: "POST",
+        body: JSON.stringify({ totalBatanganKg: parseFloat(sessionWeight) }),
+      });
+      setLastSessionResult(result);
+      setActiveSession(null);
+      setActiveBoxes([]);
+      setSessionWeight("");
+      setShowSessionWeigh(false);
+      loadData();
+    } catch (e: any) { alert(e.message); }
   };
 
   return (
@@ -210,23 +296,125 @@ export default function ShiftActivePage() {
         <Badge variant={shiftData?.status === "RUNNING" ? "success" : shiftData?.status === "COMPLETED" ? "warning" : "success"}>{shiftData?.status ?? "RUNNING"}</Badge>
       </div>
 
+      {/* Hasil sesi terakhir — kode boks batangan untuk HLP */}
+      {lastSessionResult && activeBoxes.length === 0 && (
+        <Card highlight="green" className="mb-6">
+          <CardTitle className="text-2xl">Sesi Selesai ✅</CardTitle>
+          <p className="text-sm text-gray-500 mt-1">
+            Total batangan {lastSessionResult.totalBatanganKg} kg — {lastSessionResult.boxes.length} boks
+          </p>
+          <div className="mt-4 rounded-lg border-2 border-dashed border-green-400 bg-green-50 p-4 text-center">
+            <p className="text-xs font-semibold uppercase tracking-wider text-green-700">Kode Boks Batangan (untuk mesin HLP)</p>
+            <p className="text-3xl font-bold font-mono text-green-800 mt-1">{lastSessionResult.batchCode}</p>
+            <p className="text-xs text-green-600 mt-2">Tulis kode ini di boks batangan sebelum masuk mesin HLP.</p>
+          </div>
+          <div className="mt-3 space-y-1">
+            {lastSessionResult.boxes.map((b) => (
+              <div key={b.boxId} className="flex justify-between text-sm border-b border-gray-100 py-1">
+                <span className="font-semibold">Boks #{b.boxNumber}</span>
+                <span>{b.outputWeightKg} kg · {b.yieldPct}%</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* Active Box Card */}
-      {activeBox ? (
+      {activeSession ? (
+        // ================= Sesi Multi-Boks =================
         <Card highlight="green" className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <CardTitle className="text-2xl">
-                BOKS AKTIF #{activeBox.boxNumber}
+                SESI BOKS AKTIF · {activeSession.boxes.length} BOKS
               </CardTitle>
               <CardSubtitle>
-                {activeBox.boxCode} · TSG {activeBox.tsgWeightKg} kg
-                {activeBox.isPartial && (
+                Boks #{activeSession.boxes.map((b) => b.boxNumber).join(", #")}
+              </CardSubtitle>
+            </div>
+            <p className="text-sm text-gray-500">
+              Dibuka: {activeSession.boxes[0]?.openedAt}
+            </p>
+          </div>
+
+          {/* Daftar boks sesi */}
+          <div className="space-y-2 mb-4">
+            {activeSession.boxes.map((box) => (
+              <div key={box.id} className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50/50 px-4 py-2">
+                <div>
+                  <span className="font-bold">Boks #{box.boxNumber}</span>
+                  <span className="text-gray-500 ml-2">{box.boxCode}</span>
+                </div>
+                <span className="text-sm text-gray-600">TSG {box.tsgWeightKg} kg</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Tombol Besar: SESI SELESAI */}
+          <Button
+            size="operator"
+            variant="primary"
+            className="w-full text-3xl"
+            onClick={() => { setSessionWeight(""); setShowSessionWeigh(true); }}
+          >
+            SESI SELESAI · TIMBANG BATANGAN TOTAL
+          </Button>
+
+          {/* Handoff button — kalau sisa TSG mau dilanjut shift berikutnya */}
+          <Button
+            size="lg"
+            variant="outline"
+            className="w-full mt-3 border-yellow-400 text-yellow-700"
+            onClick={() => { setHandoffSisa(""); setHandoffBatangan(""); setHandoffNote(""); setShowHandoff(true); }}
+          >
+            🤝 Handoff Sisa TSG ke Shift Berikutnya
+          </Button>
+
+          {/* Secondary Buttons */}
+          <div className="mt-3 flex gap-3">
+            <Button
+              size="lg"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShowConsumption(true)}
+            >
+              + Tambah Pemakaian
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShowDowntime(true)}
+            >
+              + Log Downtime
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShowMaintenance(true)}
+            >
+              + Log Maintenance
+            </Button>
+          </div>
+        </Card>
+      ) : legacyActiveBox ? (
+        // ================= Legacy: boks tunggal tanpa sesi (parsial handoff) =================
+        <Card highlight="green" className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <CardTitle className="text-2xl">
+                BOKS AKTIF #{legacyActiveBox.boxNumber}
+              </CardTitle>
+              <CardSubtitle>
+                {legacyActiveBox.boxCode} · TSG {legacyActiveBox.tsgWeightKg} kg
+                {legacyActiveBox.isPartial && (
                   <Badge variant="warning" className="ml-2">PARTIAL</Badge>
                 )}
               </CardSubtitle>
             </div>
             <p className="text-sm text-gray-500">
-              Dibuka: {activeBox.openedAt}
+              Dibuka: {legacyActiveBox.openedAt}
             </p>
           </div>
 
@@ -235,7 +423,7 @@ export default function ShiftActivePage() {
             size="operator"
             variant="primary"
             className="w-full text-3xl"
-            onClick={() => { setOutputWeight(String(activeBox.tsgWeightKg)); setShowWeigh(true); }}
+            onClick={() => { setOutputWeight(String(legacyActiveBox.tsgWeightKg)); setShowWeigh(true); }}
           >
             BOKS SELESAI · TIMBANG HASIL BATANGAN
           </Button>
@@ -287,7 +475,7 @@ export default function ShiftActivePage() {
             size="operator"
             variant="primary"
             className="w-full"
-            onClick={() => setShowOpenBox(true)}
+            onClick={() => { setOpenCount(1); setShowOpenBox(true); }}
           >
             BUKA BOKS BARU
           </Button>
@@ -368,6 +556,9 @@ export default function ShiftActivePage() {
                     <span className="text-gray-400 ml-2 text-sm">
                       {box.openedAt} → {box.completedAt}
                     </span>
+                    {batchByBox.get(box.id) && (
+                      <Badge variant="info" className="ml-2 font-mono">{batchByBox.get(box.id)}</Badge>
+                    )}
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm text-gray-500">
@@ -390,8 +581,8 @@ export default function ShiftActivePage() {
           size="xl"
           variant="primary"
           className="flex-1"
-          onClick={() => setShowOpenBox(true)}
-          disabled={!!activeBox}
+          onClick={() => { setOpenCount(1); setShowOpenBox(true); }}
+          disabled={activeBoxes.length > 0}
         >
           BUKA BOKS BARU
         </Button>
@@ -400,7 +591,7 @@ export default function ShiftActivePage() {
           variant="danger"
           className="flex-1"
           onClick={() => setShowEndShift(true)}
-          disabled={!!activeBox}
+          disabled={activeBoxes.length > 0}
         >
           AKHIRI SHIFT
         </Button>
@@ -410,11 +601,11 @@ export default function ShiftActivePage() {
       {/* DIALOGS */}
       {/* ================================================================= */}
 
-      {/* Weigh Box Dialog */}
+      {/* Weigh Box Dialog (legacy boks tunggal) */}
       <Dialog open={showWeigh} onClose={() => setShowWeigh(false)} title="Timbang Hasil Boks">
         <div className="space-y-4">
           <div className="rounded-lg bg-gray-50 p-4">
-            <p className="text-sm text-gray-500">TSG Input: {activeBox?.tsgWeightKg} kg</p>
+            <p className="text-sm text-gray-500">TSG Input: {legacyActiveBox?.tsgWeightKg} kg</p>
           </div>
           <Input
             label="Berat Batangan (kg)"
@@ -445,36 +636,80 @@ export default function ShiftActivePage() {
         </div>
       </Dialog>
 
-      {/* Open Box Dialog — FIFO Inventory Picker */}
+      {/* Weigh Session Dialog — timbang kolektif */}
+      <Dialog open={showSessionWeigh} onClose={() => setShowSessionWeigh(false)} title="Timbang Batangan Akhir Sesi">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">
+            Timbang batangan dari {activeSession?.boxes.length} boks sekaligus.
+            Berat total dibagi otomatis secara proporsional per boks.
+          </p>
+          <Input
+            label="Total Berat Batangan (kg)"
+            type="number"
+            inputMode="decimal"
+            value={sessionWeight}
+            onChange={(e) => setSessionWeight(e.target.value)}
+            placeholder="0.00"
+            autoFocus
+          />
+          {sessionSplitPreview && activeSession && (
+            <div className="rounded-lg bg-gray-50 p-4 space-y-1">
+              <p className="text-xs font-semibold text-gray-500 mb-2">PEMBAGIAN OTOMATIS (PREVIEW)</p>
+              {activeSession.boxes.map((box, i) => {
+                const out = sessionSplitPreview[i]!;
+                const y = box.tsgWeightKg > 0 ? (out / box.tsgWeightKg) * 100 : 0;
+                return (
+                  <div key={box.id} className="flex justify-between text-sm border-b border-gray-100 py-1">
+                    <span className="font-semibold">Boks #{box.boxNumber}</span>
+                    <span>{out.toFixed(2)} kg · {y.toFixed(2)}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <Button
+            size="operator"
+            className="w-full"
+            disabled={!sessionWeight || parseFloat(sessionWeight) <= 0.01}
+            onClick={handleSessionWeigh}
+          >
+            Timbang & Selesaikan Sesi
+          </Button>
+        </div>
+      </Dialog>
+
+      {/* Open Box Dialog — pilih jumlah 1–6, FIFO otomatis */}
       <Dialog open={showOpenBox} onClose={() => setShowOpenBox(false)} title="Buka Boks Baru">
         <p className="text-sm text-gray-500 mb-4">
-          Pilih boks dari inventory (FIFO — tertua di atas). Boks tertua disarankan.
+          Pilih berapa boks yang dibuka sekaligus. Sistem otomatis mengambil
+          boks tertua dari inventory (FIFO).
         </p>
-        <div className="space-y-2 max-h-[400px] overflow-y-auto">
-          {inventoryList.map((item, i) => (
+        <div className="grid grid-cols-6 gap-2 mb-4">
+          {[1, 2, 3, 4, 5, 6].map((n) => (
             <button
-              key={item.id}
-              onClick={() => handleOpenBox(item.id)}
-              className={`w-full rounded-lg border-2 p-4 text-left transition-colors hover:border-primary-400 ${
-                i === 0 ? "border-yellow-400 bg-yellow-50" : "border-gray-200"
+              key={n}
+              onClick={() => setOpenCount(n)}
+              className={`rounded-lg border-2 py-3 text-2xl font-bold transition-colors ${
+                openCount === n
+                  ? "border-primary-500 bg-primary-50 text-primary-700"
+                  : "border-gray-200 text-gray-600"
               }`}
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-bold text-lg">
-                    {i === 0 && " "}{item.boxCode}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {item.weightKg} kg · Umur {item.ageInDays} hari · {item.location}
-                  </p>
-                </div>
-                {i === 0 && (
-                  <Badge variant="warning">Disarankan (FIFO)</Badge>
-                )}
-              </div>
+              {n}
             </button>
           ))}
         </div>
+        <p className="text-sm text-gray-500 mb-4">
+          Inventory tersedia: <span className="font-bold">{inventoryList.length}</span> boks (FIFO)
+        </p>
+        <Button
+          size="operator"
+          className="w-full"
+          disabled={openCount > inventoryList.length}
+          onClick={handleOpenSession}
+        >
+          BUKA {openCount} BOKS (FIFO)
+        </Button>
       </Dialog>
 
       {/* Handoff Dialog */}
@@ -485,7 +720,10 @@ export default function ShiftActivePage() {
             di mesin ini akan otomatis memakainya sebagai boks parsial.
           </p>
           <div className="rounded-lg bg-gray-50 p-4">
-            <p className="text-sm text-gray-500">Boks Aktif: {activeBox?.boxCode} (TSG {activeBox?.tsgWeightKg} kg)</p>
+            <p className="text-sm text-gray-500">
+              Boks Aktif ({activeBoxes.length}):{" "}
+              {activeBoxes.map((b) => `#${b.boxNumber} ${b.boxCode}`).join(", ") || "-"}
+            </p>
           </div>
           <Input
             label="Sisa TSG (kg)"
@@ -530,7 +768,8 @@ export default function ShiftActivePage() {
                 });
                 setActionMsg("✅ Handoff dibuat — sisa TSG siap untuk shift berikutnya.");
                 setShowHandoff(false);
-                setActiveBox(null);
+                setActiveBoxes([]);
+                setActiveSession(null);
                 loadData();
               } catch (e: any) {
                 setActionMsg(e.message);
@@ -547,6 +786,16 @@ export default function ShiftActivePage() {
       {/* Consumption Dialog */}
       <Dialog open={showConsumption} onClose={() => setShowConsumption(false)} title="Tambah Pemakaian">
         <div className="space-y-4">
+          {activeBoxes.length > 1 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Boks</label>
+              <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base" value={selectedBoxId} onChange={e => setSelectedBoxId(e.target.value)}>
+                {activeBoxes.map((b) => (
+                  <option key={b.id} value={b.id}>Boks #{b.boxNumber} — {b.boxCode}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Item</label>
             <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base" value={consForm.itemId} onChange={e => setConsForm({...consForm, itemId: e.target.value})}>
@@ -563,13 +812,13 @@ export default function ShiftActivePage() {
             className="w-full"
             disabled={consSaving}
             onClick={async () => {
-              if (!consForm.itemId || !consForm.qty || !activeBox?.id) {
+              if (!consForm.itemId || !consForm.qty || !selectedBoxId) {
                 setActionMsg("Pilih item, isi quantity, dan pastikan ada boks aktif.");
                 return;
               }
               setConsSaving(true);
               try {
-                await apiFetch(`/boxes/${activeBox.id}/consumption`, {
+                await apiFetch(`/boxes/${selectedBoxId}/consumption`, {
                   method: "POST",
                   body: JSON.stringify({
                     consumableItemId: consForm.itemId,
@@ -597,6 +846,16 @@ export default function ShiftActivePage() {
       {/* Downtime Dialog */}
       <Dialog open={showDowntime} onClose={() => setShowDowntime(false)} title="Log Downtime">
         <div className="space-y-4">
+          {activeBoxes.length > 1 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Boks</label>
+              <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base" value={selectedBoxId} onChange={e => setSelectedBoxId(e.target.value)}>
+                {activeBoxes.map((b) => (
+                  <option key={b.id} value={b.id}>Boks #{b.boxNumber} — {b.boxCode}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
             <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base" value={downForm.cat} onChange={e => setDownForm({...downForm, cat: e.target.value})}>
@@ -613,7 +872,7 @@ export default function ShiftActivePage() {
                 body: JSON.stringify({
                   category: downForm.cat,
                   durationMinutes: parseInt(downForm.dur),
-                  linkedBoxId: activeBox?.id,
+                  linkedBoxId: selectedBoxId || undefined,
                   description: downForm.desc || undefined,
                 }),
               });
@@ -631,6 +890,16 @@ export default function ShiftActivePage() {
       {/* Maintenance Dialog */}
       <Dialog open={showMaintenance} onClose={() => setShowMaintenance(false)} title="Log Maintenance / Sparepart">
         <div className="space-y-4">
+          {activeBoxes.length > 1 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Boks</label>
+              <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base" value={selectedBoxId} onChange={e => setSelectedBoxId(e.target.value)}>
+                {activeBoxes.map((b) => (
+                  <option key={b.id} value={b.id}>Boks #{b.boxNumber} — {b.boxCode}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Sparepart</label>
             <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base" value={mtnForm.partId} onChange={e => setMtnForm({...mtnForm, partId: e.target.value})}>
