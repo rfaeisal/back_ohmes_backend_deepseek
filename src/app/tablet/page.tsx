@@ -20,7 +20,10 @@ export default function TabletHome() {
         apiFetch("/machines"),
         apiFetch("/shifts?status=RUNNING&limit=50"),
       ]);
-      if (mRes.status === "fulfilled") setMachines(mRes.value.data ?? []);
+      if (mRes.status === "fulfilled") {
+        // Hanya mesin MAKER yang bisa mulai shift produksi — HLP punya alur sendiri
+        setMachines((mRes.value.data ?? []).filter((m: any) => m.type === "MAKER"));
+      }
       if (sRes.status === "fulfilled") setActiveShifts(sRes.value.data ?? []);
     } catch { setMachines([]); }
     finally { setLoading(false); }

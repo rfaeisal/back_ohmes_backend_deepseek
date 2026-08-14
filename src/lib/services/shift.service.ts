@@ -69,7 +69,24 @@ export interface HandoffInput {
 // =============================================================================
 
 export async function startShift(input: StartShiftInput) {
-  // 1. Validasi mesin tidak sedang RUNNING
+  // 1. Validasi mesin — hanya MAKER yang bisa mulai shift produksi
+  const [machineInfo] = await db
+    .select({ type: machine.type })
+    .from(machine)
+    .where(eq(machine.id, input.machineId))
+    .limit(1);
+
+  if (!machineInfo) {
+    throw new ServiceError("MACHINE_NOT_FOUND", "Mesin tidak ditemukan di master data.");
+  }
+  if (machineInfo.type !== "MAKER") {
+    throw new ServiceError(
+      "MACHINE_NOT_MAKER",
+      "Shift produksi hanya bisa dimulai di mesin MAKER. Mesin HLP punya alur sendiri."
+    );
+  }
+
+  // 2. Validasi mesin tidak sedang RUNNING
   const [activeShift] = await db
     .select({ id: shiftReport.id })
     .from(shiftReport)
