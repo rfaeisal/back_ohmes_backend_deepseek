@@ -151,6 +151,62 @@ export default function AreaDashboardPage() {
         </div>
       )}
 
+      {/* Grafik: yield per pabrik */}
+      {kpi.plants?.length > 0 && kpi.plants.some((p: any) => p.production?.yieldPct != null) && (
+        <Card className="mb-6">
+          <CardTitle>Yield per Pabrik</CardTitle>
+          <p className="text-sm text-gray-500 mb-4">Area target hijau = 110–114%</p>
+          <div className="space-y-3">
+            {kpi.plants.map((p: any) => {
+              const y = p.production?.yieldPct;
+              return (
+                <div key={p.id} className="flex items-center gap-3">
+                  <span className="w-28 text-sm font-medium flex-shrink-0">{p.code}</span>
+                  <div className="flex-1 h-6 bg-gray-100 rounded relative">
+                    {/* band target 110-114 */}
+                    <div className="absolute inset-y-0 bg-green-50 border-x border-dashed border-green-500" style={{ left: "42%", width: "12%" }} />
+                    {y != null && (
+                      <div
+                        className="absolute inset-y-0 rounded-sm"
+                        style={{
+                          left: `${Math.min(100, Math.max(0, ((y - 95) / 25) * 100))}%`,
+                          width: "3px",
+                          background: y >= 110 && y <= 114 ? "#0ca30c" : "#d03b3b",
+                        }}
+                        title={`${p.code}: ${y}%`}
+                      />
+                    )}
+                  </div>
+                  <span className="w-16 text-sm text-right flex-shrink-0">{y != null ? `${y}%` : "-"}</span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {/* Grafik: downtime per pabrik */}
+      {kpi.plants?.length > 0 && kpi.plants.some((p: any) => (p.downtimeMinutes ?? 0) > 0) && (
+        <Card className="mb-6">
+          <CardTitle>Downtime per Pabrik</CardTitle>
+          <div className="mt-3 space-y-3">
+            {kpi.plants.map((p: any) => (
+              <div key={p.id} className="flex items-center gap-3">
+                <span className="w-28 text-sm font-medium flex-shrink-0">{p.code}</span>
+                <div className="flex-1 h-5 bg-gray-100 rounded">
+                  <div
+                    className="h-full bg-yellow-500 rounded"
+                    style={{ width: `${Math.min(100, ((p.downtimeMinutes ?? 0) / 60) * 100)}%` }}
+                    title={`${p.downtimeMinutes ?? 0} menit`}
+                  />
+                </div>
+                <span className="w-20 text-sm text-right flex-shrink-0">{p.downtimeMinutes ?? 0} mnt</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {kpi.plants?.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {kpi.plants.map((p: any) => (

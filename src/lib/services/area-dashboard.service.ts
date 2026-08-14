@@ -4,7 +4,7 @@
 
 import { eq, and, sql, inArray } from "drizzle-orm";
 import db from "@/db";
-import { shiftReport, shiftWaste } from "@/db/schema";
+import { shiftReport, shiftWaste, tsgBoxProcess, downtimeLog } from "@/db/schema";
 import { region, plant } from "@/db/schema/tenancy";
 
 // =============================================================================
@@ -74,6 +74,61 @@ export async function getAreaKpi(regionId: string, date?: string) {
     }
   }
 
+  // Produksi per plant (yield dari tsg_box_process)
+  const prodByPlant: Record<string, { tsgKg: number; outputKg: number; boxes: number; yieldPct: number | null }> = {};
+  for (const p of plants) {
+    prodByPlant[p.id] = { tsgKg: 0, outputKg: 0, boxes: 0, yieldPct: null };
+  }
+  const prods = await db
+    .select({
+      plantId: shiftReport.plantId,
+      tsgKg: sql<number>`COALESCE(SUM(${tsgBoxProcess.tsgWeightKg}::decimal), 0)`.mapWith(Number),
+      outputKg: sql<number>`COALESCE(SUM(${tsgBoxProcess.outputWeightKg}::decimal), 0)`.mapWith(Number),
+      boxes: sql<number>`CAST(COUNT(${tsgBoxProcess.id}) AS INTEGER)`.mapWith(Number),
+    })
+    .from(tsgBoxProcess)
+    .innerJoin(shiftReport, sql`${tsgBoxProcess.shiftReportId} = ${shiftReport.id}`)
+    .where(
+      and(
+        inArray(shiftReport.plantId, plantIds),
+        eq(shiftReport.reportDate, reportDate)
+      )
+    )
+    .groupBy(shiftReport.plantId);
+
+  for (const pr of prods) {
+    if (prodByPlant[pr.plantId]) {
+      prodByPlant[pr.plantId] = {
+        tsgKg: pr.tsgKg,
+        outputKg: pr.outputKg,
+        boxes: pr.boxes,
+        yieldPct: pr.tsgKg > 0 ? Math.round((pr.outputKg / pr.tsgKg) * 10000) / 100 : null,
+      };
+    }
+  }
+
+  // Downtime per plant
+  const downtimeByPlant: Record<string, number> = {};
+  for (const p of plants) downtimeByPlant[p.id] = 0;
+  const downtimes = await db
+    .select({
+      plantId: shiftReport.plantId,
+      totalMinutes: sql<number>`COALESCE(SUM(${downtimeLog.durationMinutes}), 0)`.mapWith(Number),
+    })
+    .from(downtimeLog)
+    .innerJoin(shiftReport, sql`${downtimeLog.shiftReportId} = ${shiftReport.id}`)
+    .where(
+      and(
+        inArray(shiftReport.plantId, plantIds),
+        eq(shiftReport.reportDate, reportDate)
+      )
+    )
+    .groupBy(shiftReport.plantId);
+
+  for (const d of downtimes) {
+    if (downtimeByPlant[d.plantId] !== undefined) downtimeByPlant[d.plantId] = d.totalMinutes;
+  }
+
   // Per-plant summary
   const plantSummaries = plants.map((p) => ({
     id: p.id,
@@ -85,6 +140,8 @@ export async function getAreaKpi(regionId: string, date?: string) {
       running: shifts.filter((s) => s.plantId === p.id && s.status === "RUNNING").length,
     },
     waste: wasteByPlant[p.id],
+    production: prodByPlant[p.id],
+    downtimeMinutes: downtimeByPlant[p.id],
   }));
 
   return {
@@ -149,12 +206,16 @@ export async function getAreaKpiWeek(regionId: string, weekStart: string) {
     runningShifts: daily.reduce((s, k) => s + (k.summary?.runningShifts ?? 0), 0),
   };
 
-  // Per pabrik: jumlahkan shift & waste per hari
+  // Per pabrik: jumlahkan shift, waste, produksi, downtime per hari
   const plants: any[] = [];
   const firstPlants = daily[0]?.plants ?? [];
   for (const p of firstPlants) {
     const shifts = { total: 0, approved: 0, running: 0 };
     const waste: Record<string, number> = { MENIR: 0, RIJEKAN: 0, DEBU_KASAR: 0, DEBU_HALUS: 0 };
+    let tsgKg = 0;
+    let outputKg = 0;
+    let boxes = 0;
+    let downtimeMinutes = 0;
     for (const k of daily) {
       const pk = (k.plants ?? []).find((x: any) => x.id === p.id);
       if (pk) {
@@ -164,9 +225,26 @@ export async function getAreaKpiWeek(regionId: string, weekStart: string) {
         for (const cat of Object.keys(waste)) {
           waste[cat] += pk.waste?.[cat] ?? 0;
         }
+        tsgKg += pk.production?.tsgKg ?? 0;
+        outputKg += pk.production?.outputKg ?? 0;
+        boxes += pk.production?.boxes ?? 0;
+        downtimeMinutes += pk.downtimeMinutes ?? 0;
       }
     }
-    plants.push({ id: p.id, code: p.code, name: p.name, shifts, waste });
+    plants.push({
+      id: p.id,
+      code: p.code,
+      name: p.name,
+      shifts,
+      waste,
+      production: {
+        tsgKg: Math.round(tsgKg * 100) / 100,
+        outputKg: Math.round(outputKg * 100) / 100,
+        boxes,
+        yieldPct: tsgKg > 0 ? Math.round((outputKg / tsgKg) * 10000) / 100 : null,
+      },
+      downtimeMinutes,
+    });
   }
 
   // Rata-rata per hari
