@@ -209,32 +209,42 @@ export default function AreaDashboardPage() {
 
       {kpi.plants?.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {kpi.plants.map((p: any) => (
-            <Card key={p.id}>
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <CardTitle>{p.name}</CardTitle>
-                  <p className="text-sm text-gray-500 font-mono">{p.code}</p>
-                </div>
-                <Badge variant={p.shifts?.running > 0 ? "success" : "neutral"}>
-                  {p.shifts?.running > 0 ? "AKTIF" : "IDLE"}
-                </Badge>
-              </div>
-              <div className="grid grid-cols-4 gap-3 text-center">
-                {[
-                  { label: "Shift", value: p.shifts?.total ?? 0 },
-                  { label: "Approved", value: p.shifts?.approved ?? 0 },
-                  { label: "Running", value: p.shifts?.running ?? 0 },
-                  { label: "Waste", value: `${(Object.values(p.waste ?? {}) as number[]).reduce((a: number, b: number) => a + b, 0).toFixed(1)}kg` },
-                ].map((s) => (
-                  <div key={s.label}>
-                    <p className="text-xs text-gray-500">{s.label}</p>
-                    <p className="text-lg font-bold">{s.value}</p>
+          {kpi.plants.map((p: any) => {
+            const y = p.production?.yieldPct;
+            const wasteTotal = (Object.values(p.waste ?? {}) as number[]).reduce((a: number, b: number) => a + b, 0);
+            return (
+              <Card key={p.id}>
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <CardTitle>{p.name}</CardTitle>
+                    <p className="text-sm text-gray-500 font-mono">{p.code}</p>
                   </div>
-                ))}
-              </div>
-            </Card>
-          ))}
+                  <Badge variant={p.shifts?.running > 0 ? "success" : "neutral"}>
+                    {p.shifts?.running > 0 ? "AKTIF" : "IDLE"}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: "Shift Hari Ini", value: `${p.shifts?.total ?? 0} (${p.shifts?.running ?? 0} berjalan · ${p.shifts?.approved ?? 0} approved)` },
+                    { label: "Boks Diproses", value: p.production?.boxes ?? 0 },
+                    { label: "TSG Diproses", value: `${(p.production?.tsgKg ?? 0).toFixed(2)} kg` },
+                    { label: "Hasil Batangan", value: `${(p.production?.outputKg ?? 0).toFixed(2)} kg` },
+                    {
+                      label: "Yield",
+                      value: y != null ? `${y}%` : "-",
+                      color: y != null ? (y >= 110 && y <= 114 ? "text-green-700" : "text-red-700") : "text-gray-900",
+                    },
+                    { label: "Waste", value: `${wasteTotal.toFixed(1)}kg` },
+                  ].map((s) => (
+                    <div key={s.label}>
+                      <p className="text-xs text-gray-500">{s.label}</p>
+                      <p className={`text-lg font-bold ${s.color ?? "text-gray-900"}`}>{s.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
