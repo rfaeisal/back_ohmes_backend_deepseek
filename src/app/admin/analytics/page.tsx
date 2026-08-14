@@ -4,13 +4,12 @@ import { apiFetch, getToken } from "@/lib/utils/api-client";
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 export default function AnalyticsPage() {
   const [data, setData] = useState<any>(null);
   const [oee, setOee] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [exportJob, setExportJob] = useState<any>(null);
+
   const [mode, setMode] = useState<"day" | "week">("week");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [weekStart, setWeekStart] = useState(() => {
@@ -65,18 +64,6 @@ export default function AnalyticsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleExport = async () => {
-    const job = await apiFetch("/reports/cukai", {
-      method: "POST",
-      body: JSON.stringify({ from: "2026-01-01", to: "2026-12-31", format: "csv" }),
-    });
-    setExportJob(job);
-    setTimeout(async () => {
-      const status = await apiFetch(`/reports/cukai?jobId=${job.jobId}`);
-      setExportJob(status);
-    }, 3000);
-  };
-
   if (loading) return <div className="p-8 text-center text-gray-500">Memuat data analitik...</div>;
 
   // Cek ada data sama sekali?
@@ -128,7 +115,6 @@ export default function AnalyticsPage() {
             </div>
           )}
         </div>
-        <Button onClick={handleExport}>📥 Export Cukai</Button>
       </div>
 
       {!hasAnyData && (
@@ -139,14 +125,6 @@ export default function AnalyticsPage() {
             : <> Tanggal <strong>{date}</strong> belum ada shift APPROVED.</>}
           Jalankan produksi &amp; approval dulu.
         </div>
-      )}
-
-      {exportJob && (
-        <Card className="mb-6" highlight={exportJob.status === "ready" ? "green" : "yellow"}>
-          <CardTitle>Export Job: {exportJob.jobId}</CardTitle>
-          <p>Status: <Badge variant={exportJob.status === "ready" ? "success" : "warning"}>{exportJob.status}</Badge></p>
-          {exportJob.downloadUrl && <p className="text-sm text-gray-500 mt-2">Download: {exportJob.downloadUrl}</p>}
-        </Card>
       )}
 
       {/* OEE */}
