@@ -249,6 +249,13 @@ export default function ShiftActivePage() {
   const sessionSplitPreview = activeSession && sessionWeight && parseFloat(sessionWeight) > 0
     ? splitBatanganProportional(parseFloat(sessionWeight), activeSession.boxes.map((b) => b.tsgWeightKg))
     : null;
+  const sessionPreviewWarning = sessionSplitPreview && activeSession
+    ? activeSession.boxes.some((box, i) => {
+        const out = sessionSplitPreview[i]!;
+        const y = box.tsgWeightKg > 0 ? (out / box.tsgWeightKg) * 100 : 0;
+        return y < 110 || y > 114;
+      })
+    : false;
 
   const handleSessionWeigh = async () => {
     if (!activeSession || !shiftId || shiftId === "test-id") return;
@@ -664,21 +671,36 @@ export default function ShiftActivePage() {
             autoFocus
           />
           {sessionSplitPreview && activeSession && (
-            <div className="rounded-lg bg-gray-50 p-4 space-y-1">
-              <p className="text-xs font-semibold text-gray-500 mb-2">PEMBAGIAN OTOMATIS (PREVIEW)</p>
-              {activeSession.boxes.map((box, i) => {
-                const out = sessionSplitPreview[i]!;
-                const y = box.tsgWeightKg > 0 ? (out / box.tsgWeightKg) * 100 : 0;
-                return (
-                  <div key={box.id} className="flex justify-between text-sm border-b border-gray-100 py-1">
-                    <span className="font-semibold">Boks #{box.boxNumber}</span>
-                    <span className="text-gray-600">
-                      TSG {box.tsgWeightKg} kg → {out.toFixed(2)} kg · {y.toFixed(2)}%
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+            <>
+              <div className="rounded-lg bg-gray-50 p-4 space-y-1">
+                <p className="text-xs font-semibold text-gray-500 mb-2">PEMBAGIAN OTOMATIS (PREVIEW)</p>
+                {activeSession.boxes.map((box, i) => {
+                  const out = sessionSplitPreview[i]!;
+                  const y = box.tsgWeightKg > 0 ? (out / box.tsgWeightKg) * 100 : 0;
+                  const normal = y >= 110 && y <= 114;
+                  return (
+                    <div key={box.id} className="flex justify-between text-sm border-b border-gray-100 py-1">
+                      <span className="font-semibold">Boks #{box.boxNumber}</span>
+                      <span className="text-gray-600">
+                        TSG {box.tsgWeightKg} kg → {out.toFixed(2)} kg ·{" "}
+                        <span className={`font-bold ${normal ? "text-green-700" : "text-red-700"}`}>
+                          {y.toFixed(2)}%
+                        </span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              {sessionPreviewWarning ? (
+                <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm font-semibold text-red-700">
+                  ⚠️ Yield di luar rentang normal (110–114%). Periksa timbangan batangan sebelum menyimpan.
+                </div>
+              ) : (
+                <div className="rounded-lg bg-green-50 border border-green-200 p-3 text-sm font-semibold text-green-700">
+                  ✅ Yield semua boks dalam rentang normal (110–114%).
+                </div>
+              )}
+            </>
           )}
           <Button
             size="operator"
