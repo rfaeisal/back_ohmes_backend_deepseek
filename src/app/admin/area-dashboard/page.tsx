@@ -59,6 +59,12 @@ export default function AreaDashboardPage() {
         </div>
       </div>
 
+      {kpi.summary && kpi.summary.totalShifts === 0 && (
+        <div className="mb-6 rounded-lg bg-yellow-50 border border-yellow-200 p-4 text-sm text-yellow-800">
+          📅 Tidak ada shift pada tanggal <strong>{kpi.date}</strong>. Pilih tanggal lain atau pastikan produksi sudah berjalan.
+        </div>
+      )}
+
       {kpi.summary && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           {[
