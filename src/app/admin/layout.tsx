@@ -33,6 +33,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/admin/reports/tsg-usage", label: "Penggunaan TSG", icon: BarChart3, permissions: ["shift.view"] },
       { href: "/admin/reports/tsg-stock", label: "Stok TSG", icon: Package, permissions: ["tsg.inventory.view"] },
       { href: "/admin/reports/tsg-receiving", label: "Laporan TSG Masuk", icon: FileBarChart, permissions: ["tsg.receiving.view"] },
+      { href: "/admin/reports/tsg-out", label: "TSG Keluar", icon: FileText, permissions: ["tsg.inventory.view"] },
     ],
   },
   {

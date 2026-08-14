@@ -539,3 +539,116 @@ export async function getTsgReturnDetail(returnId: string) {
 
   return { ...r, items };
 }
+
+// =============================================================================
+// Laporan TSG Keluar — gabungan transfer + retur
+// =============================================================================
+
+export async function listTsgOutReport(
+  plantId: string,
+  params: { from?: string; to?: string; type?: string }
+) {
+  const entries: any[] = [];
+
+  // Transfer out
+  const transfers = await db
+    .select({
+      id: tsgTransferOut.id,
+      transferCode: tsgTransferOut.transferCode,
+      destinationName: tsgTransferOut.destinationName,
+      totalBoxCount: tsgTransferOut.totalBoxCount,
+      totalWeightKg: tsgTransferOut.totalWeightKg,
+      notes: tsgTransferOut.notes,
+      sentAt: tsgTransferOut.sentAt,
+      sentByName: sql<string>`u.full_name`.mapWith(String),
+    })
+    .from(tsgTransferOut)
+    .leftJoin(sql`"user" u`, eq(tsgTransferOut.sentBy, sql`u.id`))
+    .where(eq(tsgTransferOut.plantId, plantId))
+    .orderBy(sql`${tsgTransferOut.sentAt} DESC`);
+
+  for (const t of transfers) {
+    const items = await db
+      .select({ boxCode: tsgTransferOutItem.boxCode, weightKg: tsgTransferOutItem.weightKg })
+      .from(tsgTransferOutItem)
+      .where(eq(tsgTransferOutItem.transferId, t.id))
+      .orderBy(tsgTransferOutItem.seq);
+    entries.push({
+      id: t.id,
+      type: "TRANSFER",
+      code: t.transferCode,
+      counterpart: t.destinationName,
+      date: t.sentAt,
+      byName: t.sentByName,
+      boxCount: t.totalBoxCount,
+      weightKg: Number(t.totalWeightKg),
+      notes: t.notes,
+      items,
+      printUrl: `/admin/gudang/transfer/${t.id}/print`,
+    });
+  }
+
+  // Return out
+  const returns = await db
+    .select({
+      id: tsgReturnOut.id,
+      returnCode: tsgReturnOut.returnCode,
+      supplierName: tsgSupplier.name,
+      totalBoxCount: tsgReturnOut.totalBoxCount,
+      totalWeightKg: tsgReturnOut.totalWeightKg,
+      reason: tsgReturnOut.reason,
+      notes: tsgReturnOut.notes,
+      returnedAt: tsgReturnOut.returnedAt,
+      returnedByName: sql<string>`u.full_name`.mapWith(String),
+    })
+    .from(tsgReturnOut)
+    .leftJoin(tsgSupplier, eq(tsgReturnOut.supplierId, tsgSupplier.id))
+    .leftJoin(sql`"user" u`, eq(tsgReturnOut.returnedBy, sql`u.id`))
+    .where(eq(tsgReturnOut.plantId, plantId))
+    .orderBy(sql`${tsgReturnOut.returnedAt} DESC`);
+
+  for (const r of returns) {
+    const items = await db
+      .select({ boxCode: tsgReturnOutItem.boxCode, weightKg: tsgReturnOutItem.weightKg })
+      .from(tsgReturnOutItem)
+      .where(eq(tsgReturnOutItem.returnId, r.id))
+      .orderBy(tsgReturnOutItem.seq);
+    entries.push({
+      id: r.id,
+      type: "RETUR",
+      code: r.returnCode,
+      counterpart: r.supplierName,
+      date: r.returnedAt,
+      byName: r.returnedByName,
+      boxCount: r.totalBoxCount,
+      weightKg: Number(r.totalWeightKg),
+      notes: r.reason,
+      items,
+      printUrl: `/admin/gudang/return/${r.id}/print`,
+    });
+  }
+
+  // Filter
+  let filtered = entries;
+  if (params.type && params.type !== "ALL") {
+    filtered = filtered.filter((e) => e.type === params.type);
+  }
+  if (params.from) {
+    filtered = filtered.filter((e) => e.date && new Date(e.date).toISOString().slice(0, 10) >= params.from!);
+  }
+  if (params.to) {
+    filtered = filtered.filter((e) => e.date && new Date(e.date).toISOString().slice(0, 10) <= params.to!);
+  }
+
+  filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const summary = {
+    totalOut: filtered.length,
+    totalBoxes: filtered.reduce((s, e) => s + e.boxCount, 0),
+    totalWeightKg: Math.round(filtered.reduce((s, e) => s + e.weightKg, 0) * 100) / 100,
+    totalTransfer: filtered.filter((e) => e.type === "TRANSFER").length,
+    totalReturn: filtered.filter((e) => e.type === "RETUR").length,
+  };
+
+  return { summary, data: filtered };
+}
