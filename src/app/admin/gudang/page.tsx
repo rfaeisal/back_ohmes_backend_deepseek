@@ -31,6 +31,8 @@ export default function GudangInboundPage() {
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [selectedSupplier, setSelectedSupplier] = useState("");
   const [locationCode, setLocationCode] = useState("");
+  const [tsgDocRef, setTsgDocRef] = useState("");
+  const [tsgNotes, setTsgNotes] = useState("");
   const [editLocId, setEditLocId] = useState<string | null>(null);
   const [editLocValue, setEditLocValue] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("AVAILABLE");
@@ -218,6 +220,8 @@ export default function GudangInboundPage() {
         body: JSON.stringify({
           supplierId: selectedSupplier,
           locationCode: locationCode || undefined,
+          supplierDocRef: tsgDocRef || undefined,
+          notes: tsgNotes || undefined,
           boxes: validBoxes.map(b => ({ boxCode: b.code, weightKg: parseFloat(b.weight), tsgType: b.type })),
         }),
       });
@@ -261,7 +265,7 @@ export default function GudangInboundPage() {
               <Printer className="size-5 mr-2" /> Cetak Label
             </Button>
           </Link>
-          <Button size="xl" onClick={() => { loadSuppliers(); setLocationCode(""); setReceivingBoxes([{ code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }]); setReceivingError(""); setShowReceiving(true); }}>
+          <Button size="xl" onClick={() => { loadSuppliers(); setLocationCode(""); setTsgDocRef(""); setTsgNotes(""); setReceivingBoxes([{ code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }]); setReceivingError(""); setShowReceiving(true); }}>
             🚛 Terima TSG Baru
           </Button>
           <Button size="xl" variant="outline" onClick={() => { loadSuppliers(); setMatType("CONSUMABLE"); setMatItems([{ itemId: "", qty: "", price: "" }]); setMatDocRef(""); setMatNotes(""); setMatError(""); setShowMaterialReceiving(true); }}>
@@ -369,10 +373,11 @@ export default function GudangInboundPage() {
                 {suppliers.map((s: any) => <option key={s.id} value={s.id}>{s.name} ({s.code})</option>)}
               </select>
             </div>
-            <Input label="No Surat Jalan Supplier" placeholder="Opsional" />
+            <Input label="No Surat Jalan Supplier" placeholder="Opsional" value={tsgDocRef} onChange={e => setTsgDocRef(e.target.value)} />
             <Input label="Lokasi Rak" placeholder="RAK-A-01" value={locationCode} onChange={e => setLocationCode(e.target.value)} />
           </div>
 
+          <Input label="Catatan (opsional)" placeholder="cth: Reproses rijekan shift 14/08 — hasil olahan" value={tsgNotes} onChange={e => setTsgNotes(e.target.value)} />
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-bold text-lg">Daftar Boks</h3>

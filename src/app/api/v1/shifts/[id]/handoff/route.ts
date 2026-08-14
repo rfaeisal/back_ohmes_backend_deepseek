@@ -38,7 +38,6 @@ export const POST = withAuth(
 
       const result = await createHandoff({
         shiftId,
-        machineId: "", // TODO: resolve dari shift
         plantId,
         ...parsed.data,
         weighedBy: ctx.user.userId,

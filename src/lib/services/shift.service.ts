@@ -54,7 +54,6 @@ export interface EndShiftInput {
 
 export interface HandoffInput {
   shiftId: string;
-  machineId: string;
   plantId: string;
   sisaTsgKg: number;
   batanganSementaraKg: number;
@@ -142,6 +141,18 @@ export async function startShift(input: StartShiftInput) {
           claimedAt: new Date(),
         })
         .where(eq(shiftHandoff.id, unclaimedHandoff.id));
+
+      // Buat boks partial otomatis dari sisa TSG handoff
+      await tx.insert(tsgBoxProcess).values({
+        shiftReportId: created.id,
+        plantId: created.plantId,
+        boxNumber: 1,
+        boxCode: `HANDOFF-${unclaimedHandoff.fromShiftId.slice(0, 8)}`,
+        tsgWeightKg: String(unclaimedHandoff.sisaTsgKg),
+        isPartial: true,
+        handoffId: unclaimedHandoff.id,
+        openedAt: new Date(),
+      });
     }
 
     return { shift: created, claimedHandoff: unclaimedHandoff ?? null };
@@ -309,20 +320,30 @@ export async function createHandoff(input: HandoffInput) {
     );
   }
 
-  // Create handoff
-  const [handoff] = await db
-    .insert(shiftHandoff)
-    .values({
-      fromShiftId: input.shiftId,
-      machineId: input.machineId,
-      plantId: input.plantId,
-      sisaTsgKg: String(input.sisaTsgKg),
-      batanganSementaraKg: String(input.batanganSementaraKg),
-      weighedAt: new Date(),
-      weighedBy: input.weighedBy,
-      note: input.note ?? null,
-    })
-    .returning();
+  // Create handoff + tutup boks aktif (sisa pindah ke shift berikutnya)
+  const handoff = await db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(shiftHandoff)
+      .values({
+        fromShiftId: input.shiftId,
+        machineId: shift.machineId,
+        plantId: input.plantId,
+        sisaTsgKg: String(input.sisaTsgKg),
+        batanganSementaraKg: String(input.batanganSementaraKg),
+        weighedAt: new Date(),
+        weighedBy: input.weighedBy,
+        note: input.note ?? null,
+      })
+      .returning();
+
+    // Tutup boks aktif tanpa timbangan (boks partial — sisa sudah di-handoff)
+    await tx
+      .update(tsgBoxProcess)
+      .set({ completedAt: new Date() })
+      .where(eq(tsgBoxProcess.id, activeBox.id));
+
+    return created;
+  });
 
   return handoff;
 }

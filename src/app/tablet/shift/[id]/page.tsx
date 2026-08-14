@@ -97,6 +97,11 @@ export default function ShiftActivePage() {
     DEBU_KASAR: { kg: "", status: "PENDING" },
     DEBU_HALUS: { kg: "", status: "PENDING" },
   });
+  const [showHandoff, setShowHandoff] = useState(false);
+  const [handoffSisa, setHandoffSisa] = useState("");
+  const [handoffBatangan, setHandoffBatangan] = useState("");
+  const [handoffNote, setHandoffNote] = useState("");
+  const [handoffSaving, setHandoffSaving] = useState(false);
   const [endNotes, setEndNotes] = useState("");
   const [endConsumptions, setEndConsumptions] = useState<Array<{ itemId: string; qty: string; note: string }>>([]);
 
@@ -233,6 +238,16 @@ export default function ShiftActivePage() {
             onClick={() => { setOutputWeight(String(activeBox.tsgWeightKg)); setShowWeigh(true); }}
           >
             BOKS SELESAI · TIMBANG HASIL BATANGAN
+          </Button>
+
+          {/* Handoff button — kalau sisa TSG mau dilanjut shift berikutnya */}
+          <Button
+            size="lg"
+            variant="outline"
+            className="w-full mt-3 border-yellow-400 text-yellow-700"
+            onClick={() => { setHandoffSisa(""); setHandoffBatangan(""); setHandoffNote(""); setShowHandoff(true); }}
+          >
+            🤝 Handoff Sisa TSG ke Shift Berikutnya
           </Button>
 
           {/* Secondary Buttons */}
@@ -459,6 +474,73 @@ export default function ShiftActivePage() {
               </div>
             </button>
           ))}
+        </div>
+      </Dialog>
+
+      {/* Handoff Dialog */}
+      <Dialog open={showHandoff} onClose={() => setShowHandoff(false)} title="Handoff Sisa TSG">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">
+            Timbang sisa TSG di boks &amp; batangan sementara. Shift berikutnya
+            di mesin ini akan otomatis memakainya sebagai boks parsial.
+          </p>
+          <div className="rounded-lg bg-gray-50 p-4">
+            <p className="text-sm text-gray-500">Boks Aktif: {activeBox?.boxCode} (TSG {activeBox?.tsgWeightKg} kg)</p>
+          </div>
+          <Input
+            label="Sisa TSG (kg)"
+            type="number"
+            value={handoffSisa}
+            onChange={(e) => setHandoffSisa(e.target.value)}
+            placeholder="cth: 12.5"
+            autoFocus
+          />
+          <Input
+            label="Batangan Sementara (kg)"
+            type="number"
+            value={handoffBatangan}
+            onChange={(e) => setHandoffBatangan(e.target.value)}
+            placeholder="cth: 1.2"
+          />
+          <Input
+            label="Catatan (opsional)"
+            value={handoffNote}
+            onChange={(e) => setHandoffNote(e.target.value)}
+            placeholder="Sisa karena pergantian shift"
+          />
+          {actionMsg && (
+            <div className={`rounded-lg p-3 text-sm ${actionMsg.startsWith("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>{actionMsg}</div>
+          )}
+          <Button
+            size="operator"
+            className="w-full"
+            disabled={handoffSaving}
+            onClick={async () => {
+              if (!handoffSisa || !handoffBatangan) { setActionMsg("Isi sisa TSG dan batangan sementara."); return; }
+              setHandoffSaving(true);
+              setActionMsg("");
+              try {
+                await apiFetch(`/shifts/${shiftId}/handoff`, {
+                  method: "POST",
+                  body: JSON.stringify({
+                    sisaTsgKg: parseFloat(handoffSisa),
+                    batanganSementaraKg: parseFloat(handoffBatangan),
+                    note: handoffNote || undefined,
+                  }),
+                });
+                setActionMsg("✅ Handoff dibuat — sisa TSG siap untuk shift berikutnya.");
+                setShowHandoff(false);
+                setActiveBox(null);
+                loadData();
+              } catch (e: any) {
+                setActionMsg(e.message);
+              } finally {
+                setHandoffSaving(false);
+              }
+            }}
+          >
+            {handoffSaving ? "Menyimpan..." : "Simpan Handoff"}
+          </Button>
         </div>
       </Dialog>
 

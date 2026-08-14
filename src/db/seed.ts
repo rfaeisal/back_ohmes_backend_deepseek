@@ -479,6 +479,7 @@ async function seed() {
   const suppliersData = [
     { code: "SUP-JAWA-01", name: "Supplier Jawa 1", contactPerson: "Pak Harun", contactPhone: "081234567890", address: "Jl. Tembakau No. 1, Jember" },
     { code: "SUP-JAWA-02", name: "Supplier Jawa 2", contactPerson: "Bu Sari", contactPhone: "081234567891", address: "Jl. Tembakau No. 2, Bondowoso" },
+    { code: "SUP-INTERNAL", name: "Reproses Internal (Rijekan)", contactPerson: "Produksi Pabrik", contactPhone: "-", address: "Internal" },
   ];
   for (const s of suppliersData) {
     await db.insert(tsgSupplier).values(s);
