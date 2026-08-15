@@ -35,7 +35,10 @@ const OFFICER_PERMISSIONS = [
 async function bootstrap() {
   console.log("🏷️ Seeding role Petugas Label Area (AREA_SJ_OFFICER)...\n");
 
-  // 1. Permissions baru (skip kalau sudah ada)
+  // 1. Permissions baru (skip kalau sudah ada) + muat SEMUA permission yang
+  //    akan digrant — bug lama: permMap hanya diisi NEW_PERMISSIONS sehingga
+  //    permission existing (shift.view, dashboard.area.view, dst) ter-skip
+  //    diam-diam padahal log bilang "✓ N permissions".
   const permMap = new Map<string, string>();
   for (const code of NEW_PERMISSIONS) {
     const [existing] = await db.select().from(permission).where(eq(permission.code, code)).limit(1);
@@ -46,6 +49,11 @@ async function bootstrap() {
       permMap.set(code, inserted!.id);
       console.log(`  + permission ${code}`);
     }
+  }
+  for (const code of OFFICER_PERMISSIONS) {
+    if (permMap.has(code)) continue;
+    const [existing] = await db.select().from(permission).where(eq(permission.code, code)).limit(1);
+    if (existing) permMap.set(code, existing.id);
   }
 
   // 2. Role baru (skip kalau sudah ada)

@@ -29,10 +29,12 @@ Fitur / perbaikan yang belum di-release.
 
 ### Fixed
 - Pool koneksi DB `max: 1` (sticky) — pengaman model RLS berbasis `SET SESSION`.
-- Isolasi pool label di level kode — sementara, karena role DB `mes_user` masih superuser (`rolbypassrls`) sehingga policy RLS belum berlaku (lihat Security).
+- **RLS kini aktif** — role DB runtime `mes_app` non-superuser (`NOBYPASSRLS`, migrasi 0008) menggantikan `mes_user` yang superuser; `DATABASE_URL_ADMIN` khusus migrasi & seed. Sebelumnya semua policy RLS dilewati karena `rolbypassrls`.
+- Script seed jalan via wrapper (`src/db/run-seed*.ts`) dengan koneksi admin — script tsx tidak memuat `.env` otomatis dan import statis `@/db` membuat koneksi sebelum override env.
+- `seed-sj-officer.ts`: bug lama `permMap` hanya berisi `NEW_PERMISSIONS` — permission existing (shift.view, dashboard.area.view, dst) ter-skip diam-diam meski log bilang "✓ N permissions". Sekarang semua `OFFICER_PERMISSIONS` dimuat & digrant.
 
 ### Security
-- ⚠️ **Temuan: role DB `mes_user` adalah superuser** → semua policy RLS (`p_sjb_*`, `p_sj_*`, dll) tidak pernah difilter untuk koneksi app. Isolasi tenant selama ini bergantung pada cek kode. TODO: role DB non-superuser (`NOBYPASSRLS`) + `ALTER TABLE ... FORCE ROW LEVEL SECURITY`.
+- **Fixed**: role DB `mes_user` superuser → RLS tidak pernah difilter. Kini runtime app memakai `mes_app` (NOSUPERUSER, NOBYPASSRLS) dengan grant DML; terverifikasi RLS memfilter di level DB (scope kosong → 0 baris). **Deploy prod/Neon**: jalankan migrasi 0008 (buat role app + grant) lalu arahkan `DATABASE_URL` ke role tersebut — role owner default Neon tetap melewati RLS.
 
 ---
 

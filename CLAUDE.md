@@ -105,7 +105,8 @@ src/
 6. **Print CSS** — `print-color-adjust: exact` agar warna tetap muncul
 7. **Admin layout** — ada auth guard (`useEffect` cek token, redirect `/tablet/login`)
 8. **Jangan `pnpm build` saat dev server jalan** — `.next` dipakai bersama; build menimpa state dev → MODULE_NOT_FOUND / UI rusak (tombol disabled). Fix: matikan dev → `rm -rf .next` → `pnpm dev` ulang
-9. **Migrasi 0004 & 0005 di luar journal drizzle** — diaplikasikan manual via psql; deploy Docker/Coolify hanya meng-copy file migrasi, TIDAK menjalankannya — wajib jalankan manual di DB produksi
+9. **Migrasi 0004 & 0005 di luar journal drizzle** — diaplikasikan manual via psql; deploy Docker/Coolify hanya meng-copy file migrasi, TIDAK menjalankannya — wajib jalankan manual di DB produksi (berlaku juga 0006–0008)
+10. **RLS aktif via role `mes_app`** (migrasi 0008, non-superuser). `DATABASE_URL` = runtime (mes_app), `DATABASE_URL_ADMIN` = superuser untuk drizzle-kit & seed. Jangan ganti DATABASE_URL ke role superuser/owner — RLS mati lagi. Seed pakai `pnpm db:seed*` (wrapper run-seed*.ts, otomatis pakai URL admin). Script tsx TIDAK memuat `.env` — `set -a; source .env` dulu kalau dipanggil langsung
 
 ---
 
