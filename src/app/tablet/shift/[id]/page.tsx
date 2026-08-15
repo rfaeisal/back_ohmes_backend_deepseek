@@ -134,6 +134,7 @@ export default function ShiftActivePage() {
   const [showOpenBox, setShowOpenBox] = useState(false);
   const [openCount, setOpenCount] = useState(1);
   const [openSelected, setOpenSelected] = useState<string[]>([]);
+  const [openRealWeights, setOpenRealWeights] = useState<Record<string, string>>({});
   const [showConsumption, setShowConsumption] = useState(false);
   const [showDowntime, setShowDowntime] = useState(false);
   const [showMaintenance, setShowMaintenance] = useState(false);
@@ -222,9 +223,18 @@ export default function ShiftActivePage() {
   const handleOpenSession = async () => {
     if (shiftId && shiftId !== "test-id") {
       try {
+        // Berat aktual timbangan pabrik (opsional) — hanya entry yang terisi valid
+        const realWeightKg: Record<string, number> = {};
+        for (const [inventoryId, v] of Object.entries(openRealWeights)) {
+          const num = parseFloat(v);
+          if (!isNaN(num) && num > 0) realWeightKg[inventoryId] = num;
+        }
         const result = await apiFetch(`/shifts/${shiftId}/box-sessions`, {
           method: "POST",
-          body: JSON.stringify({ inventoryBoxIds: openSelected }),
+          body: JSON.stringify({
+            inventoryBoxIds: openSelected,
+            realWeightKg: Object.keys(realWeightKg).length > 0 ? realWeightKg : undefined,
+          }),
         });
         setActiveBoxes(
           result.boxes.map((b: any) => ({
@@ -243,6 +253,7 @@ export default function ShiftActivePage() {
     setShowOpenBox(false);
     setOpenCount(1);
     setOpenSelected([]);
+    setOpenRealWeights({});
   };
 
   const [sessionWeight, setSessionWeight] = useState("");
@@ -722,7 +733,7 @@ export default function ShiftActivePage() {
           {[1, 2, 3, 4, 5, 6].map((n) => (
             <button
               key={n}
-              onClick={() => { setOpenCount(n); setOpenSelected([]); }}
+              onClick={() => { setOpenCount(n); setOpenSelected([]); setOpenRealWeights({}); }}
               className={`rounded-lg border-2 py-3 text-2xl font-bold transition-colors ${
                 openCount === n
                   ? "border-primary-500 bg-primary-50 text-primary-700"
@@ -775,6 +786,33 @@ export default function ShiftActivePage() {
           })}
         </div>
 
+        {openSelected.length > 0 && (
+          <div className="rounded-lg bg-gray-50 p-3 mb-4">
+            <p className="text-xs font-semibold text-gray-500 mb-2">
+              BERAT AKTUAL TIMBANGAN PABRIK (OPSIONAL) — kosongkan untuk pakai berat supplier
+            </p>
+            <div className="space-y-2">
+              {openSelected.map((id) => {
+                const item = inventoryList.find((i) => i.id === id);
+                if (!item) return null;
+                return (
+                  <div key={id} className="flex items-center gap-2">
+                    <span className="w-40 text-sm font-semibold flex-shrink-0">{item.boxCode}</span>
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      placeholder={String(item.weightKg)}
+                      value={openRealWeights[id] ?? ""}
+                      onChange={(e) => setOpenRealWeights((prev) => ({ ...prev, [id]: e.target.value }))}
+                      className="flex-1"
+                    />
+                    <span className="text-xs text-gray-400 flex-shrink-0">kg</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <Button
           size="operator"
           className="w-full"

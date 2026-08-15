@@ -9,7 +9,11 @@ import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import { openBoxSession } from "@/lib/services/box.service";
 import { ServiceError } from "@/lib/services/shift.service";
 
-const openSchema = z.object({ inventoryBoxIds: z.array(z.string().uuid()).min(1).max(6) });
+const openSchema = z.object({
+  inventoryBoxIds: z.array(z.string().uuid()).min(1).max(6),
+  // Berat aktual timbangan pabrik per inventoryBoxId (opsional — default berat supplier)
+  realWeightKg: z.record(z.string().uuid(), z.number().positive().max(100)).optional(),
+});
 
 export const POST = withAuth(
   async (request: Request, ctx: AuthContext, { params }: { params: Promise<{ id: string }> }) => {
@@ -26,7 +30,13 @@ export const POST = withAuth(
       const plantId = ctx.user.plantIds[0];
       if (!plantId) return NextResponse.json({ error: { code: "NO_PLANT_SCOPE", message: "Tidak ada plant dalam scope." }, requestId: ctx.requestId }, { status: 403 });
 
-      const result = await openBoxSession({ shiftReportId, plantId, inventoryBoxIds: parsed.data.inventoryBoxIds, actorUserId: ctx.user.userId });
+      const result = await openBoxSession({
+        shiftReportId,
+        plantId,
+        inventoryBoxIds: parsed.data.inventoryBoxIds,
+        realWeightKg: parsed.data.realWeightKg,
+        actorUserId: ctx.user.userId,
+      });
       if (!result.session) throw new ServiceError("SESSION_CREATE_FAILED", "Gagal membuat sesi boks.");
       return NextResponse.json(
         {

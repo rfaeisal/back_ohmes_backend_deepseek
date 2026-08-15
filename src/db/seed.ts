@@ -92,6 +92,7 @@ async function seed() {
     { code: "HQ_AUDITOR", name: "HQ Auditor", scopeLevel: "COMPANY", isPrivileged: false },
     { code: "AREA_COORDINATOR", name: "Koordinator Area", scopeLevel: "REGION", isPrivileged: false },
     { code: "AREA_QA", name: "Area QA", scopeLevel: "REGION", isPrivileged: false },
+    { code: "AREA_SJ_OFFICER", name: "Petugas Label Area", scopeLevel: "REGION", isPrivileged: false },
     { code: "PLANT_MANAGER", name: "Plant Manager", scopeLevel: "PLANT", isPrivileged: false },
     { code: "SHIFT_SUPERVISOR", name: "Supervisor Pabrik", scopeLevel: "PLANT", isPrivileged: false },
     { code: "OPERATOR_KECER", name: "Operator Kecer", scopeLevel: "PLANT", isPrivileged: false },
@@ -132,9 +133,11 @@ async function seed() {
     // HLP & Batch
     "hlp.pack", "batch.view",
     // TSG & WMS Inbound
-    "tsg.receiving.create", "tsg.receiving.view", "tsg.inventory.view",
+    "tsg.receiving.create", "tsg.receiving.view", "tsg.receiving.approve", "tsg.inventory.view",
     "tsg.inventory.allocate", "tsg.inventory.allocate.override", "tsg.inventory.writeoff",
     "tsg.inventory.transfer",
+    // Surat Jalan Supplier
+    "supplier.sj.create", "supplier.sj.view", "supplier.sj.label",
     // WMS Outbound
     "finishedgoods.receive", "finishedgoods.dispute", "finishedgoods.view",
     "cartoning.create", "cartoning.add_pack", "cartoning.close", "cartoning.view",
@@ -212,6 +215,12 @@ async function seed() {
       "dashboard.plant.view", "dashboard.area.view",
       "report.export_operational", "audit.read",
       "tsg.inventory.view", "tsg.receiving.view",
+      "supplier.sj.create", "supplier.sj.view", "supplier.sj.label",
+    ],
+    AREA_SJ_OFFICER: [
+      "supplier.sj.create", "supplier.sj.view", "supplier.sj.label",
+      "tsg.receiving.view", "shift.view", "batch.view",
+      "dashboard.area.view",
     ],
     AREA_QA: [
       "shift.view", "batch.view",
@@ -224,9 +233,10 @@ async function seed() {
       "shift.waste.input", "shift.waste.settle", "shift.end", "shift.handoff.create",
       "shift.approve", "shift.reopen", "shift.view", "shift.export",
       "hlp.pack", "batch.view",
-      "tsg.receiving.create", "tsg.receiving.view", "tsg.inventory.view",
+      "tsg.receiving.create", "tsg.receiving.view", "tsg.receiving.approve", "tsg.inventory.view",
       "tsg.inventory.allocate", "tsg.inventory.allocate.override",
       "tsg.inventory.writeoff", "tsg.inventory.transfer",
+      "supplier.sj.view",
       "finishedgoods.receive", "finishedgoods.dispute", "finishedgoods.view",
       "cartoning.create", "cartoning.add_pack", "cartoning.close", "cartoning.view",
       "dispatch.order.create", "dispatch.order.dispatch", "dispatch.order.view",
@@ -260,6 +270,7 @@ async function seed() {
     GUDANG_INBOUND: [
       "tsg.receiving.create", "tsg.receiving.view", "tsg.inventory.view",
       "tsg.inventory.allocate", "tsg.inventory.writeoff", "tsg.inventory.transfer",
+      "supplier.sj.view",
       "shift.waste.settle", "shift.view", "batch.view",
       "dashboard.plant.view",
     ],
@@ -311,6 +322,7 @@ async function seed() {
     { username: "plantmanager", fullName: "Pak Plant Manager", password: "12345678", email: "plantmanager@hummer.example", roleCode: "PLANT_MANAGER", scopeType: "PLANT", scopeId: plantId },
     { username: "areaqa", fullName: "Bu Area QA", password: "12345678", email: "areaqa@hummer.example", roleCode: "AREA_QA", scopeType: "REGION", scopeId: reg!.id },
     { username: "area.koordinator", fullName: "Area Koordinator", password: "12345678", email: "erik@hummer.example", roleCode: "AREA_COORDINATOR", scopeType: "REGION", scopeId: reg!.id },
+    { username: "petugassj", fullName: "Petugas Label SJ", password: "12345678", email: "petugassj@hummer.example", roleCode: "AREA_SJ_OFFICER", scopeType: "REGION", scopeId: reg!.id },
     { username: "hqadmin", fullName: "Pak HQ Admin", password: "12345678", email: "hqadmin@hummer.example", roleCode: "HQ_ADMIN", scopeType: "COMPANY", scopeId: comp!.id },
     { username: "hqanalyst", fullName: "Bu HQ Analyst", password: "12345678", email: "hqanalyst@hummer.example", roleCode: "HQ_ANALYST", scopeType: "COMPANY", scopeId: comp!.id },
     { username: "hqauditor", fullName: "Pak HQ Auditor", password: "12345678", email: "pakhqauditor@gmail.com", roleCode: "HQ_AUDITOR", scopeType: "COMPANY", scopeId: comp!.id },

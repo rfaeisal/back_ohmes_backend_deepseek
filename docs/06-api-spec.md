@@ -599,6 +599,22 @@ Riwayat packing HLP (50 terakhir, desc): `batchCode`, `batanganKg`, `hlpMachineC
 **Permission**: `hlp.pack`.
 Daftar boks batangan dari Maker untuk dipilih operator HLP (100 terakhir, desc): `id`, `code` (`btc_<mesin>_<YYYYMMDD>_<seq>`), `batanganKg`, `machineCode`, `createdAt`.
 
+### 4.5A. Surat Jalan Supplier (pre-label & pre-weigh)
+
+| Method | Path | Permission | Fungsi |
+|---|---|---|---|
+| POST | `/supplier-sj` | `supplier.sj.create` | Buat SJ + generate label `SJL-YYYYMMDD-NNNN` per jenis TSG |
+| GET | `/supplier-sj?status=` | `supplier.sj.view` | Daftar SJ (RLS: area = semua SJ area; plant = SJ tujuannya) |
+| GET | `/supplier-sj/:id` | `supplier.sj.view` | Detail + daftar label/boks |
+| GET | `/supplier-sj/options` | `supplier.sj.create` | Supplier aktif + pabrik dalam scope (untuk form) |
+| GET | `/supplier-sj/labels/:boxCode` | `supplier.sj.view` | Resolve hasil scan QR label |
+| POST | `/supplier-sj/:id/boxes/weigh` | `supplier.sj.label` | `{ boxCode, supplierWeightKg }` — timbangan gudang supplier |
+| PATCH | `/supplier-sj/:id` | `supplier.sj.create` | `{ status: "SHIPPED" }` — wajib semua label tertimbang |
+| POST | `/tsg-receiving/from-sj` | `tsg.receiving.create` | `{ supplierSjId, verifiedBoxCodes? }` — validasi JUMLAH di pabrik → receiving + inventory + SJ RECEIVED (validasi berat = TODO) |
+| POST | `/tsg-receiving/:id/approve` | `tsg.receiving.approve` | Approve receiving manual tanpa SJ → buat inventory |
+
+Kontrak lengkap untuk tim mobile: [`docs/mobile-team/10-supplier-sj-app.md`](./mobile-team/10-supplier-sj-app.md).
+
 ### 4.5. Waste Settlement (setelah shift COMPLETED)
 
 ### `PATCH /shifts/:id/waste/:category/settle`

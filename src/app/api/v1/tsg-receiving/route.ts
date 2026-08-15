@@ -87,6 +87,8 @@ export const GET = withAuth(async (request: Request, ctx: AuthContext) => {
       totalBoxCount: tsgReceiving.totalBoxCount,
       totalWeightKg: tsgReceiving.totalWeightKg,
       supplierDocRef: tsgReceiving.supplierDocRef,
+      source: tsgReceiving.source,
+      approvalStatus: tsgReceiving.approvalStatus,
       notes: tsgReceiving.notes,
       supplierName: tsgSupplier.name,
       supplierCode: tsgSupplier.code,

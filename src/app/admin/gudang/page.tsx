@@ -12,6 +12,7 @@ import { Printer } from "lucide-react";
 
 export default function GudangInboundPage() {
   const [inventory, setInventory] = useState<any[]>([]);
+  const [pendingReceivings, setPendingReceivings] = useState<any[]>([]);
   const [showReceiving, setShowReceiving] = useState(false);
 
   const loadInventory = async () => {
@@ -22,7 +23,23 @@ export default function GudangInboundPage() {
     } catch {}
   };
 
-  useEffect(() => { loadInventory(); loadTransfers(); loadReturns(); }, []);
+  useEffect(() => { loadInventory(); loadTransfers(); loadReturns(); loadPendingReceivings(); }, []);
+
+  // Receiving manual (tanpa SJ) → PENDING sampai di-approve
+  const loadPendingReceivings = async () => {
+    try {
+      const res = await apiFetch("/tsg-receiving");
+      setPendingReceivings((res.data ?? []).filter((r: any) => r.approvalStatus === "PENDING"));
+    } catch { setPendingReceivings([]); }
+  };
+
+  const approveReceiving = async (id: string) => {
+    try {
+      await apiFetch(`/tsg-receiving/${id}/approve`, { method: "POST", body: JSON.stringify({}) });
+      loadPendingReceivings();
+      loadInventory();
+    } catch (e: any) { alert(e.message); }
+  };
   const [receivingBoxes, setReceivingBoxes] = useState<Array<{ code: string; weight: string; type: string }>>([
     { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" },
   ]);
@@ -228,6 +245,7 @@ export default function GudangInboundPage() {
       setShowReceiving(false);
       setReceivingBoxes([{ code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }]);
       loadInventory();
+      loadPendingReceivings();
     } catch (e: any) { setReceivingError(e.message); }
     finally { setSaving(false); }
   };
@@ -282,6 +300,24 @@ export default function GudangInboundPage() {
           </Button>
         </div>
       </div>
+
+      {/* Receiving menunggu approval (manual tanpa Surat Jalan) */}
+      {pendingReceivings.length > 0 && (
+        <div className="mb-6 rounded-lg border border-yellow-300 bg-yellow-50 p-4">
+          <p className="font-bold text-yellow-800 mb-2">⏳ Receiving Menunggu Approval ({pendingReceivings.length})</p>
+          {pendingReceivings.map((r) => (
+            <div key={r.id} className="flex items-center justify-between border-b border-yellow-200 py-2 last:border-0">
+              <div>
+                <span className="font-mono font-semibold">{r.receivingCode}</span>
+                <span className="text-sm text-gray-600 ml-2">{r.totalBoxCount} boks · {r.totalWeightKg} kg</span>
+                {r.supplierDocRef && <span className="text-xs text-gray-400 ml-2">SJ: {r.supplierDocRef}</span>}
+              </div>
+              <Button size="sm" onClick={() => approveReceiving(r.id)}>Approve → Inventory</Button>
+            </div>
+          ))}
+          <p className="text-xs text-yellow-700 mt-2">Boks masuk inventory setelah approval (perlu permission tsg.receiving.approve).</p>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">

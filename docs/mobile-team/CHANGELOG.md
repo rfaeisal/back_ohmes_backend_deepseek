@@ -4,6 +4,22 @@ Log perubahan paket kurasi. Untuk update master docs (di luar paket ini), tanya 
 
 ---
 
+## v1.2.0 — 2026-08-15
+
+**Fitur baru: Surat Jalan Supplier (pre-labeling & pre-weighing TSG)**.
+
+**Added**:
+- `10-supplier-sj-app.md` — kontrak API & flow aplikasi SJ: petugas area (buat SJ, scan label, input berat supplier, SHIPPED) + gudang inbound pabrik (validasi JUMLAH boks sesuai SJ, terima). Validasi berat di pabrik = TODO tahap berikutnya (berat real diinput saat masuk mesin Maker via tablet web).
+
+**Test user baru**:
+- `petugassj` / `12345678` — role `AREA_SJ_OFFICER` (scope REGION)
+
+**Endpoint baru**: `/supplier-sj` (CRUD), `/supplier-sj/options`, `/supplier-sj/labels/:boxCode`, `/supplier-sj/:id/boxes/weigh`, `/tsg-receiving/from-sj`, `/tsg-receiving/:id/approve`.
+
+**Reference master commit**: lihat git history root repo (Agustus 2026 — fitur Surat Jalan Supplier).
+
+---
+
 ## v1.1.0 — 2026-08-11
 
 **Production-ready expansion**.

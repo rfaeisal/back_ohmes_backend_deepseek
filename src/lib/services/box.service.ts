@@ -82,6 +82,7 @@ export interface OpenBoxSessionInput {
   shiftReportId: string;
   plantId: string;
   inventoryBoxIds: string[]; // 1–6 boks pilihan operator (dari inventory gudang)
+  realWeightKg?: Record<string, number>; // berat aktual timbangan pabrik per inventoryBoxId (opsional)
   actorUserId: string;
 }
 
@@ -303,6 +304,13 @@ export async function openBoxSession(input: OpenBoxSessionInput) {
       const a = ordered[i]!;
       const rec = receivingMap.get(a.boxId)!;
 
+      // Berat aktual timbangan pabrik (opsional) — default berat supplier
+      const realWeight = input.realWeightKg?.[a.inventoryId];
+      if (realWeight != null && (realWeight <= 0 || realWeight > 100)) {
+        throw new ServiceError("INVALID_BOX_WEIGHT", `Berat aktual boks ${rec.boxCode} harus 0-100 kg.`);
+      }
+      const tsgWeightKg = realWeight != null ? String(realWeight) : rec.weightKg;
+
       // Tandai inventory USED
       await tx
         .update(tsgInventory)
@@ -317,7 +325,7 @@ export async function openBoxSession(input: OpenBoxSessionInput) {
           sessionId: session!.id,
           boxNumber: startNumber + i,
           boxCode: rec.boxCode,
-          tsgWeightKg: rec.weightKg,
+          tsgWeightKg,
           isPartial: false,
           inventoryBoxId: a.inventoryId,
           openedAt: new Date(),

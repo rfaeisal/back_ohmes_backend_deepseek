@@ -15,6 +15,7 @@ import {
   tsgReturnOutItem,
 } from "@/db/schema";
 import { plant } from "@/db/schema/tenancy";
+import { writeAudit } from "@/lib/audit";
 import { ServiceError } from "./shift.service";
 
 // =============================================================================
@@ -82,7 +83,7 @@ export async function createReceiving(input: CreateReceivingInput) {
 
   // Create dalam transaksi
   const result = await db.transaction(async (tx) => {
-    // 1. Receiving header
+    // 1. Receiving header — manual tanpa SJ wajib approval (inventory dibuat saat approve)
     const [header] = await tx
       .insert(tsgReceiving)
       .values({
@@ -94,6 +95,8 @@ export async function createReceiving(input: CreateReceivingInput) {
         totalBoxCount: input.boxes.length,
         totalWeightKg: String(totalWeight),
         supplierDocRef: input.supplierDocRef ?? null,
+        source: "MANUAL",
+        approvalStatus: "PENDING",
         notes: input.notes ?? null,
       })
       .returning();
@@ -117,18 +120,18 @@ export async function createReceiving(input: CreateReceivingInput) {
         .returning();
 
       if (!rb) throw new Error("BOX_CREATE_FAILED");
-
-      // 3. Auto-create inventory
-      await tx.insert(tsgInventory).values({
-        plantId: input.plantId,
-        boxId: rb.id,
-        tsgType: box.tsgType ?? "REGULER",
-        status: "AVAILABLE",
-        locationCode: input.locationCode ?? null,
-      });
+      // Inventory dibuat saat approval (approveReceiving)
     }
 
     return header;
+  });
+
+  await writeAudit({
+    actorUserId: input.receivedBy,
+    action: "tsg.receiving.create",
+    entityTable: "tsg_receiving",
+    entityId: result.id,
+    after: { receivingCode, boxCount: input.boxes.length, approvalStatus: "PENDING" },
   });
 
   return {
@@ -136,8 +139,65 @@ export async function createReceiving(input: CreateReceivingInput) {
     receivingCode: result.receivingCode,
     totalBoxCount: input.boxes.length,
     totalWeightKg: totalWeight,
-    inventoryCreated: input.boxes.length,
+    inventoryCreated: 0,
+    approvalStatus: "PENDING",
   };
+}
+
+// =============================================================================
+// Approve Receiving — manual tanpa SJ: buat inventory setelah disetujui
+// =============================================================================
+
+export async function approveReceiving(
+  receivingId: string,
+  plantId: string,
+  actorUserId: string
+) {
+  const [receiving] = await db
+    .select()
+    .from(tsgReceiving)
+    .where(eq(tsgReceiving.id, receivingId))
+    .limit(1);
+
+  if (!receiving) throw new ServiceError("RECEIVING_NOT_FOUND", "Receiving tidak ditemukan.");
+  if (receiving.plantId !== plantId) {
+    throw new ServiceError("RECEIVING_WRONG_PLANT", "Receiving bukan untuk plant ini.");
+  }
+  if (receiving.approvalStatus !== "PENDING") {
+    throw new ServiceError("RECEIVING_ALREADY_APPROVED", "Receiving sudah di-approve.");
+  }
+
+  const boxes = await db
+    .select()
+    .from(tsgReceivingBox)
+    .where(eq(tsgReceivingBox.receivingId, receivingId));
+
+  const count = await db.transaction(async (tx) => {
+    for (const b of boxes) {
+      await tx.insert(tsgInventory).values({
+        plantId: receiving.plantId,
+        boxId: b.id,
+        tsgType: b.tsgType,
+        status: "AVAILABLE",
+      });
+    }
+    await tx
+      .update(tsgReceiving)
+      .set({ approvalStatus: "APPROVED", approvedBy: actorUserId, approvedAt: new Date() })
+      .where(eq(tsgReceiving.id, receivingId));
+    return boxes.length;
+  });
+
+  await writeAudit({
+    actorUserId,
+    action: "tsg.receiving.approve",
+    entityTable: "tsg_receiving",
+    entityId: receivingId,
+    before: { approvalStatus: "PENDING" },
+    after: { approvalStatus: "APPROVED", boxCount: count },
+  });
+
+  return { receivingId, approvalStatus: "APPROVED", inventoryCreated: count };
 }
 
 // =============================================================================

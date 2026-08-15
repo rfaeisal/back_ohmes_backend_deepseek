@@ -52,6 +52,11 @@ export {
   tsgReturnOutItem,
 } from "./wms-inbound";
 export {
+  supplierSj,
+  supplierSjBox,
+  supplierSjStatusEnum,
+} from "./supplier-sj";
+export {
   materialReceiving,
   consumableReceivingItem,
   sparepartReceivingItem,
