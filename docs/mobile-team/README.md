@@ -1,7 +1,7 @@
 # MES + WMS Hummer — Paket Dokumentasi Tim Mobile (Flutter)
 
-**Versi paket**: v1.0.0
-**Snapshot dari master docs**: 2026-08-10
+**Versi paket**: v1.3.0
+**Snapshot dari master docs**: 2026-08-15
 **Untuk**: tim pengembang aplikasi mobile Flutter (Android + iOS).
 
 ---
@@ -31,6 +31,7 @@ Total waktu baca ~1.5 jam untuk pemahaman awal.
 | **8** | [`08-deployment-store.md`](./08-deployment-store.md) | 15 mnt | Play Store + App Store + MDM distribution + release checklist |
 | **9** | [`09-testing-device-matrix.md`](./09-testing-device-matrix.md) | 20 mnt | Device matrix, manual QA checklist, accessibility test |
 | **10** | [`10-supplier-sj-app.md`](./10-supplier-sj-app.md) | 30 mnt | **Fitur baru**: Surat Jalan Supplier — pool label (cetak via web area office) + scan = assign + timbang di gudang supplier (petugas area + gudang inbound) |
+| **11** | [`11-migration-v1.1.md`](./11-migration-v1.1.md) | 10 mnt | **Panduan migrasi v1.1 (breaking)** — apa yang berubah dari kontrak v1.0 untuk tim yang sudah mulai bangun UI SJ |
 | — | [`CHANGELOG.md`](./CHANGELOG.md) | — | History versi paket |
 
 ---

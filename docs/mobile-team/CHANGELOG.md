@@ -10,6 +10,7 @@ Log perubahan paket kurasi. Untuk update master docs (di luar paket ini), tanya 
 
 **Changed**:
 - `10-supplier-sj-app.md` → v1.1.0 — label **tidak lagi digenerate saat buat SJ**. Pool label generik (QR + ceklis jenis TSG) dicetak via **web di area office** (`POST /supplier-sj/pool`, permission `supplier.sj.pool`), dibawa ke gudang supplier, lalu **scan = assign ke SJ + pilih jenis + input berat** dalam satu panggilan (`POST /supplier-sj/:id/boxes/weigh` body kini `{ boxCode, tsgType, supplierWeightKg }`).
+- **Added**: `11-migration-v1.1.md` — panduan migrasi breaking untuk tim yang sudah mulai bangun UI v1.0.
 - `POST /supplier-sj` body tanpa field `labels`; response + `poolAvailable`.
 - Label lifecycle: `AVAILABLE → ASSIGNED | VOID` (`POST /supplier-sj/labels/:boxCode/void`).
 - Error baru: `POOL_COUNT_INVALID`, `LABEL_NOT_AVAILABLE`, `LABEL_ALREADY_ASSIGNED`, `LABEL_VOIDED`, `SJ_EMPTY`.
