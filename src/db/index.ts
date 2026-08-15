@@ -37,7 +37,12 @@ function createConnection(): {
   }
 
   const client = postgres(connectionString, {
-    max: process.env.NODE_ENV === "production" ? 20 : 5,
+    // max 1 (sticky connection) — RLS memakai SET SESSION (app.current_plant_ids /
+    // current_user_id). Dengan pool > 1, query bisa jalan di koneksi yang menyimpan
+    // setting user LAIN. Catatan 2026-08-15: saat ini role DB (mes_user) masih
+    // SUPERUSER (rolbypassrls) sehingga RLS belum efektif — isolasi sementara
+    // dilakukan di level kode. TODO: role DB non-superuser + FORCE RLS.
+    max: 1,
     idle_timeout: 30,
     connect_timeout: 10,
     prepare: false, // Disable prepared statements untuk kompatibilitas Neon/Supabase

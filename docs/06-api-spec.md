@@ -599,21 +599,24 @@ Riwayat packing HLP (50 terakhir, desc): `batchCode`, `batanganKg`, `hlpMachineC
 **Permission**: `hlp.pack`.
 Daftar boks batangan dari Maker untuk dipilih operator HLP (100 terakhir, desc): `id`, `code` (`btc_<mesin>_<YYYYMMDD>_<seq>`), `batanganKg`, `machineCode`, `createdAt`.
 
-### 4.5A. Surat Jalan Supplier (pre-label & pre-weigh)
+### 4.5A. Surat Jalan Supplier (pool label & pre-weigh)
+
+> **v1.1 (target, backend belum rilis)** — label pool generik dicetak via web di area office, di-assign ke SJ saat scan di gudang supplier. Kontrak lengkap tim mobile: [`docs/mobile-team/10-supplier-sj-app.md`](./mobile-team/10-supplier-sj-app.md).
 
 | Method | Path | Permission | Fungsi |
 |---|---|---|---|
-| POST | `/supplier-sj` | `supplier.sj.create` | Buat SJ + generate label `SJL-YYYYMMDD-NNNN` per jenis TSG |
+| POST | `/supplier-sj` | `supplier.sj.create` | Buat SJ (tanpa label — label di-assign saat scan). Response `{ sjId, sjNumber, status, poolAvailable }` |
 | GET | `/supplier-sj?status=` | `supplier.sj.view` | Daftar SJ (RLS: area = semua SJ area; plant = SJ tujuannya) |
 | GET | `/supplier-sj/:id` | `supplier.sj.view` | Detail + daftar label/boks |
 | GET | `/supplier-sj/options` | `supplier.sj.create` | Supplier aktif + pabrik dalam scope (untuk form) |
-| GET | `/supplier-sj/labels/:boxCode` | `supplier.sj.view` | Resolve hasil scan QR label |
-| POST | `/supplier-sj/:id/boxes/weigh` | `supplier.sj.label` | `{ boxCode, supplierWeightKg }` — timbangan gudang supplier |
-| PATCH | `/supplier-sj/:id` | `supplier.sj.create` | `{ status: "SHIPPED" }` — wajib semua label tertimbang |
-| POST | `/tsg-receiving/from-sj` | `tsg.receiving.create` | `{ supplierSjId, verifiedBoxCodes? }` — validasi JUMLAH di pabrik → receiving + inventory + SJ RECEIVED (validasi berat = TODO) |
+| POST | `/supplier-sj/pool` | `supplier.sj.pool` (web) | `{ count }` — cetak pool label generik `TSG-YYYYMMDD-NNN` (format kode boks existing, AVAILABLE) |
+| GET | `/supplier-sj/pool` | `supplier.sj.pool` (web) | Sisa pool: available / assigned / voided |
+| GET | `/supplier-sj/labels/:boxCode` | `supplier.sj.view` | Resolve hasil scan QR label (+ `labelStatus` AVAILABLE/ASSIGNED/VOID) |
+| POST | `/supplier-sj/:id/boxes/weigh` | `supplier.sj.label` | `{ boxCode, tsgType, supplierWeightKg }` — assign label ke SJ + jenis + timbangan gudang supplier (satu langkah) |
+| POST | `/supplier-sj/labels/:boxCode/void` | `supplier.sj.label` | VOID label AVAILABLE (hilang/rusak) |
+| PATCH | `/supplier-sj/:id` | `supplier.sj.create` | `{ status: "SHIPPED" }` — wajib semua label tertimbang (`SJ_EMPTY` kalau belum ada boks) |
+| POST | `/tsg-receiving/from-sj` | `tsg.receiving.create` | `{ supplierSjId, verifiedBoxCodes? }` — validasi JUMLAH di pabrik → receiving + inventory + SJ RECEIVED (validasi berat & per jenis = TODO) |
 | POST | `/tsg-receiving/:id/approve` | `tsg.receiving.approve` | Approve receiving manual tanpa SJ → buat inventory |
-
-Kontrak lengkap untuk tim mobile: [`docs/mobile-team/10-supplier-sj-app.md`](./mobile-team/10-supplier-sj-app.md).
 
 ### 4.5. Waste Settlement (setelah shift COMPLETED)
 

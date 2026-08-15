@@ -22,6 +22,7 @@ Proyek MES + WMS Hummer — **Fase 0–6 Complete** (Agustus 2026).
 - ✅ Halaman HLP tablet (`/tablet/hlp`): pilih batch, catat packing, berat per batang
 - ✅ Event level sesi: pemakaian/downtime/maintenance tanpa pilih boks
 - ✅ Start shift hanya mesin MAKER (filter UI + validasi server)
+- ✅ Surat Jalan Supplier v1.1 — pool label generik `TSG-YYYYMMDD-NNN` dicetak via web `/admin/supplier-sj` (PDF 100×75mm multi-halaman, XPrinter 420B), scan di gudang = assign + jenis + berat, VOID, validasi jumlah di pabrik
 
 ---
 

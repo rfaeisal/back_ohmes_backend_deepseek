@@ -9,14 +9,11 @@ import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import { createSupplierSj } from "@/lib/services/supplier-sj.service";
 import { ServiceError } from "@/lib/services/shift.service";
 
+// v1.1: SJ lahir tanpa label — boks masuk saat scan/assign di gudang supplier
 const createSchema = z.object({
   sjNumber: z.string().min(1).max(50),
   supplierId: z.string().uuid(),
   plantId: z.string().uuid(),
-  labels: z
-    .array(z.object({ tsgType: z.enum(["REGULER", "MILD", "PUTIHAN"]), count: z.number().int().min(1).max(500) }))
-    .min(1)
-    .max(10),
 });
 
 export const POST = withAuth(
@@ -43,7 +40,6 @@ export const POST = withAuth(
         sjNumber: parsed.data.sjNumber,
         supplierId: parsed.data.supplierId,
         plantId: parsed.data.plantId,
-        labels: parsed.data.labels,
         actorUserId: ctx.user.userId,
       });
 

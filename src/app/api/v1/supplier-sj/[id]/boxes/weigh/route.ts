@@ -1,4 +1,4 @@
-// POST /supplier-sj/:id/boxes/weigh — Scan label + input berat timbangan supplier
+// POST /supplier-sj/:id/boxes/weigh — Scan label = assign ke SJ + pilih jenis + input berat (satu langkah)
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withAuth, type AuthContext } from "@/lib/auth/middleware";
@@ -7,6 +7,7 @@ import { ServiceError } from "@/lib/services/shift.service";
 
 const schema = z.object({
   boxCode: z.string().min(1).max(50),
+  tsgType: z.enum(["REGULER", "MILD", "PUTIHAN"]).optional(), // wajib saat assign label pool
   supplierWeightKg: z.number().positive().max(100),
 });
 
@@ -26,6 +27,7 @@ export const POST = withAuth(
       const result = await weighSupplierSjBox({
         supplierSjId,
         boxCode: parsed.data.boxCode,
+        tsgType: parsed.data.tsgType,
         supplierWeightKg: parsed.data.supplierWeightKg,
         actorUserId: ctx.user.userId,
       });
@@ -35,6 +37,7 @@ export const POST = withAuth(
           boxId: result!.id,
           boxCode: result!.boxCode,
           tsgType: result!.tsgType,
+          labelStatus: result!.labelStatus,
           supplierWeightKg: result!.supplierWeightKg,
           enteredAt: result!.enteredAt,
         },

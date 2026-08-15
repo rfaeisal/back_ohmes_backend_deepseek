@@ -30,7 +30,7 @@ Total waktu baca ~1.5 jam untuk pemahaman awal.
 | **7** | [`07-analytics-events.md`](./07-analytics-events.md) | 15 mnt | Firebase Analytics event catalog + FCM push notification |
 | **8** | [`08-deployment-store.md`](./08-deployment-store.md) | 15 mnt | Play Store + App Store + MDM distribution + release checklist |
 | **9** | [`09-testing-device-matrix.md`](./09-testing-device-matrix.md) | 20 mnt | Device matrix, manual QA checklist, accessibility test |
-| **10** | [`10-supplier-sj-app.md`](./10-supplier-sj-app.md) | 30 mnt | **Fitur baru**: Surat Jalan Supplier — kontrak API & flow app (petugas area + gudang inbound) |
+| **10** | [`10-supplier-sj-app.md`](./10-supplier-sj-app.md) | 30 mnt | **Fitur baru**: Surat Jalan Supplier — pool label (cetak via web area office) + scan = assign + timbang di gudang supplier (petugas area + gudang inbound) |
 | — | [`CHANGELOG.md`](./CHANGELOG.md) | — | History versi paket |
 
 ---

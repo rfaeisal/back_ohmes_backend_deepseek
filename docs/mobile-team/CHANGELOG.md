@@ -4,6 +4,23 @@ Log perubahan paket kurasi. Untuk update master docs (di luar paket ini), tanya 
 
 ---
 
+## v1.3.0 — 2026-08-15
+
+**Breaking: Surat Jalan Supplier v1.1 — pool label + assign saat scan**.
+
+**Changed**:
+- `10-supplier-sj-app.md` → v1.1.0 — label **tidak lagi digenerate saat buat SJ**. Pool label generik (QR + ceklis jenis TSG) dicetak via **web di area office** (`POST /supplier-sj/pool`, permission `supplier.sj.pool`), dibawa ke gudang supplier, lalu **scan = assign ke SJ + pilih jenis + input berat** dalam satu panggilan (`POST /supplier-sj/:id/boxes/weigh` body kini `{ boxCode, tsgType, supplierWeightKg }`).
+- `POST /supplier-sj` body tanpa field `labels`; response + `poolAvailable`.
+- Label lifecycle: `AVAILABLE → ASSIGNED | VOID` (`POST /supplier-sj/labels/:boxCode/void`).
+- Error baru: `POOL_COUNT_INVALID`, `LABEL_NOT_AVAILABLE`, `LABEL_ALREADY_ASSIGNED`, `LABEL_VOIDED`, `SJ_EMPTY`.
+- Desain label fisik final didokumentasikan (100×75mm direct thermal, QR 44mm + centang 3 jenis + kode boks, tanpa header/No. SJ, cetak via PDF multi-halaman XPrinter 420B, kode label pakai format DB existing `TSG-YYYYMMDD-NNN`).
+
+> ⚠️ **Status implementasi**: v1.1 = desain target, **backend belum rilis** (menunggu migrasi 0007 + endpoint pool). Tim mobile boleh mulai bangun UI, tapi koordinasi jadwal testing E2E dengan PM.
+
+**Reference master commit**: lihat git history root repo (Agustus 2026 — Surat Jalan Supplier v1.1).
+
+---
+
 ## v1.2.0 — 2026-08-15
 
 **Fitur baru: Surat Jalan Supplier (pre-labeling & pre-weighing TSG)**.

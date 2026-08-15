@@ -26,6 +26,13 @@ export const supplierSjStatusEnum = pgEnum("supplier_sj_status", [
   "RECEIVED", // pabrik verifikasi & receiving selesai
 ]);
 
+// Lifecycle label: AVAILABLE (pool, belum terikat SJ) → ASSIGNED (terikat via scan) | VOID (hilang/rusak)
+export const supplierSjLabelStatusEnum = pgEnum("supplier_sj_label_status", [
+  "AVAILABLE",
+  "ASSIGNED",
+  "VOID",
+]);
+
 export const supplierSj = pgTable(
   "supplier_sj",
   {
@@ -59,14 +66,16 @@ export const supplierSjBox = pgTable(
   "supplier_sj_box",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    supplierSjId: uuid("supplier_sj_id")
+    supplierSjId: uuid("supplier_sj_id").references(() => supplierSj.id, {
+      onDelete: "cascade",
+    }), // NULL = pool label, belum terikat SJ
+    plantId: uuid("plant_id").references(() => plant.id), // NULL untuk pool; diisi saat assign (denormalized untuk RLS)
+    boxCode: text("box_code").notNull().unique(), // kode label QR 'TSG-YYYYMMDD-NNN' (ditempel di boks)
+    tsgType: tsgTypeEnum("tsg_type"), // REGULER | MILD | PUTIHAN — NULL sampai discan (assign)
+    labelStatus: supplierSjLabelStatusEnum("label_status")
       .notNull()
-      .references(() => supplierSj.id, { onDelete: "cascade" }),
-    plantId: uuid("plant_id")
-      .notNull()
-      .references(() => plant.id), // ← denormalized untuk RLS
-    boxCode: text("box_code").notNull().unique(), // kode label QR (ditempel di boks)
-    tsgType: tsgTypeEnum("tsg_type").notNull(), // REGULER | MILD | PUTIHAN
+      .default("AVAILABLE"), // AVAILABLE → ASSIGNED | VOID
+    createdBy: uuid("created_by").references(() => user.id), // pemilik pool label (RLS)
     supplierWeightKg: decimal("supplier_weight_kg", {
       precision: 10,
       scale: 2,
@@ -79,5 +88,7 @@ export const supplierSjBox = pgTable(
   (t) => ({
     idxSj: index("idx_sj_box_sj").on(t.supplierSjId),
     idxPlant: index("idx_sj_box_plant").on(t.plantId),
+    idxLabelStatus: index("idx_sj_box_label_status").on(t.labelStatus),
+    idxCreatedBy: index("idx_sj_box_created_by").on(t.createdBy),
   })
 );

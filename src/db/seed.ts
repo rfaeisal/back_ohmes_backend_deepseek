@@ -137,7 +137,7 @@ async function seed() {
     "tsg.inventory.allocate", "tsg.inventory.allocate.override", "tsg.inventory.writeoff",
     "tsg.inventory.transfer",
     // Surat Jalan Supplier
-    "supplier.sj.create", "supplier.sj.view", "supplier.sj.label",
+    "supplier.sj.create", "supplier.sj.view", "supplier.sj.label", "supplier.sj.pool",
     // WMS Outbound
     "finishedgoods.receive", "finishedgoods.dispute", "finishedgoods.view",
     "cartoning.create", "cartoning.add_pack", "cartoning.close", "cartoning.view",
@@ -218,7 +218,7 @@ async function seed() {
       "supplier.sj.create", "supplier.sj.view", "supplier.sj.label",
     ],
     AREA_SJ_OFFICER: [
-      "supplier.sj.create", "supplier.sj.view", "supplier.sj.label",
+      "supplier.sj.create", "supplier.sj.view", "supplier.sj.label", "supplier.sj.pool",
       "tsg.receiving.view", "shift.view", "batch.view",
       "dashboard.area.view",
     ],

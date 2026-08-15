@@ -42,6 +42,7 @@ export const GET = withAuth(
           id: supplierSjBox.id,
           boxCode: supplierSjBox.boxCode,
           tsgType: supplierSjBox.tsgType,
+          labelStatus: supplierSjBox.labelStatus,
           supplierWeightKg: supplierSjBox.supplierWeightKg,
           enteredAt: supplierSjBox.enteredAt,
         })

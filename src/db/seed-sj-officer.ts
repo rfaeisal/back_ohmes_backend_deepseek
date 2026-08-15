@@ -17,6 +17,7 @@ const NEW_PERMISSIONS = [
   "supplier.sj.create",
   "supplier.sj.view",
   "supplier.sj.label",
+  "supplier.sj.pool",
   "tsg.receiving.approve",
 ];
 
@@ -24,6 +25,7 @@ const OFFICER_PERMISSIONS = [
   "supplier.sj.create",
   "supplier.sj.view",
   "supplier.sj.label",
+  "supplier.sj.pool",
   "tsg.receiving.view",
   "shift.view",
   "batch.view",
@@ -133,8 +135,9 @@ async function bootstrap() {
 bootstrap()
   .catch((e) => {
     console.error("❌ Gagal:", e);
-    process.exit(1);
+    process.exitCode = 1;
   })
   .finally(async () => {
-    process.exit(0);
+    // Jangan panggil process.exit() di sini — memotong flush stdout & query async
+    // yang belum selesai. Biarkan pool koneksi drain secara alami.
   });

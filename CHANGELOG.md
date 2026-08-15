@@ -20,7 +20,19 @@ Tipe entry:
 Fitur / perbaikan yang belum di-release.
 
 ### Added
-- (belum ada)
+- **Surat Jalan Supplier v1.1 — pool label** (`POST/GET /supplier-sj/pool`, `POST /supplier-sj/pool/pdf`, `POST /supplier-sj/labels/:boxCode/void`): label generik dicetak di area office via web (PDF multi-halaman 100×75mm, XPrinter 420B, direct thermal), di-assign ke SJ saat scan di gudang supplier (weigh kini `{ boxCode, tsgType, supplierWeightKg }`). Kode label pakai format DB existing `TSG-YYYYMMDD-NNN` (sequence global dari `supplier_sj_box` + `tsg_receiving_box`). Label lifecycle `AVAILABLE → ASSIGNED | VOID`. Halaman web `/admin/supplier-sj` (generate + download PDF + overview pool + VOID). Migrasi 0007.
+
+### Changed
+- `POST /supplier-sj` tidak lagi generate label — SJ lahir kosong, response + `poolAvailable`.
+- `GET /supplier-sj/labels/:boxCode` — LEFT JOIN, + `labelStatus`, field SJ nullable untuk label pool.
+- `PATCH /supplier-sj/:id` (SHIPPED) — error baru `SJ_EMPTY`.
+
+### Fixed
+- Pool koneksi DB `max: 1` (sticky) — pengaman model RLS berbasis `SET SESSION`.
+- Isolasi pool label di level kode — sementara, karena role DB `mes_user` masih superuser (`rolbypassrls`) sehingga policy RLS belum berlaku (lihat Security).
+
+### Security
+- ⚠️ **Temuan: role DB `mes_user` adalah superuser** → semua policy RLS (`p_sjb_*`, `p_sj_*`, dll) tidak pernah difilter untuk koneksi app. Isolasi tenant selama ini bergantung pada cek kode. TODO: role DB non-superuser (`NOBYPASSRLS`) + `ALTER TABLE ... FORCE ROW LEVEL SECURITY`.
 
 ---
 

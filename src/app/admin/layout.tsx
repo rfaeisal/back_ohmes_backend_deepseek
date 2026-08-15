@@ -19,6 +19,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/admin/gudang-outbound", label: "Gudang Outbound", icon: Package, permissions: ["cartoning.create"] },
       { href: "/admin/dispatch", label: "Dispatch", icon: Factory, permissions: ["dispatch.order.create"] },
       { href: "/admin/labels", label: "Cetak Label", icon: Printer, permissions: ["tsg.receiving.create"] },
+      { href: "/admin/supplier-sj", label: "Surat Jalan Supplier", icon: FileText, permissions: ["supplier.sj.pool"] },
     ],
   },
   {

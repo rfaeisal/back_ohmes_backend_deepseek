@@ -1,5 +1,9 @@
 // =============================================================================
-// Supplier SJ Service — Surat Jalan Supplier: pre-label & pre-weigh di supplier
+// Supplier SJ Service — Surat Jalan Supplier: pool label + pre-weigh di supplier
+// =============================================================================
+// v1.1: label pool generik dicetak di area office (web), di-assign ke SJ saat
+// scan di gudang supplier (scan = assign + jenis + berat). Kode label memakai
+// format kode boks TSG existing: TSG-<YYYYMMDD>-<NNN>.
 // =============================================================================
 
 import { eq, and, isNull, sql } from "drizzle-orm";
@@ -19,19 +23,33 @@ import { ServiceError } from "./shift.service";
 // Types
 // =============================================================================
 
+export type TsgType = "REGULER" | "MILD" | "PUTIHAN";
+
 export interface CreateSupplierSjInput {
   sjNumber: string;
   supplierId: string;
   plantId: string;
-  labels: Array<{ tsgType: "REGULER" | "MILD" | "PUTIHAN"; count: number }>;
+  actorUserId: string;
+}
+
+export interface GeneratePoolLabelsInput {
+  count: number;
   actorUserId: string;
 }
 
 export interface WeighSjBoxInput {
   supplierSjId: string;
   boxCode: string;
+  tsgType?: TsgType; // wajib saat assign (label pool); mengikuti assign pertama untuk panggilan berikutnya
   supplierWeightKg: number;
   actorUserId: string;
+}
+
+export interface VoidSjLabelInput {
+  boxCode: string;
+  actorUserId: string;
+  /** SUPERADMIN (isPrivileged) boleh mengelola pool milik petugas lain */
+  isPrivileged?: boolean;
 }
 
 export interface ReceiveFromSjInput {
@@ -43,21 +61,43 @@ export interface ReceiveFromSjInput {
 }
 
 // =============================================================================
-// Create SJ + generate label QR per jenis TSG
+// Helper — sequence kode boks global (pool + receiving manual harus unik)
+// =============================================================================
+
+async function nextBoxCodes(count: number): Promise<string[]> {
+  const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const prefix = `TSG-${datePart}-`;
+
+  // Ambil kode hari ini dari BOTH tabel: supplier_sj_box (pool/assign) + tsg_receiving_box (manual)
+  const sjRows = await db
+    .select({ boxCode: supplierSjBox.boxCode })
+    .from(supplierSjBox)
+    .where(sql`${supplierSjBox.boxCode} LIKE ${prefix + "%"}`);
+  const rcvRows = await db
+    .select({ boxCode: tsgReceivingBox.boxCode })
+    .from(tsgReceivingBox)
+    .where(sql`${tsgReceivingBox.boxCode} LIKE ${prefix + "%"}`);
+
+  let maxSeq = 0;
+  for (const r of [...sjRows, ...rcvRows]) {
+    const m = /-(\d+)$/.exec(r.boxCode);
+    if (m?.[1]) maxSeq = Math.max(maxSeq, parseInt(m[1], 10));
+  }
+
+  const codes: string[] = [];
+  for (let i = 1; i <= count; i++) {
+    codes.push(`${prefix}${String(maxSeq + i).padStart(3, "0")}`);
+  }
+  return codes;
+}
+
+// =============================================================================
+// Create SJ (tanpa label — boks masuk saat scan/assign)
 // =============================================================================
 
 export async function createSupplierSj(input: CreateSupplierSjInput) {
   if (!input.sjNumber.trim()) {
     throw new ServiceError("INVALID_SJ_NUMBER", "Nomor surat jalan wajib diisi.");
-  }
-  const totalLabels = input.labels.reduce((s, l) => s + l.count, 0);
-  if (totalLabels < 1 || totalLabels > 500) {
-    throw new ServiceError("INVALID_LABEL_COUNT", "Total label harus 1–500.");
-  }
-  for (const l of input.labels) {
-    if (l.count < 1) {
-      throw new ServiceError("INVALID_LABEL_COUNT", "Jumlah label per jenis minimal 1.");
-    }
   }
 
   // Validasi supplier
@@ -84,64 +124,97 @@ export async function createSupplierSj(input: CreateSupplierSjInput) {
     throw new ServiceError("SJ_NUMBER_EXISTS", "Nomor surat jalan sudah terdaftar untuk supplier ini.");
   }
 
-  // Kode label: SJL-<YYYYMMDD>-<seq 4 digit, urutan global per hari>
-  const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  const prefix = `SJL-${datePart}-`;
-  const existingToday = await db
-    .select({ code: supplierSjBox.boxCode })
+  const [sj] = await db
+    .insert(supplierSj)
+    .values({
+      sjNumber: input.sjNumber.trim(),
+      supplierId: input.supplierId,
+      plantId: input.plantId,
+      status: "DRAFT",
+      createdBy: input.actorUserId,
+    })
+    .returning();
+  if (!sj) throw new ServiceError("SJ_CREATE_FAILED", "Gagal membuat surat jalan.");
+
+  // Sisa pool label yang bisa di-assign (label AVAILABLE milik petugas ini)
+  const [poolCount] = await db
+    .select({ count: sql<number>`count(*)::int` })
     .from(supplierSjBox)
-    .where(sql`${supplierSjBox.boxCode} LIKE ${prefix + "%"}`);
-  const startSeq = existingToday.length + 1;
-
-  const result = await db.transaction(async (tx) => {
-    const [sj] = await tx
-      .insert(supplierSj)
-      .values({
-        sjNumber: input.sjNumber.trim(),
-        supplierId: input.supplierId,
-        plantId: input.plantId,
-        status: "DRAFT",
-        createdBy: input.actorUserId,
-      })
-      .returning();
-
-    const labels: string[] = [];
-    let seq = startSeq;
-    for (const l of input.labels) {
-      for (let i = 0; i < l.count; i++) {
-        const boxCode = `${prefix}${String(seq).padStart(4, "0")}`;
-        seq += 1;
-        await tx.insert(supplierSjBox).values({
-          supplierSjId: sj!.id,
-          plantId: input.plantId,
-          boxCode,
-          tsgType: l.tsgType,
-        });
-        labels.push(boxCode);
-      }
-    }
-
-    return { sj, labels };
-  });
+    .where(
+      and(
+        eq(supplierSjBox.labelStatus, "AVAILABLE"),
+        eq(supplierSjBox.createdBy, input.actorUserId),
+        isNull(supplierSjBox.deletedAt)
+      )
+    );
 
   await writeAudit({
     actorUserId: input.actorUserId,
     action: "supplier_sj.create",
     entityTable: "supplier_sj",
-    entityId: result.sj!.id,
-    after: { sjNumber: input.sjNumber.trim(), labelCount: result.labels.length },
+    entityId: sj.id,
+    after: { sjNumber: input.sjNumber.trim(), status: "DRAFT" },
   });
 
   return {
-    sjId: result.sj!.id,
-    sjNumber: result.sj!.sjNumber,
-    status: result.sj!.status,
-    labels: result.labels,
+    sjId: sj.id,
+    sjNumber: sj.sjNumber,
+    status: sj.status,
+    poolAvailable: poolCount?.count ?? 0,
   };
 }
 
 // =============================================================================
-// Scan label + input berat timbangan supplier
+// Generate Pool Labels — cetak di area office (web), belum terikat SJ
+// =============================================================================
+
+export async function generatePoolLabels(input: GeneratePoolLabelsInput) {
+  if (input.count < 1 || input.count > 500) {
+    throw new ServiceError("POOL_COUNT_INVALID", "Jumlah label harus 1–500.");
+  }
+
+  const boxCodes = await nextBoxCodes(input.count);
+
+  const inserted = await db.transaction(async (tx) => {
+    return tx
+      .insert(supplierSjBox)
+      .values(
+        boxCodes.map((boxCode) => ({
+          boxCode,
+          supplierSjId: null, // pool — belum terikat SJ
+          plantId: null, // pool — pabrik tujuan menyusul saat assign
+          tsgType: null, // pool — jenis dipilih saat scan
+          labelStatus: "AVAILABLE" as const,
+          createdBy: input.actorUserId,
+        }))
+      )
+      .returning({ id: supplierSjBox.id });
+  });
+
+  const [poolCount] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(supplierSjBox)
+    .where(
+      and(
+        eq(supplierSjBox.labelStatus, "AVAILABLE"),
+        eq(supplierSjBox.createdBy, input.actorUserId),
+        isNull(supplierSjBox.deletedAt)
+      )
+    );
+
+  await writeAudit({
+    actorUserId: input.actorUserId,
+    action: "supplier_sj.pool.generate",
+    entityTable: "supplier_sj_box",
+    entityId: inserted[0]!.id,
+    after: { count: input.count, firstBoxCode: boxCodes[0], lastBoxCode: boxCodes[boxCodes.length - 1] },
+  });
+
+  return { boxCodes, available: poolCount?.count ?? 0 };
+}
+
+// =============================================================================
+// Scan label = assign ke SJ + pilih jenis + input berat (satu langkah)
 // =============================================================================
 
 export async function weighSupplierSjBox(input: WeighSjBoxInput) {
@@ -161,26 +234,45 @@ export async function weighSupplierSjBox(input: WeighSjBoxInput) {
   const [box] = await db
     .select()
     .from(supplierSjBox)
-    .where(
-      and(
-        eq(supplierSjBox.supplierSjId, input.supplierSjId),
-        eq(supplierSjBox.boxCode, input.boxCode)
-      )
-    )
+    .where(eq(supplierSjBox.boxCode, input.boxCode))
     .limit(1);
   if (!box) {
-    throw new ServiceError("LABEL_NOT_FOUND", "Label tidak ditemukan di surat jalan ini.");
+    throw new ServiceError("LABEL_NOT_FOUND", "Label tidak ditemukan.");
   }
-  if (box.supplierWeightKg != null) {
+  // Isolasi pool label di level kode — role DB saat ini superuser (RLS bypass),
+  // jadi label pool milik petugas lain harus diperlakukan tidak ada.
+  if (box.supplierSjId == null && box.createdBy !== input.actorUserId) {
+    throw new ServiceError("LABEL_NOT_FOUND", "Label tidak ditemukan.");
+  }
+  if (box.labelStatus === "VOID") {
+    throw new ServiceError("LABEL_VOIDED", `Label ${box.boxCode} sudah ditandai hilang/rusak.`);
+  }
+  if (box.supplierSjId != null && box.supplierSjId !== input.supplierSjId) {
+    throw new ServiceError("LABEL_ALREADY_ASSIGNED", `Label ${box.boxCode} sudah terikat surat jalan lain.`);
+  }
+  if (box.supplierSjId === input.supplierSjId && box.supplierWeightKg != null) {
     throw new ServiceError(
       "LABEL_ALREADY_WEIGHED",
       `Label ${box.boxCode} sudah ditimbang (${box.supplierWeightKg} kg).`
     );
   }
 
+  const isAssign = box.supplierSjId == null; // pool label → assign sekarang
+  if (isAssign && !input.tsgType) {
+    throw new ServiceError("INVALID_TSG_TYPE", "Jenis TSG wajib dipilih saat label di-assign.");
+  }
+
   const [updated] = await db
     .update(supplierSjBox)
     .set({
+      ...(isAssign
+        ? {
+            supplierSjId: input.supplierSjId,
+            plantId: sj.plantId, // plant mengikuti SJ
+            tsgType: input.tsgType!,
+            labelStatus: "ASSIGNED" as const,
+          }
+        : {}),
       supplierWeightKg: String(input.supplierWeightKg),
       enteredBy: input.actorUserId,
       enteredAt: new Date(),
@@ -195,13 +287,59 @@ export async function weighSupplierSjBox(input: WeighSjBoxInput) {
 
   await writeAudit({
     actorUserId: input.actorUserId,
-    action: "supplier_sj.box.weigh",
+    action: isAssign ? "supplier_sj.box.assign" : "supplier_sj.box.weigh",
     entityTable: "supplier_sj_box",
     entityId: box.id,
-    after: { boxCode: box.boxCode, supplierWeightKg: input.supplierWeightKg },
+    after: {
+      boxCode: box.boxCode,
+      tsgType: updated!.tsgType,
+      supplierWeightKg: input.supplierWeightKg,
+      labelStatus: updated!.labelStatus,
+    },
   });
 
   return updated;
+}
+
+// =============================================================================
+// VOID label — hanya label AVAILABLE (hilang/rusak di gudang)
+// =============================================================================
+
+export async function voidSupplierSjLabel(input: VoidSjLabelInput) {
+  const [box] = await db
+    .select()
+    .from(supplierSjBox)
+    .where(eq(supplierSjBox.boxCode, input.boxCode))
+    .limit(1);
+  if (!box) throw new ServiceError("LABEL_NOT_FOUND", "Label tidak ditemukan.");
+  // Isolasi pool label di level kode (role DB superuser → RLS bypass);
+  // SUPERADMIN (isPrivileged) boleh mengelola pool milik siapa pun.
+  if (!input.isPrivileged && box.supplierSjId == null && box.createdBy !== input.actorUserId) {
+    throw new ServiceError("LABEL_NOT_FOUND", "Label tidak ditemukan.");
+  }
+  if (box.labelStatus !== "AVAILABLE") {
+    throw new ServiceError(
+      "LABEL_NOT_AVAILABLE",
+      `Label ${box.boxCode} tidak bisa di-VOID (status: ${box.labelStatus}).`
+    );
+  }
+
+  const [updated] = await db
+    .update(supplierSjBox)
+    .set({ labelStatus: "VOID" })
+    .where(eq(supplierSjBox.id, box.id))
+    .returning();
+
+  await writeAudit({
+    actorUserId: input.actorUserId,
+    action: "supplier_sj.box.void",
+    entityTable: "supplier_sj_box",
+    entityId: box.id,
+    before: { labelStatus: "AVAILABLE" },
+    after: { labelStatus: "VOID", boxCode: box.boxCode },
+  });
+
+  return { boxCode: updated!.boxCode, labelStatus: updated!.labelStatus };
 }
 
 // =============================================================================
@@ -223,6 +361,10 @@ export async function markSupplierSjShipped(sjId: string, actorUserId: string) {
     .select({ id: supplierSjBox.id, supplierWeightKg: supplierSjBox.supplierWeightKg })
     .from(supplierSjBox)
     .where(and(eq(supplierSjBox.supplierSjId, sjId), isNull(supplierSjBox.deletedAt)));
+
+  if (boxes.length === 0) {
+    throw new ServiceError("SJ_EMPTY", "Surat jalan belum punya boks. Scan label terlebih dahulu.");
+  }
 
   const unweighed = boxes.filter((b) => b.supplierWeightKg == null).length;
   if (unweighed > 0) {
@@ -340,7 +482,7 @@ export async function receiveFromSupplierSj(input: ReceiveFromSjInput) {
           boxCode: b.boxCode,
           weightKg: String(b.supplierWeightKg ?? 0),
           boxSeq: i + 1,
-          tsgType: b.tsgType,
+          tsgType: b.tsgType ?? "REGULER",
           receivedAt: new Date(),
         })
         .returning();
@@ -349,7 +491,7 @@ export async function receiveFromSupplierSj(input: ReceiveFromSjInput) {
       await tx.insert(tsgInventory).values({
         plantId: input.plantId,
         boxId: rb.id,
-        tsgType: b.tsgType,
+        tsgType: b.tsgType ?? "REGULER",
         status: "AVAILABLE",
       });
     }
