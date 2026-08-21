@@ -64,7 +64,10 @@ export interface ReceiveFromSjInput {
 // Helper — sequence kode boks global (pool + receiving manual harus unik)
 // =============================================================================
 
-async function nextBoxCodes(count: number, exec: typeof db): Promise<string[]> {
+// db client maupun drizzle transaction (PgTransaction) sama-sama punya select()
+type QueryExecutor = Pick<typeof db, "select">;
+
+async function nextBoxCodes(count: number, exec: QueryExecutor): Promise<string[]> {
   const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const prefix = `TSG-${datePart}-`;
 
