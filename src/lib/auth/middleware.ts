@@ -15,6 +15,9 @@
 // =============================================================================
 
 import { NextResponse } from "next/server";
+import { and, eq, isNull } from "drizzle-orm";
+import db from "@/db";
+import { userSession } from "@/db/schema/identity";
 import { verifyAccessToken, type JwtPayload } from "@/lib/auth";
 import { setRlsContext } from "@/lib/rls";
 
@@ -84,6 +87,20 @@ export function withAuth(
         );
       }
 
+      // 2b. Revoke instan — sesi di-revoke = access token langsung mati
+      if (!(await checkSessionActive(payload))) {
+        return NextResponse.json(
+          {
+            error: {
+              code: "TOKEN_REVOKED",
+              message: "Sesi telah diakhiri. Silakan login kembali.",
+            },
+            requestId,
+          },
+          { status: 401 }
+        );
+      }
+
       // 3. Permission check (opsional)
       if (options?.requiredPermission) {
         // SUPERADMIN with isPrivileged always has all permissions
@@ -136,6 +153,29 @@ export function withAuth(
 }
 
 // =============================================================================
+// checkSessionActive — revoke instan (dipakai withAuth & extractToken)
+// =============================================================================
+// Access token terikat ke user_session via payload.sessionId. Kalau sesi
+// di-revoke (force-logout / revoke endpoint), token langsung mati tanpa
+// menunggu TTL. Token lama (pra-fix) tanpa sessionId dibiarkan —
+// kedaluwarsa maksimal 15 menit (TTL access token).
+// =============================================================================
+
+export async function checkSessionActive(payload: JwtPayload): Promise<boolean> {
+  if (!payload.sessionId) return true;
+
+  const [sess] = await db
+    .select({ id: userSession.id })
+    .from(userSession)
+    .where(
+      and(eq(userSession.id, payload.sessionId), isNull(userSession.revokedAt))
+    )
+    .limit(1);
+
+  return !!sess;
+}
+
+// =============================================================================
 // extractToken — untuk endpoint yang butuh token tanpa full middleware
 // =============================================================================
 
@@ -147,7 +187,9 @@ export async function extractToken(
 
   const token = authHeader.slice(7);
   try {
-    return await verifyAccessToken(token);
+    const payload = await verifyAccessToken(token);
+    if (!(await checkSessionActive(payload))) return null;
+    return payload;
   } catch {
     return null;
   }

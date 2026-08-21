@@ -1,6 +1,9 @@
 // POST /api/v1/super/impersonate — Login as other user
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { eq, inArray } from "drizzle-orm";
+import db from "@/db";
+import { rolePermission, permission } from "@/db/schema/identity";
 import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import { impersonateUser, ServiceError } from "@/lib/services/superadmin.service";
 import { generateAccessToken, getAccessTokenTtl, type JwtPayload } from "@/lib/auth/jwt";
@@ -31,8 +34,18 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
 
     await impersonateUser(ctx.user.userId, parsed.data.userId, parsed.data.reason);
 
-    // Generate JWT dengan impersonatorId
+    // Generate JWT dengan impersonatorId + sessionId impersonator (token ikut
+    // mati saat sesi SUPERADMIN di-revoke) + permissions target.
     const resolvedScope = await resolveScope(parsed.data.userId);
+    const permissionCodes = resolvedScope.roleIds.length > 0
+      ? (await db
+          .select({ code: permission.code })
+          .from(rolePermission)
+          .innerJoin(permission, eq(rolePermission.permissionId, permission.id))
+          .where(inArray(rolePermission.roleId, resolvedScope.roleIds)))
+          .map((p) => p.code)
+      : [];
+
     const jwtPayload: JwtPayload = {
       userId: parsed.data.userId,
       activeScopeType: resolvedScope.activeScopeType,
@@ -41,6 +54,8 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
       plantIds: resolvedScope.plantIds,
       isPrivileged: false,
       impersonatorId: ctx.user.userId,
+      permissions: permissionCodes,
+      sessionId: ctx.user.sessionId,
     };
 
     const accessToken = await generateAccessToken(jwtPayload, getAccessTokenTtl(false));

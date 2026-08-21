@@ -107,6 +107,7 @@ export async function POST(request: Request) {
       plantIds: resolvedScope.plantIds,
       isPrivileged: resolvedScope.isPrivileged,
       permissions: permissionCodes,
+      sessionId: session.id,
     };
 
     const accessToken = await generateAccessToken(jwtPayload, accessTokenTtl);

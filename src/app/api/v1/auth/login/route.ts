@@ -7,9 +7,9 @@
 
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, or, lt, isNotNull } from "drizzle-orm";
 import db from "@/db";
-import { user, role, userAssignment, rolePermission, permission } from "@/db/schema/identity";
+import { user, role, userAssignment, rolePermission, permission, userSession } from "@/db/schema/identity";
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -204,36 +204,34 @@ export async function POST(request: Request) {
       : [];
 
     // -----------------------------------------------------------------------
-    // 6. Build JWT payload
-    // -----------------------------------------------------------------------
-    const jwtPayload: JwtPayload = {
-      userId: foundUser.id,
-      activeScopeType: resolvedScope.activeScopeType,
-      activeScopeId: resolvedScope.activeScopeId,
-      roleIds: resolvedScope.roleIds,
-      plantIds: resolvedScope.plantIds,
-      isPrivileged: resolvedScope.isPrivileged,
-      permissions: permissionCodes,
-    };
-
-    // -----------------------------------------------------------------------
-    // 6. Generate tokens
+    // 6. Generate refresh token + session DULU — access token memuat sessionId
+    //    supaya revoke sesi (force-logout) langsung mematikan access token.
     // -----------------------------------------------------------------------
     const accessTokenTtl = getAccessTokenTtl(isSuperadmin);
     const refreshTokenTtlDays = getRefreshTokenTtlDays(isSuperadmin);
 
-    const accessToken = await generateAccessToken(jwtPayload, accessTokenTtl);
     const refreshToken = generateRefreshToken();
     const refreshTokenHash = await hashRefreshToken(refreshToken);
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + refreshTokenTtlDays);
 
+    // Cleanup sesi lama user ini (revoked/expired) — cegah penumpukan
+    await db
+      .delete(userSession)
+      .where(
+        and(
+          eq(userSession.userId, foundUser.id),
+          or(lt(userSession.expiresAt, new Date()), isNotNull(userSession.revokedAt))
+        )
+      );
+
     // -----------------------------------------------------------------------
     // 7. Create session (dengan single-session mobile enforcement)
     // -----------------------------------------------------------------------
+    let sessionId: string;
     try {
-      await createSession({
+      sessionId = await createSession({
         userId: foundUser.id,
         refreshTokenHash,
         activeScopeType: resolvedScope.activeScopeType,
@@ -263,6 +261,22 @@ export async function POST(request: Request) {
       }
       throw err;
     }
+
+    // -----------------------------------------------------------------------
+    // 7b. Build JWT payload (dengan sessionId) + access token
+    // -----------------------------------------------------------------------
+    const jwtPayload: JwtPayload = {
+      userId: foundUser.id,
+      activeScopeType: resolvedScope.activeScopeType,
+      activeScopeId: resolvedScope.activeScopeId,
+      roleIds: resolvedScope.roleIds,
+      plantIds: resolvedScope.plantIds,
+      isPrivileged: resolvedScope.isPrivileged,
+      permissions: permissionCodes,
+      sessionId,
+    };
+
+    const accessToken = await generateAccessToken(jwtPayload, accessTokenTtl);
 
     // -----------------------------------------------------------------------
     // 8. Response

@@ -19,6 +19,8 @@ export interface JwtPayload {
   /** Kode permission yang di-resolve saat login/refresh dari role_permission */
   permissions?: string[];
   impersonatorId?: string;
+  /** ID user_session penerbit token — dipakai untuk revoke instan (force-logout) */
+  sessionId?: string;
 }
 
 export interface TokenPair {
