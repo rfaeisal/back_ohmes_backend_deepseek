@@ -5,15 +5,120 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1786421070782,
+      "when": 1786434690932,
       "tag": "0000_high_firelord",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1786434690932,
+      "when": 1786434750932,
+      "tag": "0000_rls_policies",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786434810932,
+      "tag": "0001_mv_area_daily_kpi",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786434870932,
       "tag": "0001_tsg_type",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786434930932,
+      "tag": "0002_material_receiving",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786434990932,
+      "tag": "0003_shift_consumption",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786435050932,
+      "tag": "0004_box_session",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786435110932,
+      "tag": "0004_tsg_transfer_out",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786435170932,
+      "tag": "0005_session_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786435230932,
+      "tag": "0005_tsg_return_out",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786435290932,
+      "tag": "0006_material_out",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786435350932,
+      "tag": "0006_supplier_sj",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786435410932,
+      "tag": "0007_sj_pool_labels",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1786435470932,
+      "tag": "0008_rls_app_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1786435530932,
+      "tag": "0009_rls_guc_defaults",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1786435590932,
+      "tag": "0010_sj_pool_shared_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1786435650932,
+      "tag": "0011_rls_transition_with_check",
       "breakpoints": true
     }
   ]

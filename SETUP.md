@@ -41,7 +41,12 @@ Port: `5433` (hindari konflik dengan PostgreSQL lain)
 pnpm install
 pnpm db:migrate
 pnpm db:seed
+pnpm db:seed:sj-officer   # user petugassj (AREA_SJ_OFFICER) + permission Surat Jalan Supplier
 ```
+
+> Semua migrasi terdaftar di journal (`src/db/migrations/meta/_journal.json`) —
+> `pnpm db:migrate` pada database kosong akan membangun skema lengkap (termasuk
+> RLS policies + default GUC). Seed script memuat `.env` sendiri (`--env-file`).
 
 ---
 
@@ -59,14 +64,14 @@ Password muncul sekali — simpan.
 
 ```bash
 pnpm dev
-# → http://localhost:3001
+# → http://localhost:3000
 ```
 
 ---
 
 ## 7. Verifikasi
 
-- `GET http://localhost:3001/api/v1/health` → 200 OK
+- `GET http://localhost:3000/api/v1/health` → 200 OK
 - Login: `POST /api/v1/auth/login` dengan admin / password / OTP `000000`
 - Buka `/tablet` untuk tablet UI, `/admin` untuk admin dashboard
 
@@ -76,10 +81,11 @@ pnpm dev
 
 | Variable | Default | Keterangan |
 |---|---|---|
-| DATABASE_URL | `postgres://mes_user:mes_pass@localhost:5433/mes_dev` | Dev database |
+| DATABASE_URL | `postgres://mes_app:mes_app_pass@localhost:5433/mes_dev` | Runtime app — role non-superuser supaya RLS aktif |
+| DATABASE_URL_ADMIN | `postgres://mes_user:mes_pass@localhost:5433/mes_dev` | Migrasi & seed — role superuser (bypass RLS) |
 | JWT_SECRET | (generate) | `openssl rand -hex 32` |
 | NEXT_PUBLIC_APP_ENV | `development` | `development` \| `production` |
-| OTP_BYPASS_CODE | (kosong) | Set `000000` untuk skip 2FA |
+| OTP_BYPASS_CODE | (kosong) | Dev: OTP `000000` valid otomatis. Set nilai lain untuk bypass custom |
 | HMAC_KEY_ENCRYPTION | (generate) | Untuk QR anti-forgery |
 
 ---
@@ -101,6 +107,7 @@ pnpm dev
 | hqadmin | 12345678 | HQ_ADMIN |
 | hqanalyst | 12345678 | HQ_ANALYST |
 | hqauditor | 12345678 | HQ_AUDITOR |
+| petugassj | 12345678 | AREA_SJ_OFFICER |
 
 ---
 
@@ -108,7 +115,7 @@ pnpm dev
 
 | Command | Fungsi |
 |---|---|
-| `pnpm dev` | Dev server (port 3001) |
+| `pnpm dev` | Dev server (port 3000) |
 | `pnpm build` | Production build |
 | `pnpm test` | Unit + integration tests |
 | `pnpm typecheck` | TypeScript strict check |
