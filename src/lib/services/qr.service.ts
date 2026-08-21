@@ -71,7 +71,8 @@ function parseQrUri(uri: string): { type: string; plantCode: string; entityCode:
   try {
     const url = new URL(uri);
     if (url.protocol !== "ohmes:") return null;
-    const parts = url.pathname.replace("//", "").split("/");
+    // Protokol custom: segmen pertama (tipe) menjadi hostname, sisanya pathname.
+    const parts = `${url.hostname}/${url.pathname}`.split("/").filter(Boolean);
     if (parts.length < 3) return null;
     return { type: parts[0]!, plantCode: parts[1]!, entityCode: parts[2]! };
   } catch {
@@ -162,21 +163,56 @@ export async function resolveQr(
   _userId: string,
   userPlantIds: string[]
 ): Promise<QrResolveResult> {
-  // Parse URI
+  // Parse URI — URL parser mengabaikan query string, jadi lookup memakai
+  // base URI; QR tercetak membawa ?w=...&h=... (lihat 07-qr-strategy).
   const parsed = parseQrUri(uri);
   if (!parsed) throw new ServiceError("QR_INVALID_URI", "Format URI tidak valid: " + uri);
 
-  // Find in registry
+  const baseUri = `ohmes://${parsed.type}/${parsed.plantCode}/${parsed.entityCode}`;
+
+  // Find in registry (base URI tanpa query)
   const [qr] = await db
     .select()
     .from(qrRegistry)
-    .where(eq(qrRegistry.uri, uri))
+    .where(eq(qrRegistry.uri, baseUri))
     .limit(1);
 
   if (!qr) throw new ServiceError("QR_NOT_FOUND", "QR tidak terdaftar di sistem.");
 
+  // Anti-forgery: QR dinamis (TSG_BOX/BATCH/PACK) punya hmac di registry —
+  // scan wajib menyertakan ?h=... yang cocok, kalau tidak = QR palsu/expired.
+  if (qr.hmac) {
+    const h = new URL(uri).searchParams.get("h");
+    if (!h) {
+      throw new ServiceError("QR_HMAC_REQUIRED", "QR dinamis memerlukan parameter h (anti-forgery).");
+    }
+    const a = Buffer.from(qr.hmac);
+    const b = Buffer.from(h);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      throw new ServiceError("QR_INVALID", "QR tidak valid (HMAC tidak cocok).");
+    }
+  }
+
   // Scope check
   const canAccess = userPlantIds.includes(qr.plantId);
+
+  // Enrich entity untuk TSG_BOX — berat & kode dari receiving (purpose: auto-fill)
+  const entity: Record<string, unknown> = {
+    id: qr.entityId,
+    uri: qr.uri,
+    plantId: qr.plantId,
+  };
+  if (qr.type === "TSG_BOX") {
+    const [box] = await db
+      .select({ boxCode: tsgReceivingBox.boxCode, weightKg: tsgReceivingBox.weightKg })
+      .from(tsgReceivingBox)
+      .where(eq(tsgReceivingBox.id, qr.entityId))
+      .limit(1);
+    if (box) {
+      entity.code = box.boxCode;
+      entity.weightKg = box.weightKg;
+    }
+  }
 
   // Determine next action based on type
   const nextActions: Record<string, string> = {
@@ -188,11 +224,7 @@ export async function resolveQr(
 
   return {
     type: qr.type as QrType,
-    entity: {
-      id: qr.entityId,
-      uri: qr.uri,
-      plantId: qr.plantId,
-    },
+    entity,
     plantId: qr.plantId,
     canAccess,
     nextAction: nextActions[qr.type] ?? "UNKNOWN",
@@ -204,10 +236,16 @@ export async function resolveQr(
 // =============================================================================
 
 export async function logScan(uri: string, _scannedBy: string, _deviceInfo?: string) {
+  // Lookup pakai base URI (QR tercetak membawa query ?w=..&h=..)
+  const parsed = parseQrUri(uri);
+  const baseUri = parsed
+    ? `ohmes://${parsed.type}/${parsed.plantCode}/${parsed.entityCode}`
+    : uri;
+
   const [qr] = await db
     .select({ id: qrRegistry.id })
     .from(qrRegistry)
-    .where(eq(qrRegistry.uri, uri))
+    .where(eq(qrRegistry.uri, baseUri))
     .limit(1);
 
   if (!qr) throw new ServiceError("QR_NOT_FOUND", "QR tidak terdaftar.");

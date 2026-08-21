@@ -16,10 +16,21 @@ export interface ExportJob {
   progress: number;
   downloadUrl?: string;
   error?: string;
+  /** Baris data hasil export — dipakai route download (production: Blob/S3) */
+  data?: unknown;
+  /** Ringkasan jumlah baris per bagian (untuk response status job) */
+  summary?: Record<string, number>;
 }
 
-// In-memory job store (production: Redis/DB)
-const jobs = new Map<string, ExportJob>();
+// In-memory job store (production: Redis/DB).
+// Pakai globalThis supaya route generate & download berbagi store yang sama —
+// Next.js dev membundel tiap route handler sebagai modul terpisah, jadi
+// Map biasa hanya terlihat oleh route yang membuatnya (JOB_NOT_FOUND).
+const globalForJobs = globalThis as unknown as {
+  exportJobs?: Map<string, ExportJob>;
+};
+export const jobs: Map<string, ExportJob> =
+  globalForJobs.exportJobs ?? (globalForJobs.exportJobs = new Map());
 
 // =============================================================================
 // Generate Export Cukai
@@ -101,12 +112,10 @@ export async function generateCukaiExport(
       job.status = "ready";
       job.downloadUrl = `/api/v1/reports/${jobId}/download?format=${format}`;
 
-      // Store data untuk download
-      jobs.set(jobId, {
-        ...job,
-        // Attach data to job (production: store in Blob/S3)
-        data: { shifts: shifts.length, boxes: boxes.length, wastes: wastes.length },
-      } as ExportJob & { data: unknown });
+      // Simpan data lengkap untuk download (production: store di Blob/S3)
+      job.data = { shifts, boxes, wastes };
+      job.summary = { shifts: shifts.length, boxes: boxes.length, wastes: wastes.length };
+      jobs.set(jobId, job);
     } catch (err) {
       job.status = "failed";
       job.error = (err as Error).message;

@@ -55,6 +55,17 @@ export const GET = withAuth(async (request: Request, ctx: AuthContext) => {
     );
   }
 
-  return NextResponse.json(job, { status: 200 });
+  // Tanpa data mentah — ringkasan saja (data lengkap di route download)
+  return NextResponse.json(
+    {
+      jobId: job.jobId,
+      status: job.status,
+      progress: job.progress,
+      downloadUrl: job.downloadUrl,
+      error: job.error,
+      data: job.summary,
+    },
+    { status: 200 }
+  );
 },
   { requiredPermission: "report.export_cukai" });

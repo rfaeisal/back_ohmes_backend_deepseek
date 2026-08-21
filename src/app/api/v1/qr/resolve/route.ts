@@ -21,9 +21,11 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
     return NextResponse.json(result, { status: 200 });
   } catch (err) {
     if (err instanceof ServiceError) {
+      // QR_INVALID / QR_HMAC_REQUIRED = 400 (input salah/palsu), lainnya 404
+      const status = err.code.startsWith("QR_INVALID") || err.code === "QR_HMAC_REQUIRED" || err.code === "QR_INVALID_URI" ? 400 : 404;
       return NextResponse.json(
-        { error: { code: (err as ServiceError).code, message: (err as ServiceError).message }, requestId: ctx.requestId },
-        { status: 404 }
+        { error: { code: err.code, message: err.message }, requestId: ctx.requestId },
+        { status }
       );
     }
     throw err;
