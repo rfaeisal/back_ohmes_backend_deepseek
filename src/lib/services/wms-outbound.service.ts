@@ -15,6 +15,15 @@ export { ServiceError } from "./shift.service";
 // =============================================================================
 
 export async function autoCreateFinishedGoods(shiftId: string) {
+  // Idempotent — shift yang di-reopen lalu di-approve ulang tidak boleh
+  // membuat baris receiving ganda.
+  const [existing] = await db
+    .select()
+    .from(finishedGoodsReceiving)
+    .where(eq(finishedGoodsReceiving.shiftReportId, shiftId))
+    .limit(1);
+  if (existing) return existing;
+
   const [shift] = await db
     .select({ id: shiftReport.id, plantId: shiftReport.plantId })
     .from(shiftReport)
@@ -57,11 +66,17 @@ export async function confirmReceiving(
   packsActualCount: number,
   receivedBy: string
 ) {
-  const [receiving] = await db
+  let [receiving] = await db
     .select()
     .from(finishedGoodsReceiving)
     .where(eq(finishedGoodsReceiving.shiftReportId, shiftId))
     .limit(1);
+
+  if (!receiving) {
+    // Backfill: shift yang di-approve sebelum autoCreate dipasang di approve
+    // belum punya baris receiving — buat sekarang (idempotent, selalu return row).
+    receiving = await autoCreateFinishedGoods(shiftId);
+  }
 
   if (!receiving) throw new ServiceError("RECEIVING_NOT_FOUND", "Receiving record tidak ditemukan. Shift belum APPROVED?");
 
@@ -100,7 +115,7 @@ export async function createCarton(input: {
   const existing = await db
     .select({ count: sql<number>`count(*)` })
     .from(carton)
-    .where(and(eq(carton.plantId, input.plantId), sql`created_at::date = CURRENT_DATE`));
+    .where(and(eq(carton.plantId, input.plantId), sql`opened_at::date = CURRENT_DATE`));
 
   const seq = (existing[0]?.count ?? 0) + 1;
 

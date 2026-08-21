@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import { approveShift, ServiceError } from "@/lib/services/shift.service";
+import { autoCreateFinishedGoods } from "@/lib/services/wms-outbound.service";
 
 const approveSchema = z.object({
   reviewNotes: z.string().optional(),
@@ -27,6 +28,10 @@ export const POST = withAuth(
       }
 
       const result = await approveShift(shiftId, ctx.user.userId, parsed.data.reviewNotes);
+
+      // Shift LOCKED = produksi final → buat ekspektasi receiving pack HLP
+      // (idempotent — aman untuk approve ulang setelah reopen).
+      await autoCreateFinishedGoods(shiftId);
 
       return NextResponse.json(
         {
