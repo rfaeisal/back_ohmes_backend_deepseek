@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { plant, user, shiftReport, shiftWaste, tsgBoxProcess } from "@/db/schema";
 import { machine } from "@/db/schema/master-product";
+import { setServerPageBypassContext } from "@/lib/rls";
 import OverviewCharts from "@/components/overview-charts";
 
 // Halaman ini query database langsung — wajib dynamic supaya tidak
@@ -11,6 +12,10 @@ import OverviewCharts from "@/components/overview-charts";
 export const dynamic = "force-dynamic";
 
 export default async function AdminOverview() {
+  // Halaman server component tanpa withAuth — set context eksplisit
+  // (lihat komentar setServerPageBypassContext untuk tech-debt).
+  await setServerPageBypassContext();
+
   // Real data dari database
   const plants = await db.select().from(plant);
   const users = await db.select().from(user).where(sql`${user.deletedAt} IS NULL`);
