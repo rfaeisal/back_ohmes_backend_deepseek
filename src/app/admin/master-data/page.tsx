@@ -147,6 +147,7 @@ export default function MasterDataPage() {
       {error && <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>}
 
       {/* Plants Table */}
+      <div id="plants" className="scroll-mt-16">
       <Card className="mb-6">
         <CardTitle>Pabrik ({plants.length})</CardTitle>
         <div className="mt-4 overflow-x-auto">
@@ -176,8 +177,10 @@ export default function MasterDataPage() {
           </table>
         </div>
       </Card>
+      </div>
 
       {/* Regions Table */}
+      <div id="regions" className="scroll-mt-16">
       <Card className="mb-6">
         <CardTitle>Area / Region ({regions.length})</CardTitle>
         <div className="mt-4 overflow-x-auto">
@@ -202,8 +205,10 @@ export default function MasterDataPage() {
           </table>
         </div>
       </Card>
+      </div>
 
       {/* Machines Table */}
+      <div id="machines" className="scroll-mt-16">
       <Card className="mb-6">
         <CardTitle>Mesin ({machines.length})</CardTitle>
         <div className="mt-4 overflow-x-auto">
@@ -234,9 +239,11 @@ export default function MasterDataPage() {
           </table>
         </div>
       </Card>
+      </div>
 
       {/* Products & Suppliers */}
       <div className="grid grid-cols-2 gap-6">
+        <div id="products" className="scroll-mt-16">
         <Card>
           <CardTitle>Produk ({products.length})</CardTitle>
           <div className="mt-4 space-y-2">
@@ -258,6 +265,8 @@ export default function MasterDataPage() {
             ))}
           </div>
         </Card>
+        </div>
+        <div id="suppliers" className="scroll-mt-16">
         <Card>
           <CardTitle>Supplier ({suppliers.length})</CardTitle>
           <div className="mt-4 space-y-2">
@@ -279,9 +288,11 @@ export default function MasterDataPage() {
             ))}
           </div>
         </Card>
+        </div>
       </div>
 
       {/* Shift Templates */}
+      <div id="shift-templates" className="scroll-mt-16">
       <Card className="mb-6">
         <CardTitle>Shift Template ({shiftTemplates.length})</CardTitle>
         <div className="mt-4 overflow-x-auto">
@@ -317,6 +328,7 @@ export default function MasterDataPage() {
           </table>
         </div>
       </Card>
+      </div>
 
       {/* Add Dialog */}
       <Dialog open={!!showAdd} onClose={() => setShowAdd(null)} title={`${form.id ? "Edit" : "Tambah"} ${showAdd === "plant" ? "Pabrik" : showAdd === "machine" ? "Mesin" : showAdd === "product" ? "Produk" : showAdd === "supplier" ? "Supplier" : "Shift Template"}`}>

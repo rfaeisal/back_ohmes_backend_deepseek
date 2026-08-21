@@ -52,11 +52,22 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    title: "Master Data",
+    items: [
+      { href: "/admin/master-data", label: "Master Data (Semua)", icon: Settings, superadminOnly: true },
+      { href: "/admin/master-data#machines", label: "Master Mesin", icon: Wrench, superadminOnly: true },
+      { href: "/admin/master-data#plants", label: "Master Pabrik", icon: Factory, superadminOnly: true },
+      { href: "/admin/master-data#products", label: "Master Produk", icon: Package, superadminOnly: true },
+      { href: "/admin/master-data#suppliers", label: "Master Supplier TSG", icon: FileText, superadminOnly: true },
+      { href: "/admin/master-data#shift-templates", label: "Master Shift Template", icon: Calendar, superadminOnly: true },
+      { href: "/admin/master-data#regions", label: "Master Region & Area", icon: MapPin, superadminOnly: true },
+    ],
+  },
+  {
     title: "Administrasi",
     items: [
       { href: "/admin/corrections", label: "Correction", icon: Wrench, permissions: ["shift.correct"], superadminOnly: true },
       { href: "/admin/users", label: "Users & Role", icon: Users, permissions: ["user.assign_scope"], superadminOnly: true },
-      { href: "/admin/master-data", label: "Master Data", icon: Settings, permissions: ["masterdata.machine.edit", "masterdata.product.edit", "masterdata.plant.edit"], superadminOnly: true },
       { href: "/admin/audit", label: "Audit Log", icon: ScrollText, permissions: ["audit.read"], superadminOnly: true },
     ],
   },
@@ -85,7 +96,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (isSessionExpired()) { redirectToLogin(); return; }
     try {
       const payload = JSON.parse(atob(localStorage.getItem("accessToken")!.split(".")[1]!));
-      setIsPrivileged(payload.isPrivileged ?? false);
+      // Fallback: token lama (pra-RBAC) tidak punya klaim isPrivileged —
+      // deteksi juga dari roles di payload supaya SUPERADMIN selalu lengkap.
+      const privileged = payload.isPrivileged ?? (Array.isArray(payload.roles) && payload.roles.includes("SUPERADMIN"));
+      setIsPrivileged(privileged);
       setUserPermissions(payload.permissions ?? []);
     } catch {}
   }, []);
