@@ -173,7 +173,7 @@ export async function generatePoolLabels(input: GeneratePoolLabelsInput) {
     throw new ServiceError("POOL_COUNT_INVALID", "Jumlah label harus 1–500.");
   }
 
-  const { boxCodes, firstInsertedId } = await db.transaction(async (tx) => {
+  const { boxCodes, firstInsertedId, available } = await db.transaction(async (tx) => {
     // Sequence global wajib melihat SEMUA kode boks hari ini. RLS SELECT policy
     // supplier_sj_box hanya memperlihatkan label milik creator
     // (plant_id IS NULL AND created_by = current_user_id), jadi petugas lain /
@@ -198,19 +198,24 @@ export async function generatePoolLabels(input: GeneratePoolLabelsInput) {
       )
       .returning({ id: supplierSjBox.id });
 
-    return { boxCodes: codes, firstInsertedId: inserted[0]!.id };
-  });
+    // Sisa pool = global (inventaris bersama area office, bukan per-petugas) —
+    // dihitung di dalam transaksi yang sama supaya ikut bypass RLS.
+    const [poolCount] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(supplierSjBox)
+      .where(
+        and(
+          eq(supplierSjBox.labelStatus, "AVAILABLE"),
+          isNull(supplierSjBox.deletedAt)
+        )
+      );
 
-  const [poolCount] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(supplierSjBox)
-    .where(
-      and(
-        eq(supplierSjBox.labelStatus, "AVAILABLE"),
-        eq(supplierSjBox.createdBy, input.actorUserId),
-        isNull(supplierSjBox.deletedAt)
-      )
-    );
+    return {
+      boxCodes: codes,
+      firstInsertedId: inserted[0]!.id,
+      available: poolCount?.count ?? 0,
+    };
+  });
 
   await writeAudit({
     actorUserId: input.actorUserId,
@@ -220,7 +225,7 @@ export async function generatePoolLabels(input: GeneratePoolLabelsInput) {
     after: { count: input.count, firstBoxCode: boxCodes[0], lastBoxCode: boxCodes[boxCodes.length - 1] },
   });
 
-  return { boxCodes, available: poolCount?.count ?? 0 };
+  return { boxCodes, available };
 }
 
 // =============================================================================

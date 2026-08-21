@@ -2,7 +2,7 @@
 // GET  /supplier-sj/pool — Overview sisa pool (available/assigned/voided)
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { and, eq, isNull } from "drizzle-orm";
+import { isNull } from "drizzle-orm";
 import db from "@/db";
 import { supplierSjBox } from "@/db/schema";
 import { withAuth, type AuthContext } from "@/lib/auth/middleware";
@@ -42,20 +42,17 @@ export const POST = withAuth(
 );
 
 export const GET = withAuth(
-  async (_request: Request, ctx: AuthContext) => {
-    // SUPERADMIN (isPrivileged) melihat pool semua petugas; lainnya cuma miliknya
+  async (_request: Request, _ctx: AuthContext) => {
+    // Pool = inventaris bersama area office: semua pemegang permission
+    // supplier.sj.pool melihat sisa label lintas petugas (scope di-enforce
+    // oleh RLS policy p_sjb_select — migrasi 0010).
     const rows = await db
       .select({
         labelStatus: supplierSjBox.labelStatus,
         createdAt: supplierSjBox.createdAt,
       })
       .from(supplierSjBox)
-      .where(
-        and(
-          ...(ctx.user.isPrivileged ? [] : [eq(supplierSjBox.createdBy, ctx.user.userId)]),
-          isNull(supplierSjBox.deletedAt)
-        )
-      );
+      .where(isNull(supplierSjBox.deletedAt));
 
     let available = 0;
     let assigned = 0;
