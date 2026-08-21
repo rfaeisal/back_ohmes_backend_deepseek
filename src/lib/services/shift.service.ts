@@ -255,12 +255,24 @@ export async function endShift(input: EndShiftInput) {
   // 4. Insert waste + consumptions + update shift dalam transaksi
   await db.transaction(async (tx) => {
     for (const w of input.waste) {
-      await tx.insert(shiftWaste).values({
-        shiftReportId: input.shiftId,
-        category: w.category as "MENIR" | "RIJEKAN" | "DEBU_KASAR" | "DEBU_HALUS",
-        kg: String(w.kg),
-        settlementStatus: w.settlementStatus as "PENDING" | "LUNAS",
-      });
+      // UPSERT: shift yang di-reopen lalu di-end ulang sudah punya baris waste
+      // dari end pertama — insert polos menabrak unique (shift_report_id,
+      // category). End ulang = revisi angka waste.
+      await tx
+        .insert(shiftWaste)
+        .values({
+          shiftReportId: input.shiftId,
+          category: w.category as "MENIR" | "RIJEKAN" | "DEBU_KASAR" | "DEBU_HALUS",
+          kg: String(w.kg),
+          settlementStatus: w.settlementStatus as "PENDING" | "LUNAS",
+        })
+        .onConflictDoUpdate({
+          target: [shiftWaste.shiftReportId, shiftWaste.category],
+          set: {
+            kg: String(w.kg),
+            settlementStatus: w.settlementStatus as "PENDING" | "LUNAS",
+          },
+        });
     }
 
     for (const c of input.consumptions ?? []) {
