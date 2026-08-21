@@ -64,16 +64,16 @@ export interface ReceiveFromSjInput {
 // Helper — sequence kode boks global (pool + receiving manual harus unik)
 // =============================================================================
 
-async function nextBoxCodes(count: number): Promise<string[]> {
+async function nextBoxCodes(count: number, exec: typeof db): Promise<string[]> {
   const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const prefix = `TSG-${datePart}-`;
 
   // Ambil kode hari ini dari BOTH tabel: supplier_sj_box (pool/assign) + tsg_receiving_box (manual)
-  const sjRows = await db
+  const sjRows = await exec
     .select({ boxCode: supplierSjBox.boxCode })
     .from(supplierSjBox)
     .where(sql`${supplierSjBox.boxCode} LIKE ${prefix + "%"}`);
-  const rcvRows = await db
+  const rcvRows = await exec
     .select({ boxCode: tsgReceivingBox.boxCode })
     .from(tsgReceivingBox)
     .where(sql`${tsgReceivingBox.boxCode} LIKE ${prefix + "%"}`);
@@ -173,13 +173,21 @@ export async function generatePoolLabels(input: GeneratePoolLabelsInput) {
     throw new ServiceError("POOL_COUNT_INVALID", "Jumlah label harus 1–500.");
   }
 
-  const boxCodes = await nextBoxCodes(input.count);
+  const { boxCodes, firstInsertedId } = await db.transaction(async (tx) => {
+    // Sequence global wajib melihat SEMUA kode boks hari ini. RLS SELECT policy
+    // supplier_sj_box hanya memperlihatkan label milik creator
+    // (plant_id IS NULL AND created_by = current_user_id), jadi petugas lain /
+    // SUPERADMIN akan salah hitung dari nol dan tabrak unique constraint.
+    // Bypass RLS (GUC app-level) hanya untuk komputasi sequence + insert
+    // di transaksi ini.
+    await tx.execute(sql.raw(`SET LOCAL app.bypass_rls = 'true'`));
 
-  const inserted = await db.transaction(async (tx) => {
-    return tx
+    const codes = await nextBoxCodes(input.count, tx);
+
+    const inserted = await tx
       .insert(supplierSjBox)
       .values(
-        boxCodes.map((boxCode) => ({
+        codes.map((boxCode) => ({
           boxCode,
           supplierSjId: null, // pool — belum terikat SJ
           plantId: null, // pool — pabrik tujuan menyusul saat assign
@@ -189,6 +197,8 @@ export async function generatePoolLabels(input: GeneratePoolLabelsInput) {
         }))
       )
       .returning({ id: supplierSjBox.id });
+
+    return { boxCodes: codes, firstInsertedId: inserted[0]!.id };
   });
 
   const [poolCount] = await db
@@ -206,7 +216,7 @@ export async function generatePoolLabels(input: GeneratePoolLabelsInput) {
     actorUserId: input.actorUserId,
     action: "supplier_sj.pool.generate",
     entityTable: "supplier_sj_box",
-    entityId: inserted[0]!.id,
+    entityId: firstInsertedId,
     after: { count: input.count, firstBoxCode: boxCodes[0], lastBoxCode: boxCodes[boxCodes.length - 1] },
   });
 
