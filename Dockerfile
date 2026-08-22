@@ -52,11 +52,18 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/src/db/migrations ./src/db/migrations
-COPY --from=builder /app/src/db/schema ./src/db/schema
-COPY --from=builder /app/src/db/seed.ts ./src/db/seed.ts
-COPY --from=builder /app/src/db/seed-superadmin.ts ./src/db/seed-superadmin.ts
+
+# Self-migrating deploy: entrypoint menjalankan migrasi + seed sebelum
+# server start (Coolify DB fully internal — tidak ada akses luar untuk
+# menjalankan migrasi dari laptop).
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
+COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
 COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/scripts/entrypoint.sh /entrypoint.sh
+COPY --from=builder /app/scripts/alter-app-role.mjs /alter-app-role.mjs
+RUN chmod +x /entrypoint.sh
 
 USER nextjs
 
@@ -65,4 +72,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+ENTRYPOINT ["/entrypoint.sh"]
