@@ -18,7 +18,7 @@ node node_modules/drizzle-kit/bin.cjs migrate --config ./drizzle.config.ts
 
 if [ -n "$MES_APP_DB_PASSWORD" ]; then
   echo "[entrypoint] Mengganti password role mes_app (dari MES_APP_DB_PASSWORD)..."
-  node /alter-app-role.mjs
+  node /app/alter-app-role.mjs
 fi
 
 # Seed memakai role admin (superuser) supaya RLS tidak menghalangi

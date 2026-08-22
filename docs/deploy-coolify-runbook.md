@@ -86,6 +86,10 @@ lihat panduan CutiSmart `docs/panduan-deploy-project-baru-di-coolify.md`.
 - **404 dari Cloudflare**: cek Public Hostname URL = `coolify-proxy:80` persis.
 - **502/503**: `docker logs <container> --tail 100` — biasanya env kurang /
   migrasi gagal (cek log entrypoint di awal deploy).
+- **`ERR_MODULE_NOT_FOUND ... imported from /alter-app-role.mjs`**: script
+  entrypoint tidak bisa resolve `node_modules` dari root container — sudah
+  difix (script dipindah ke `/app/alter-app-role.mjs`). Kalau muncul lagi,
+  cek `COPY` path script di Dockerfile.
 - **Deploy stuck di git/GitHub**: `docker exec coolify php artisan
   horizon:terminate` → retry Deploy.
 - **Build OOM/exit 255**: server 3.8 GB — swap sudah disiapkan; kalau

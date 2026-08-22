@@ -62,7 +62,7 @@ COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/scripts/entrypoint.sh /entrypoint.sh
-COPY --from=builder /app/scripts/alter-app-role.mjs /alter-app-role.mjs
+COPY --from=builder /app/scripts/alter-app-role.mjs /app/alter-app-role.mjs
 RUN chmod +x /entrypoint.sh
 
 USER nextjs
