@@ -430,4 +430,26 @@ Aturan tambahan untuk aplikasi mobile Flutter (Fase 3):
 
 ---
 
+## 15. Redesign Role Aplikasi Mobile — Flutter (2026-08-22)
+
+**Keputusan**: aplikasi mobile Flutter (Fase 3) **dibangun ulang dari nol** oleh tim mobile dengan role pengguna yang berbeda dari desain awal.
+
+**Role mobile (baru)**:
+- `AREA_SJ_OFFICER` (petugassj) — full flow Surat Jalan supplier di gudang supplier: buat SJ, scan label = assign jenis + berat, tandai SHIPPED. Pool label printing tetap web area office.
+- `GUDANG_INBOUND` — receiving TSG + validasi vs SJ (`from-sj`).
+- `PLANT_MANAGER` — dashboard pabrik + kondisi stok TSG + aksi ringan (approve shift, approve receiving, writeoff, transfer, FIFO override).
+- `AREA_COORDINATOR` — dashboard area + kondisi stok TSG.
+- `AREA_QA` — read-only dashboard area + stok TSG.
+- `SUPERADMIN` — teknis bisa (2FA, sesi pendek), jarang.
+
+**Tidak di mobile**: `OPERATOR_KECER`/`OPERATOR_MEMBER` (tablet web `/tablet` sudah ada & lebih ergonomis untuk entry boks), `SHIFT_SUPERVISOR`, `GUDANG_OUTBOUND` (F5), `EKSPEDISI` (F6), `HQ_*` (web).
+
+**Rasional**: (1) operator lantai sudah punya UI tablet web yang berjalan; (2) petugas area bekerja di gudang supplier (luar pabrik) sehingga benar-benar butuh mobile; (3) manajemen butuh monitoring di lapangan (dashboard + stok TSG).
+
+**Dampak teknis**: **NOL perubahan backend** — semua permission yang dibutuhkan sudah ada di seed (`src/db/seed.ts`), RLS REGION→plant sudah didukung `src/lib/auth/scope-resolver.ts`. Perubahan murni dokumentasi.
+
+**Deliverable**: documentation pack baru `docs/mobile-v2/` (v2.0.0, 15 file) — kontrak kerja tim mobile, diverifikasi langsung dari kode backend (model produksi Box Session, `mobile/sync` batch, QR `tsg_box`, dst.). Pack lama `docs/mobile-team/` (v1.3.0) jadi arsip historis.
+
+---
+
 *Dokumen ini adalah snapshot diskusi awal — akan digantikan/ditambahkan dokumen resmi dari documentation pack setelah disepakati.*

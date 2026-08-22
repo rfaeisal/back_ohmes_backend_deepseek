@@ -1,5 +1,7 @@
 # MES + WMS Hummer — Paket Dokumentasi Tim Mobile (Flutter)
 
+> ⚠️ **ARSIP** — Paket ini sudah digantikan. Pakai pack baru: [`../mobile-v2/`](../mobile-v2/) (v2.0.0, 2026-08-22). Isi di bawah dipertahankan hanya sebagai riwayat.
+
 **Versi paket**: v1.3.0
 **Snapshot dari master docs**: 2026-08-15
 **Untuk**: tim pengembang aplikasi mobile Flutter (Android + iOS).
