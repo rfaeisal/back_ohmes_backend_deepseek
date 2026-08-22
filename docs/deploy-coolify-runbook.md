@@ -41,6 +41,12 @@ lihat panduan CutiSmart `docs/panduan-deploy-project-baru-di-coolify.md`.
    - Ports Exposes: `3000`
    - Health Check Path: `/api/v1/health`
 3. Tab **General → Domains**: `https://ohmes.fzdev.my.id` (dengan https://).
+   **PENTING**: matikan toggle **"Redirect HTTP to HTTPS"** — tunnel cloudflared
+   masuk ke origin via HTTP (`coolify-proxy:80`), kalau redirect aktif request
+   loop `307` ke URL yang sama. Setelah Save → **Redeploy** (label Traefik baru
+   terbentuk saat container recreate; UI tidak selalu minta redeploy — cek
+   "Changes pending" dan redeploy manual). Jangan tambah domain `www` kalau
+   DNS-nya tidak dibuat di Cloudflare.
 4. Tab **Environment Variables** — dua kelompok:
 
    **Build-time** (centang "Build Variable ✓"):
