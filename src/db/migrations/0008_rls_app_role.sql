@@ -19,8 +19,10 @@ GRANT USAGE ON SCHEMA public TO mes_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO mes_app;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO mes_app;
 
--- Objek baru yang dibuat mes_user (migrasi berikutnya) otomatis bisa diakses mes_app
-ALTER DEFAULT PRIVILEGES FOR ROLE mes_user IN SCHEMA public
+-- Objek baru yang dibuat role migrator (migrasi berikutnya) otomatis bisa
+-- diakses mes_app. CURRENT_USER = role yang menjalankan migrasi: mes_user di
+-- dev, mes_admin (Coolify) di production — jangan hardcode nama role.
+ALTER DEFAULT PRIVILEGES FOR ROLE CURRENT_USER IN SCHEMA public
 	GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO mes_app;
-ALTER DEFAULT PRIVILEGES FOR ROLE mes_user IN SCHEMA public
+ALTER DEFAULT PRIVILEGES FOR ROLE CURRENT_USER IN SCHEMA public
 	GRANT USAGE, SELECT ON SEQUENCES TO mes_app;
