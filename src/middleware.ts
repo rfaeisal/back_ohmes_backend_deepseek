@@ -14,27 +14,45 @@ import type { NextRequest } from "next/server";
 
 const RATE_LIMIT_MAP = new Map<string, { count: number; resetAt: number }>();
 
+// Origin yang diizinkan memanggil API dari browser (web UI). Mobile native
+// (Flutter) tidak enforce CORS — aman tanpa didaftarkan di sini.
+const CORS_ORIGINS = (
+  process.env.CORS_ORIGINS || "https://ohmes.fzdev.my.id,http://localhost:3000"
+)
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
-  // CORS headers
-  const origin = request.headers.get("origin") || "*";
   const response = NextResponse.next();
 
-  response.headers.set("Access-Control-Allow-Origin", origin);
-  response.headers.set(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PATCH, DELETE, OPTIONS"
-  );
-  response.headers.set(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, Idempotency-Key, X-Request-Id"
-  );
-  response.headers.set("Access-Control-Max-Age", "86400");
+  // CORS — hanya untuk /api/ (halaman HTML tidak butuh CORS).
+  // Origin harus ada di allowlist; non-browser client (tanpa Origin header,
+  // mis. curl / mobile native) tidak kena CORS enforcement.
+  if (pathname.startsWith("/api/")) {
+    const origin = request.headers.get("origin");
+    if (origin && CORS_ORIGINS.includes(origin)) {
+      response.headers.set("Access-Control-Allow-Origin", origin);
+      response.headers.append("Vary", "Origin");
+    } else if (!origin) {
+      response.headers.set("Access-Control-Allow-Origin", "*");
+    }
 
-  // Handle preflight
-  if (request.method === "OPTIONS") {
-    return new NextResponse(null, { status: 204, headers: response.headers });
+    response.headers.set(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PATCH, DELETE, OPTIONS"
+    );
+    response.headers.set(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, Idempotency-Key, X-Request-Id"
+    );
+    response.headers.set("Access-Control-Max-Age", "86400");
+
+    // Handle preflight
+    if (request.method === "OPTIONS") {
+      return new NextResponse(null, { status: 204, headers: response.headers });
+    }
   }
 
   // Inject request ID
