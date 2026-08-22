@@ -120,6 +120,13 @@
       "when": 1786435650932,
       "tag": "0011_rls_transition_with_check",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1786435710932,
+      "tag": "0012_shift_roster",
+      "breakpoints": true
     }
   ]
 }
