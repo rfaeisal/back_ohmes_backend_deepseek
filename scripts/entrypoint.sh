@@ -16,6 +16,9 @@ export HOME=/tmp
 echo "[entrypoint] Menjalankan migrasi database..."
 node node_modules/drizzle-kit/bin.cjs migrate --config ./drizzle.config.ts
 
+echo "[entrypoint] Menerapkan migrasi manual di luar journal drizzle..."
+node /app/apply-manual-migrations.mjs
+
 if [ -n "$MES_APP_DB_PASSWORD" ]; then
   echo "[entrypoint] Mengganti password role mes_app (dari MES_APP_DB_PASSWORD)..."
   node /app/alter-app-role.mjs

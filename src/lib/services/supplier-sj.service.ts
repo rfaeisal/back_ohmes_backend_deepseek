@@ -50,6 +50,8 @@ export interface VoidSjLabelInput {
   actorUserId: string;
   /** SUPERADMIN (isPrivileged) boleh mengelola pool milik petugas lain */
   isPrivileged?: boolean;
+  /** Alasan VOID (label rusak, hilang, dsb) — disimpan ke DB + audit */
+  reason?: string;
 }
 
 export interface ReceiveFromSjInput {
@@ -342,9 +344,15 @@ export async function voidSupplierSjLabel(input: VoidSjLabelInput) {
     );
   }
 
+  const reason = input.reason?.trim() || null;
   const [updated] = await db
     .update(supplierSjBox)
-    .set({ labelStatus: "VOID" })
+    .set({
+      labelStatus: "VOID",
+      voidReason: reason,
+      voidedAt: new Date(),
+      voidedBy: input.actorUserId,
+    })
     .where(eq(supplierSjBox.id, box.id))
     .returning();
 
@@ -354,10 +362,15 @@ export async function voidSupplierSjLabel(input: VoidSjLabelInput) {
     entityTable: "supplier_sj_box",
     entityId: box.id,
     before: { labelStatus: "AVAILABLE" },
-    after: { labelStatus: "VOID", boxCode: box.boxCode },
+    after: { labelStatus: "VOID", boxCode: box.boxCode, voidReason: reason },
   });
 
-  return { boxCode: updated!.boxCode, labelStatus: updated!.labelStatus };
+  return {
+    boxCode: updated!.boxCode,
+    labelStatus: updated!.labelStatus,
+    voidReason: updated!.voidReason,
+    voidedAt: updated!.voidedAt,
+  };
 }
 
 // =============================================================================

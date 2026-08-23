@@ -76,8 +76,15 @@ lihat panduan CutiSmart `docs/panduan-deploy-project-baru-di-coolify.md`.
 
 ## 4. Deploy & verifikasi
 
-1. Klik **Deploy** → entrypoint otomatis: migrasi → ganti password
-   `mes_app` → seed idempotent → server start. Log di tab Deployments.
+1. Klik **Deploy** → entrypoint otomatis:
+   1. `drizzle-kit migrate` (migrasi yang di-generate Drizzle)
+   2. `apply-manual-migrations.mjs` (semua `.sql` di `src/db/migrations/`
+      yang **tidak** ada di `_journal.json` — RLS policies, DDL sintaks
+      di luar Drizzle, kolom tambahan, dsb). Wajib idempotent
+      (`IF NOT EXISTS` / `OR REPLACE`) karena di-run tiap deploy.
+   3. Ganti password role `mes_app` (kalau `MES_APP_DB_PASSWORD` di-set)
+   4. Seed idempotent → server start.
+   Log di tab Deployments.
 2. Verifikasi:
    ```bash
    curl -sI https://ohmes.fzdev.my.id/api/v1/health   # 200

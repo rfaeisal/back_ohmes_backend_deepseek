@@ -82,6 +82,9 @@ export const supplierSjBox = pgTable(
     }), // NULL = label belum discan/ditimbang
     enteredBy: uuid("entered_by").references(() => user.id),
     enteredAt: timestamp("entered_at"),
+    voidReason: text("void_reason"), // alasan VOID (mobile handoff v2.2.3 §5)
+    voidedAt: timestamp("voided_at"),
+    voidedBy: uuid("voided_by").references(() => user.id),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     deletedAt: timestamp("deleted_at"),
   },
