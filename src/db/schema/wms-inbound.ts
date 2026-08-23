@@ -123,6 +123,10 @@ export const tsgInventory = pgTable(
     writeoffReason: text("writeoff_reason"),
     writeoffBy: uuid("writeoff_by").references(() => user.id),
     writeoffAt: timestamp("writeoff_at"),
+    // FIFO override — otorisasi pakai boks di luar urutan FIFO (mobile handoff §6)
+    fifoOverrideReason: text("fifo_override_reason"),
+    fifoOverrideBy: uuid("fifo_override_by").references(() => user.id),
+    fifoOverrideAt: timestamp("fifo_override_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => ({

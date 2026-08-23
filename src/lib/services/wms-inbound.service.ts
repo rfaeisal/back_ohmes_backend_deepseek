@@ -215,6 +215,7 @@ export async function getAvailableInventory(
       weightKg: tsgReceivingBox.weightKg,
       tsgType: tsgReceivingBox.tsgType,
       locationCode: tsgInventory.locationCode,
+      fifoOverrideAt: tsgInventory.fifoOverrideAt,
       createdAt: tsgInventory.createdAt,
     })
     .from(tsgInventory)
@@ -271,6 +272,59 @@ export async function writeoffInventory(
     .where(eq(tsgInventory.id, inventoryId));
 
   return { inventoryId, status: "WRITTEN_OFF" };
+}
+
+// =============================================================================
+// FIFO Override Inventory — otorisasi pakai boks di luar urutan FIFO
+// =============================================================================
+// Mobile handoff §6: permission `tsg.inventory.allocate.override` sudah
+// di-seed untuk PLANT_MANAGER + SUPERADMIN. Alasan wajib dicatat (compliance)
+// + audit log. Tidak mengubah status — boks tetap AVAILABLE dan boleh diambil
+// operator di luar urutan FIFO dengan bukti otorisasi ini.
+// =============================================================================
+
+export async function overrideFifoInventory(
+  inventoryId: string,
+  reason: string,
+  overriddenBy: string,
+  isPrivileged = false
+) {
+  const [item] = await db
+    .select()
+    .from(tsgInventory)
+    .where(eq(tsgInventory.id, inventoryId))
+    .limit(1);
+
+  if (!item) throw new ServiceError("INVENTORY_NOT_FOUND", "Inventory tidak ditemukan.");
+  if (item.status !== "AVAILABLE") {
+    throw new ServiceError(
+      "INVENTORY_NOT_AVAILABLE",
+      "Hanya boks status AVAILABLE yang bisa di-override FIFO.",
+      { currentStatus: item.status }
+    );
+  }
+
+  const appliedAt = new Date();
+
+  await db
+    .update(tsgInventory)
+    .set({
+      fifoOverrideReason: reason,
+      fifoOverrideBy: overriddenBy,
+      fifoOverrideAt: appliedAt,
+    })
+    .where(eq(tsgInventory.id, inventoryId));
+
+  await writeAudit({
+    actorUserId: overriddenBy,
+    action: "tsg.inventory.fifo_override",
+    entityTable: "tsg_inventory",
+    entityId: inventoryId,
+    after: { reason, appliedAt: appliedAt.toISOString() },
+    isPrivileged,
+  });
+
+  return { overrideId: inventoryId, appliedAt: appliedAt.toISOString() };
 }
 
 // =============================================================================
