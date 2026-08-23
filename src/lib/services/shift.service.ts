@@ -20,6 +20,7 @@ import {
 import { machine, shiftTemplate, product } from "@/db/schema/master-product";
 import { calculateShiftYield } from "@/lib/calc";
 import { writeAudit } from "@/lib/audit";
+import { notifyShiftCompleted } from "./fcm.service";
 
 // =============================================================================
 // Types
@@ -303,6 +304,15 @@ export async function endShift(input: EndShiftInput) {
     entityId: input.shiftId,
     before: { status: "RUNNING" },
     after: { status: "COMPLETED" },
+  });
+
+  // Push ke Plant Manager pabrik ini (fire-and-forget — gagal tidak
+  // menggagalkan end shift). Mobile handoff §1.
+  void notifyShiftCompleted({
+    shiftId: shift.id,
+    plantId: shift.plantId,
+    machineId: shift.machineId,
+    reportDate: shift.reportDate,
   });
 
   return { shiftId: input.shiftId, status: "COMPLETED" };

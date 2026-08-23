@@ -17,6 +17,7 @@ import {
 import { plant } from "@/db/schema/tenancy";
 import { writeAudit } from "@/lib/audit";
 import { ServiceError } from "./shift.service";
+import { notifyReceivingPending } from "./fcm.service";
 
 // =============================================================================
 // Types
@@ -132,6 +133,15 @@ export async function createReceiving(input: CreateReceivingInput) {
     entityTable: "tsg_receiving",
     entityId: result.id,
     after: { receivingCode, boxCount: input.boxes.length, approvalStatus: "PENDING" },
+  });
+
+  // Push ke Plant Manager pabrik ini (fire-and-forget — gagal tidak
+  // menggagalkan receiving). Mobile handoff §1.
+  void notifyReceivingPending({
+    receivingId: result.id,
+    plantId: input.plantId,
+    supplierSjId: null, // receiving manual tidak terikat SJ
+    boxCount: input.boxes.length,
   });
 
   return {
