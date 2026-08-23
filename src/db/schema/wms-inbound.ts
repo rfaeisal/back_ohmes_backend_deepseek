@@ -6,7 +6,6 @@ import {
   timestamp,
   integer,
   decimal,
-  boolean,
   unique,
   index,
 } from "drizzle-orm/pg-core";
@@ -14,12 +13,15 @@ import { sql } from "drizzle-orm";
 import { plant } from "./tenancy";
 import { user } from "./identity";
 import { shiftReport } from "./shift";
+import { supplierSj } from "./supplier-sj";
 
 // =============================================================================
-// Enums
+// Enums & master supplier — didefinisikan di tsg-types.ts (bebas circular
+// import), di-re-export di sini supaya import lama tetap jalan.
 // =============================================================================
 
-export const tsgTypeEnum = pgEnum("tsg_type", ["REGULER", "MILD", "PUTIHAN"]);
+import { tsgTypeEnum, tsgSupplier } from "./tsg-types";
+export { tsgTypeEnum, tsgSupplier };
 
 export const tsgInventoryStatusEnum = pgEnum("tsg_inventory_status", [
   "AVAILABLE",
@@ -29,22 +31,6 @@ export const tsgInventoryStatusEnum = pgEnum("tsg_inventory_status", [
   "TRANSFERRED",
   "RETURNED",
 ]);
-
-// =============================================================================
-// TSG Supplier — master data supplier
-// =============================================================================
-
-export const tsgSupplier = pgTable("tsg_supplier", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  code: text("code").notNull().unique(), // 'SUP-JAWA-01'
-  name: text("name").notNull(),
-  contactPerson: text("contact_person"),
-  contactPhone: text("contact_phone"),
-  address: text("address"),
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  deletedAt: timestamp("deleted_at"),
-});
 
 // =============================================================================
 // TSG Receiving — header penerimaan dari supplier
@@ -60,6 +46,7 @@ export const tsgReceiving = pgTable(
     supplierId: uuid("supplier_id")
       .notNull()
       .references(() => tsgSupplier.id),
+    supplierSjId: uuid("supplier_sj_id").references(() => supplierSj.id), // link balik ke Surat Jalan (NULL = receiving manual) — mobile handoff v2.2.3 §4
     receivingCode: text("receiving_code").notNull(), // 'RCV-MLG-20260810-01' — unique per plant
     receivedAt: timestamp("received_at").notNull(),
     receivedBy: uuid("received_by")

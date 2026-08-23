@@ -490,6 +490,7 @@ export async function receiveFromSupplierSj(input: ReceiveFromSjInput) {
       .values({
         plantId: input.plantId,
         supplierId: sj.supplierId,
+        supplierSjId: sj.id, // link balik ke SJ (mobile handoff v2.2.3 §4)
         receivingCode,
         receivedAt: new Date(),
         receivedBy: input.actorUserId,

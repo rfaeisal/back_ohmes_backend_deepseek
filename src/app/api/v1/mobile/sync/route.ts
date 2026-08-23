@@ -29,6 +29,10 @@ interface SyncResult {
   status: number;
   body: unknown;
   alreadyApplied: boolean;
+  // Alias untuk mobile: parser Flutter (SyncItemResult.fromJson) baca `isReplay`,
+  // bukan `alreadyApplied`. Keduanya dikirim supaya kontrak doc §2 dan kode
+  // mobile sama-sama terpenuhi.
+  isReplay: boolean;
 }
 
 export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
@@ -68,6 +72,7 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
           status: dedup.cachedResponse.status,
           body: dedup.cachedResponse.body,
           alreadyApplied: true,
+          isReplay: true,
         });
         continue;
       }
@@ -96,6 +101,7 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
             },
           },
           alreadyApplied: false,
+          isReplay: false,
         });
         continue;
       }
@@ -118,6 +124,7 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
         status: dispatched.status,
         body: dispatched.body,
         alreadyApplied: false,
+        isReplay: false,
       });
     }
 

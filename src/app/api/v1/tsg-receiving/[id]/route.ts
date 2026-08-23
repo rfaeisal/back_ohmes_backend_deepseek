@@ -28,6 +28,9 @@ export const GET = withAuth(
         plantCode: plant.code,
         supplierId: tsgReceiving.supplierId,
         supplierName: tsgSupplier.name,
+        // Link balik ke Surat Jalan (mobile handoff v2.2.3 §4 minta `sjId`;
+        // nama kolom aktual supplierSjId — NULL untuk receiving manual).
+        supplierSjId: tsgReceiving.supplierSjId,
         supplierCode: tsgSupplier.code,
         supplierDocRef: tsgReceiving.supplierDocRef,
         receivedAt: tsgReceiving.receivedAt,

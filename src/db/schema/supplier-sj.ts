@@ -18,7 +18,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { plant } from "./tenancy";
 import { user } from "./identity";
-import { tsgSupplier, tsgTypeEnum } from "./wms-inbound";
+import { tsgSupplier, tsgTypeEnum } from "./tsg-types";
 
 export const supplierSjStatusEnum = pgEnum("supplier_sj_status", [
   "DRAFT", // label dibuat, sebagian/semua boks belum ditimbang
