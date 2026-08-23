@@ -13,8 +13,8 @@
 // Dipanggil dari entrypoint.sh setelah drizzle-kit migrate.
 // =============================================================================
 
-import { readdirSync, readFileSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 
@@ -26,9 +26,25 @@ if (!adminUrl) {
   process.exit(1);
 }
 
-const migrationsDir =
-  process.env.MANUAL_MIGRATIONS_DIR ||
-  join(dirname(fileURLToPath(import.meta.url)), "..", "src", "db", "migrations");
+// Cari folder migrations. Container produksi flatten script ke /app/
+// (bukan /app/scripts/), jadi `../src/db/migrations` dari lokasi script
+// resolve ke /src/db/migrations yang tidak ada. Kita coba beberapa kandidat.
+function resolveMigrationsDir() {
+  if (process.env.MANUAL_MIGRATIONS_DIR) return process.env.MANUAL_MIGRATIONS_DIR;
+  const scriptDir = dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    join(scriptDir, "..", "src", "db", "migrations"), // dev: /repo/scripts/ → /repo/src/db/migrations
+    join(scriptDir, "src", "db", "migrations"),       // prod flat: /app/ → /app/src/db/migrations
+    resolve(process.cwd(), "src", "db", "migrations"), // cwd fallback (WORKDIR /app)
+  ];
+  for (const p of candidates) {
+    if (existsSync(join(p, "meta", "_journal.json"))) return p;
+  }
+  return candidates[candidates.length - 1]; // last resort — biar error message-nya jelas
+}
+
+const migrationsDir = resolveMigrationsDir();
+console.log(`[apply-manual-migrations] Folder migrations: ${migrationsDir}`);
 
 // Baca journal drizzle → set of tag yang sudah di-track
 let trackedTags = new Set();
