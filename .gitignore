@@ -37,3 +37,7 @@ pnpm-debug.log*
 coverage/
 .nyc_output/
 tsconfig.tsbuildinfo
+
+# --- Firebase secrets (JANGAN commit ke git) ---
+*-firebase-adminsdk-*.json
+google-services.json
