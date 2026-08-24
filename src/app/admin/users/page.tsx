@@ -116,7 +116,7 @@ export default function UsersPage() {
       await apiFetch("/user-assignments", { method: "POST", body: JSON.stringify({
         userId: showAssign.id,
         scopeType: form.scopeType || "PLANT",
-        scopeId: form.scopeId || "3b775285-6b60-4ffa-ad7b-5558fc9f3da2",
+        scopeId: form.scopeId,
         roleCode: form.roleCode || "OPERATOR_KECER",
       }) });
       setSuccess("Role berhasil di-assign.");
@@ -219,7 +219,7 @@ export default function UsersPage() {
                       <Button size="sm" variant="ghost" onClick={() => { setShowPassword(u); setForm({}); setError(""); }} title="Ganti Password">
                         <Key className="size-4" />
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => { setShowAssign(u); setForm({}); setError(""); }}>
+                      <Button size="sm" variant="outline" onClick={() => { setShowAssign(u); setForm({ roleCode: "OPERATOR_KECER", scopeType: "PLANT", scopeId: "" }); setError(""); }}>
                         + Role
                       </Button>
                       <Button size="sm" variant="ghost"
@@ -321,7 +321,7 @@ export default function UsersPage() {
           ) : (
             <Input label="Scope ID" value={form.scopeId ?? ""} onChange={e => setForm({...form, scopeId: e.target.value})} placeholder="UUID GLOBAL" />
           )}
-          <Button size="lg" className="w-full" onClick={handleAssignRole} disabled={saving}>
+          <Button size="lg" className="w-full" onClick={handleAssignRole} disabled={saving || !form.scopeId}>
             {saving ? "Menyimpan..." : "Assign Role"}
           </Button>
         </div>
