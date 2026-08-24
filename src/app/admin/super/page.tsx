@@ -11,11 +11,25 @@ export default function SuperAdminPage() {
   const [result, setResult] = useState<any>(null);
   const [form, setForm] = useState<Record<string, string>>({});
 
-  const handleAction = async (action: string, path: string, method = "POST") => {
+  const handleAction = async (action: string, path: string, body?: Record<string, string>, confirmMsg?: string) => {
+    if (confirmMsg && !confirm(confirmMsg)) return;
     setLoading(action);
     setResult(null);
     try {
-      const res = await apiFetch(path, { method, body: method !== "GET" ? JSON.stringify(form) : undefined });
+      const res = await apiFetch(path, { method: "POST", body: JSON.stringify(body ?? {}) });
+      setResult(res);
+    } catch (e: any) {
+      setResult({ error: e.message });
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleView = async (action: string, path: string) => {
+    setLoading(action);
+    setResult(null);
+    try {
+      const res = await apiFetch(path);
       setResult(res);
     } catch (e: any) {
       setResult({ error: e.message });
@@ -41,7 +55,9 @@ export default function SuperAdminPage() {
         <div className="mt-4 flex items-end gap-3">
           <Input label="User ID" value={form.uid ?? ""} onChange={e => setForm({...form, uid: e.target.value})} placeholder="UUID" className="flex-1" />
           <Input label="Alasan" value={form.reason ?? ""} onChange={e => setForm({...form, reason: e.target.value})} placeholder="Debug..." className="flex-1" />
-          <Button variant="danger" disabled={loading === "imp"} onClick={() => handleAction("imp", "/super/impersonate", "POST")}>
+          <Button variant="danger"
+            disabled={loading === "imp" || !form.uid?.trim() || !form.reason?.trim()}
+            onClick={() => handleAction("imp", "/super/impersonate", { userId: form.uid ?? "", reason: form.reason ?? "" }, "Impersonate user ini? Semua aksi tercatat atas nama Anda.")}>
             {loading === "imp" ? "..." : "Impersonate"}
           </Button>
         </div>
@@ -52,7 +68,10 @@ export default function SuperAdminPage() {
         <CardTitle>Force Logout User</CardTitle>
         <div className="mt-4 flex items-end gap-3">
           <Input label="User ID" value={form.fid ?? ""} onChange={e => setForm({...form, fid: e.target.value})} placeholder="UUID" className="flex-1" />
-          <Button variant="danger" disabled={loading === "fl"} onClick={() => handleAction("fl", `/super/users/${form.fid}/force-logout`)}>
+          <Input label="Alasan" value={form.flReason ?? ""} onChange={e => setForm({...form, flReason: e.target.value})} placeholder="Wajib..." className="flex-1" />
+          <Button variant="danger"
+            disabled={loading === "fl" || !form.fid?.trim() || !form.flReason?.trim()}
+            onClick={() => handleAction("fl", `/super/users/${form.fid}/force-logout`, { reason: form.flReason ?? "" }, "Force logout user ini? SEMUA sesi akan direvoke.")}>
             {loading === "fl" ? "..." : "Force Logout"}
           </Button>
         </div>
@@ -63,7 +82,10 @@ export default function SuperAdminPage() {
         <CardTitle>Revoke Mobile Sessions</CardTitle>
         <div className="mt-4 flex items-end gap-3">
           <Input label="User ID" value={form.mid ?? ""} onChange={e => setForm({...form, mid: e.target.value})} placeholder="UUID" className="flex-1" />
-          <Button variant="danger" disabled={loading === "rm"} onClick={() => handleAction("rm", `/super/users/${form.mid}/sessions/mobile/revoke`)}>
+          <Input label="Alasan" value={form.rmReason ?? ""} onChange={e => setForm({...form, rmReason: e.target.value})} placeholder="Wajib..." className="flex-1" />
+          <Button variant="danger"
+            disabled={loading === "rm" || !form.mid?.trim() || !form.rmReason?.trim()}
+            onClick={() => handleAction("rm", `/super/users/${form.mid}/sessions/mobile/revoke`, { reason: form.rmReason ?? "" }, "Revoke SEMUA sesi mobile user ini?")}>
             {loading === "rm" ? "..." : "Revoke Mobile"}
           </Button>
         </div>
@@ -74,7 +96,7 @@ export default function SuperAdminPage() {
         <CardTitle>View User Sessions</CardTitle>
         <div className="mt-4 flex items-end gap-3">
           <Input label="User ID" value={form.sid ?? ""} onChange={e => setForm({...form, sid: e.target.value})} placeholder="UUID" className="flex-1" />
-          <Button variant="outline" disabled={loading === "vs"} onClick={() => handleAction("vs", `/super/users/${form.sid}/sessions`, "GET")}>
+          <Button variant="outline" disabled={loading === "vs" || !form.sid?.trim()} onClick={() => handleView("vs", `/super/users/${form.sid}/sessions`)}>
             {loading === "vs" ? "..." : "View Sessions"}
           </Button>
         </div>
