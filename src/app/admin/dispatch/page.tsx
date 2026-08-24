@@ -25,6 +25,8 @@ export default function DispatchPage() {
     notes: "",
   });
   const [selectedCartons, setSelectedCartons] = useState<Set<string>>(new Set());
+  // Nomor dokumen per order (diisi saat generate) — untuk tombol unduh
+  const [docs, setDocs] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,7 +79,26 @@ export default function DispatchPage() {
   const handleDocument = async (orderId: string) => {
     try {
       const doc = await apiFetch(`/dispatch/orders/${orderId}/document`, { method: "POST", body: JSON.stringify({}) });
-      setMsg(`✅ Dokumen dibuat: ${doc.documentNumber ?? doc.id ?? ""}`);
+      const num = doc.documentNumber ?? doc.docNumber ?? doc.id ?? "";
+      setDocs((d) => ({ ...d, [orderId]: num }));
+      setMsg(`✅ Dokumen dibuat: ${num}`);
+    } catch (e: any) { setMsg(e.message); }
+  };
+
+  const handleDownload = async (orderId: string) => {
+    const num = docs[orderId];
+    if (!num) return;
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch(`/api/v1/dispatch/documents/${num}/download`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) { setMsg("Gagal mengunduh dokumen."); return; }
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `${num}.pdf`;
+      a.click();
     } catch (e: any) { setMsg(e.message); }
   };
 
@@ -145,6 +166,9 @@ export default function DispatchPage() {
                       <Button size="sm" variant="primary" onClick={() => handleDispatch(o.id)}>Dispatch</Button>
                     )}
                     <Button size="sm" variant="outline" onClick={() => handleDocument(o.id)}>📄 Dokumen</Button>
+                    {docs[o.id] && (
+                      <Button size="sm" variant="ghost" onClick={() => handleDownload(o.id)} title={`Unduh ${docs[o.id]}`}>⬇️ Unduh</Button>
+                    )}
                   </td>
                 </tr>
               ))}
