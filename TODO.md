@@ -33,12 +33,12 @@ Catatan pekerjaan yang belum dikerjakan. Update terakhir: 2026-08-24.
 
 ---
 
-## 🟡 IT / Operasional
+## 🟡 IT / Operasional — SELESAI (24 Agu 2026)
 
-- [ ] Transfer ownership Firebase `back-ohmes` dari `ekalakohmandiri@gmail.com` → akun IT resmi
-- [ ] Keputusan keystore signing APK: self-generated dipakai official atau ganti + resign (sebelum broadcast APK)
-- [ ] iOS: Apple Developer Program ($99/th) → APNs key → FCM iOS
-- [ ] Keputusan domain produksi: tetap `ohmes.fzdev.my.id` atau pindah ke domain resmi (koordinasi tim mobile — pinning TLS)
+- [x] Transfer ownership Firebase `back-ohmes` → akun IT resmi (selesai)
+- [x] Keputusan keystore signing APK (selesai)
+- [x] iOS: TIDAK dipakai — tidak perlu Apple Developer Program / APNs
+- [x] Keputusan domain produksi: tetap `ohmes.fzdev.my.id` (fix)
 
 ---
 
