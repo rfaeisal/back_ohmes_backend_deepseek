@@ -668,6 +668,22 @@ export async function logMaintenance(input: MaintenanceInput) {
 // =============================================================================
 
 export async function hlpPackInput(input: HlpPackInput) {
+  // Guard: batch hanya boleh dicatat packing SEKALI. Double submit
+  // menggandakan total pack (bug ditemukan saat uji alur HLP 24 Agu 2026).
+  const [existing] = await db
+    .select({ id: hlpPack.id })
+    .from(hlpPack)
+    .where(eq(hlpPack.batchId, input.batchId))
+    .limit(1);
+
+  if (existing) {
+    throw new ServiceError(
+      "HLP_BATCH_ALREADY_PACKED",
+      "Batch ini sudah dicatat hasil packingnya. Pilih batch lain.",
+      { batchId: input.batchId }
+    );
+  }
+
   const totalBatang = calculateTotalBatang(
     input.packsLolos,
     input.isiPerPack,

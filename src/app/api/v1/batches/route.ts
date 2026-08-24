@@ -15,6 +15,9 @@ export const GET = withAuth(
         batanganKg: batch.batanganKg,
         machineCode: machine.code,
         createdAt: batch.createdAt,
+        // Ringkasan packing — supaya UI bisa tandai batch yang sudah dicatat
+        packCount: sql<number>`(SELECT COUNT(*) FROM hlp_pack hp WHERE hp.batch_id = ${batch.id})`.mapWith(Number),
+        packedBatang: sql<number>`(SELECT COALESCE(SUM(hp.total_batang), 0) FROM hlp_pack hp WHERE hp.batch_id = ${batch.id})`.mapWith(Number),
       })
       .from(batch)
       .leftJoin(machine, eq(batch.machineId, machine.id))

@@ -19,6 +19,8 @@ interface BatchItem {
   batanganKg: number;
   machineCode: string;
   createdAt: string;
+  packCount?: number;
+  packedBatang?: number;
 }
 
 export default function HlpPage() {
@@ -41,6 +43,8 @@ export default function HlpPage() {
           batanganKg: parseFloat(b.batanganKg ?? "0"),
           machineCode: b.machineCode ?? "-",
           createdAt: b.createdAt,
+          packCount: b.packCount ?? 0,
+          packedBatang: b.packedBatang ?? 0,
         })));
       }
       if (mRes.status === "fulfilled") {
@@ -66,9 +70,9 @@ export default function HlpPage() {
   const [actionMsg, setActionMsg] = useState("");
   const [lastResult, setLastResult] = useState<any>(null);
 
-  const filteredBatches = batches.filter((b) =>
-    b.code.toLowerCase().includes(batchSearch.toLowerCase())
-  );
+  const filteredBatches = batches
+    .filter((b) => b.code.toLowerCase().includes(batchSearch.toLowerCase()))
+    .sort((a, b) => (a.packCount ?? 0) - (b.packCount ?? 0)); // belum packing di atas
 
   // Preview perhitungan
   const totalBatang = (parseInt(packsLolos || "0", 10) || 0) * (parseInt(isiPerPack || "0", 10) || 0) + (parseInt(rejectBatangan || "0", 10) || 0);
@@ -145,6 +149,8 @@ export default function HlpPage() {
                   <p className="font-bold font-mono text-lg">{selectedBatch.code}</p>
                   <p className="text-sm text-gray-600">
                     {selectedBatch.batanganKg.toFixed(2)} kg · dari {selectedBatch.machineCode}
+                    {(selectedBatch.packCount ?? 0) > 0 &&
+                      ` · sudah packing ${selectedBatch.packCount}× (${selectedBatch.packedBatang ?? 0} batang)`}
                   </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => setShowBatchPicker(true)}>Ganti</Button>
@@ -218,10 +224,16 @@ export default function HlpPage() {
             </div>
           )}
 
+          {(selectedBatch?.packCount ?? 0) > 0 && (
+            <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-4 py-3 text-sm text-yellow-800">
+              ⚠️ Batch ini <strong>sudah dicatat packingnya</strong> ({selectedBatch!.packCount}×).
+              Simpan hanya untuk batch yang belum diproses.
+            </div>
+          )}
           <Button
             size="operator"
             className="w-full"
-            disabled={saving}
+            disabled={saving || (selectedBatch?.packCount ?? 0) > 0}
             onClick={handleSubmit}
           >
             {saving ? "Menyimpan..." : "SIMPAN HASIL PACKING"}
@@ -249,7 +261,10 @@ export default function HlpPage() {
       )}
 
       {/* Riwayat packing */}
-      <h3 className="text-lg font-bold text-gray-900 mb-3">Riwayat Packing</h3>
+      <h3 className="text-lg font-bold text-gray-900 mb-1">Riwayat Packing</h3>
+      {!loading && history.length >= 50 && (
+        <p className="text-xs text-gray-400 mb-2">Menampilkan 50 entri terbaru.</p>
+      )}
       {loading ? (
         <p className="text-center text-gray-400 py-6">Memuat riwayat...</p>
       ) : history.length === 0 ? (
@@ -291,23 +306,35 @@ export default function HlpPage() {
               {batches.length === 0 ? "Belum ada batch batangan. Selesaikan sesi boks di Maker dulu." : "Kode tidak ditemukan."}
             </p>
           ) : (
-            filteredBatches.map((b) => (
-              <button
-                key={b.id}
-                onClick={() => { setSelectedBatch(b); setShowBatchPicker(false); }}
-                className="w-full rounded-lg border-2 border-gray-200 p-3 text-left hover:border-primary-400 transition-colors"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-bold font-mono text-lg">{b.code}</p>
-                    <p className="text-sm text-gray-500">
-                      {b.batanganKg.toFixed(2)} kg · dari {b.machineCode}
-                    </p>
+            filteredBatches.map((b) => {
+              const packed = (b.packCount ?? 0) > 0;
+              return (
+                <button
+                  key={b.id}
+                  disabled={packed}
+                  onClick={() => { setSelectedBatch(b); setShowBatchPicker(false); }}
+                  className={`w-full rounded-lg border-2 p-3 text-left transition-colors ${
+                    packed
+                      ? "border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed"
+                      : "border-gray-200 hover:border-primary-400"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-bold font-mono text-lg">{b.code}</p>
+                      <p className="text-sm text-gray-500">
+                        {b.batanganKg.toFixed(2)} kg · dari {b.machineCode}
+                      </p>
+                    </div>
+                    {packed ? (
+                      <Badge variant="success">✓ Packing {b.packCount}×</Badge>
+                    ) : (
+                      <Badge variant="neutral">Belum packing</Badge>
+                    )}
                   </div>
-                  <Badge variant="info">Pilih</Badge>
-                </div>
-              </button>
-            ))
+                </button>
+              );
+            })
           )}
         </div>
       </Dialog>
