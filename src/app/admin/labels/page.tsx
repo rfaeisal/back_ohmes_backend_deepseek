@@ -6,15 +6,6 @@ import { Card, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-type LabelData = {
-  id: string;
-  code: string;
-  type: string;
-  sub1: string;
-  sub2: string;
-  date: string;
-};
-
 export default function LabelsPage() {
   const [tab, setTab] = useState<"tsg" | "machine" | "batch">("tsg");
   const [items, setItems] = useState<any[]>([]);
@@ -64,26 +55,42 @@ export default function LabelsPage() {
     setSelected(next);
   };
 
-  const buildLabels = (): LabelData[] => {
-    const today = new Date().toISOString().slice(0, 10);
-    return items
-      .filter((i: any) => selected.has(i.id))
-      .map((i: any) => ({
-        id: i.id ?? i.inventoryId,
-        code: i.boxCode ?? i.code ?? (i.id ?? i.inventoryId)?.slice(0, 8),
-        type: tab === "tsg" ? "TSG_BOX" : tab === "machine" ? "MACHINE" : "BATCH",
-        sub1: tab === "tsg" ? `${i.weightKg} kg` : i.type ?? i.name ?? "",
-        sub2: tab === "tsg" ? `Umur ${i.ageInDays ?? "?"} hari` : i.name ?? "",
-        date: today,
-      }));
-  };
+  // buildLabels dihapus — QR sekarang di-generate server-side di handlePrint
+  // (pseudo-QR client tidak bisa discan).
 
-  const handlePrint = () => {
-    const labels = buildLabels();
-    if (labels.length === 0) { alert("Pilih minimal 1 item."); return; }
-    // Store labels in sessionStorage and open print page
-    sessionStorage.setItem("printLabels", JSON.stringify(labels));
-    window.open("/print-labels", "_blank");
+  const handlePrint = async () => {
+    if (selected.size === 0) { alert("Pilih minimal 1 item."); return; }
+    setLoading(true);
+    try {
+      // Generate QR ASLI via backend (signed URI + registry) — pseudo-QR
+      // client-side tidak bisa discan (temuan audit 24 Agu 2026)
+      const today = new Date().toISOString().slice(0, 10);
+      const labels: any[] = [];
+      for (const i of items) {
+        if (!selected.has(i.id)) continue;
+        const type = tab === "tsg" ? "TSG_BOX" : "MACHINE";
+        const entityId = tab === "tsg" ? (i.boxId ?? i.id) : i.id;
+        const qr = await apiFetch("/qr/generate", {
+          method: "POST",
+          body: JSON.stringify({ type, entityId }),
+        });
+        labels.push({
+          id: i.id ?? i.inventoryId,
+          code: i.boxCode ?? i.code ?? (i.id ?? i.inventoryId)?.slice(0, 8),
+          type,
+          sub1: tab === "tsg" ? `${i.weightKg} kg` : i.type ?? i.name ?? "",
+          sub2: tab === "tsg" ? `Umur ${i.ageInDays ?? "?"} hari` : i.name ?? "",
+          date: today,
+          qrUri: qr.uri,
+        });
+      }
+      sessionStorage.setItem("printLabels", JSON.stringify(labels));
+      window.open("/print-labels", "_blank");
+    } catch (e: any) {
+      alert(`Gagal generate QR: ${e.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const itemsList: any[] = tab === "tsg" ? items : tab === "machine" ? items : [];
@@ -105,7 +112,6 @@ export default function LabelsPage() {
         {[
           { key: "tsg", label: "Boks TSG", count: counts.tsg },
           { key: "machine", label: "Mesin", count: counts.machine },
-          { key: "batch", label: "Batch", count: 0 },
         ].map((t) => (
           <Button
             key={t.key}

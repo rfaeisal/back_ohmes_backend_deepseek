@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
 
 type LabelData = {
@@ -10,33 +11,12 @@ type LabelData = {
   sub1: string;
   sub2: string;
   date: string;
+  qrUri?: string; // URI signed dari backend /qr/generate
 };
-
-// Generate simple QR inline SVG from text
-function qrSvg(text: string, size = 72): string {
-  // Simple representation using deterministic pattern based on text
-  const hash = Array.from(text).reduce((a, c) => a + c.charCodeAt(0), 0);
-  const rows = 7;
-  const cols = 7;
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${cols} ${rows}">`;
-  svg += `<rect width="${cols}" height="${rows}" fill="white"/>`;
-  for (let y = 0; y < rows; y++) {
-    for (let x = 0; x < cols; x++) {
-      const val = (hash * (x + 1) * (y + 1) * 7) % 13;
-      if (val > 7) {
-        svg += `<rect x="${x}" y="${y}" width="1" height="1" fill="black"/>`;
-      }
-    }
-  }
-  // Border position markers
-  svg += `<rect x="0" y="0" width="2" height="2" fill="black"/><rect x="5" y="0" width="2" height="2" fill="black"/>`;
-  svg += `<rect x="0" y="5" width="2" height="2" fill="black"/>`;
-  svg += `</svg>`;
-  return svg;
-}
 
 export default function PrintLabelsPage() {
   const [labels, setLabels] = useState<LabelData[]>([]);
+  const [qrUrls, setQrUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,9 +25,28 @@ export default function PrintLabelsPage() {
       try { setLabels(JSON.parse(raw)); } catch { }
     }
     setLoading(false);
-    // Auto-trigger print after load
-    setTimeout(() => window.print(), 800);
   }, []);
+
+  // Generate QR ASLI dari URI (bukan pseudo-QR) — selesai dulu baru auto-print
+  useEffect(() => {
+    if (labels.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const urls: string[] = [];
+      for (const l of labels) {
+        try {
+          urls.push(await QRCode.toDataURL(l.qrUri ?? l.code, { margin: 1, width: 200 }));
+        } catch {
+          urls.push("");
+        }
+      }
+      if (!cancelled) {
+        setQrUrls(urls);
+        setTimeout(() => window.print(), 400);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [labels]);
 
   if (loading) return <div className="p-8 text-center">Menyiapkan label...</div>;
   if (labels.length === 0) return <div className="p-8 text-center text-gray-500">Tidak ada label. Pilih item dulu di halaman Cetak Label.</div>;
@@ -130,7 +129,14 @@ export default function PrintLabelsPage() {
       <div className="label-grid">
         {labels.map((label, i) => (
           <div key={i} className="label-card">
-            <div className="label-qr" dangerouslySetInnerHTML={{ __html: qrSvg(label.code, 68) }} />
+            <div className="label-qr">
+              {qrUrls[i] ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={qrUrls[i]} width={68} height={68} alt={label.code} />
+              ) : (
+                <div style={{ width: 68, height: 68, background: "#eee" }} />
+              )}
+            </div>
             <div className="label-info">
               <div className="label-code">{label.code}</div>
               <div className="label-sub">{label.sub1}</div>

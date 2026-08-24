@@ -221,6 +221,7 @@ export async function getAvailableInventory(
   const items = await db
     .select({
       inventoryId: tsgInventory.id,
+      boxId: tsgInventory.boxId, // id tsg_receiving_box — untuk generate QR asli
       boxCode: tsgReceivingBox.boxCode,
       weightKg: tsgReceivingBox.weightKg,
       tsgType: tsgReceivingBox.tsgType,
