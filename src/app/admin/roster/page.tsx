@@ -29,10 +29,12 @@ export default function RosterPage() {
   const [weekStart, setWeekStart] = useState(monday);
   const [users, setUsers] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
+  const [roles, setRoles] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<string>("");
+  const [activeRole, setActiveRole] = useState<string>("");
 
   const load = useCallback(async (silent?: boolean) => {
     if (!silent) setLoading(true);
@@ -41,6 +43,9 @@ export default function RosterPage() {
     setUsers(data.users ?? []);
     setTemplates(data.templates ?? []);
     setAssignments(data.assignments ?? []);
+    const rolesRes = await apiFetch("/shift-roles").catch(() => ({ data: [] }));
+    setRoles(rolesRes.data ?? []);
+    setActiveRole((prev) => prev || (rolesRes.data?.[0]?.id ?? ""));
     if (!silent) setLoading(false);
   }, [weekStart]);
 
@@ -50,15 +55,16 @@ export default function RosterPage() {
   const dayNames = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
 
   const toggleCell = (userId: string, date: string) => {
-    if (!activeTemplate) return;
+    if (!activeTemplate || !activeRole) return;
     const existingIdx = assignments.findIndex((a: any) => a.userId === userId && a.date === date && a.shiftTemplateId === activeTemplate);
     const next = [...assignments];
     if (existingIdx >= 0) {
       // Remove this specific assignment
       next.splice(existingIdx, 1);
     } else {
-      // Add new assignment (allow multiple per day)
-      next.push({ userId, date, shiftTemplateId: activeTemplate, shiftRoleId: "f57ef947-862f-4cc1-bb95-2d89e8963c11" });
+      // Add new assignment (allow multiple per day) — role dari selector,
+      // BUKAN UUID hardcode (sebelumnya diam-diam selalu "Ketua Kecer")
+      next.push({ userId, date, shiftTemplateId: activeTemplate, shiftRoleId: activeRole });
     }
     setAssignments(next);
   };
@@ -130,9 +136,15 @@ export default function RosterPage() {
                           <div className="flex flex-col gap-0.5 items-center">
                             {cellAssignments.map((a: any, j: number) => {
                               const tpl = templates.find((t: any) => t.id === a.shiftTemplateId);
+                              const role = roles.find((r: any) => r.id === a.shiftRoleId);
                               const colors = ["info", "success", "warning", "error", "neutral"];
                               const colorIdx = templates.findIndex((t: any) => t.id === a.shiftTemplateId) % colors.length;
-                              return <Badge key={j} variant={colors[colorIdx] as any} className="text-xs">{tpl?.name ?? "?"}</Badge>;
+                              return (
+                                <div key={j} className="flex flex-col items-center">
+                                  <Badge variant={colors[colorIdx] as any} className="text-xs">{tpl?.name ?? "?"}</Badge>
+                                  {role && <span className="text-[10px] text-gray-400">{role.name}</span>}
+                                </div>
+                              );
                             })}
                           </div>
                         ) : (
@@ -149,7 +161,7 @@ export default function RosterPage() {
       </Card>
 
       <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-        <p className="text-sm font-semibold text-gray-700 mb-3">🎯 Pilih shift template dulu, lalu klik di tabel:</p>
+        <p className="text-sm font-semibold text-gray-700 mb-3">🎯 Pilih shift template + role dulu, lalu klik di tabel:</p>
         <div className="flex gap-2 flex-wrap">
           <Button size="sm" variant={activeTemplate === "" ? "primary" : "outline"} onClick={() => setActiveTemplate("")}>
             ✋ Lepas (hapus assignment)
@@ -161,6 +173,16 @@ export default function RosterPage() {
               {t.name} ({t.startTime?.slice(0,5) || t.start_time?.slice(0,5)} — {Math.floor((t.durationMinutes || t.duration_minutes || 0)/60)}j)
             </Button>
           )})}
+        </div>
+        <div className="mt-3">
+          <p className="text-xs font-semibold text-gray-600 mb-2">👷 Role:</p>
+          <div className="flex gap-2 flex-wrap">
+            {roles.map((r: any) => (
+              <Button key={r.id} size="sm" variant={activeRole === r.id ? "secondary" : "outline"} onClick={() => setActiveRole(r.id)}>
+                {r.name}
+              </Button>
+            ))}
+          </div>
         </div>
         {activeTemplate && <p className="text-xs text-primary-600 mt-2">Klik sel di tabel untuk assign shift. Klik lagi sel yang sudah ada untuk hapus.</p>}
       </div>

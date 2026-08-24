@@ -12,10 +12,10 @@ import { sql } from "drizzle-orm";
 const rosterSchema = z.object({
   weekStart: z.string(), // "2026-08-10"
   assignments: z.array(z.object({
-    userId: z.string(),
+    userId: z.string().uuid(),
     date: z.string(),
-    shiftTemplateId: z.string(),
-    shiftRoleId: z.string(),
+    shiftTemplateId: z.string().uuid(),
+    shiftRoleId: z.string().uuid(),
   })),
 });
 
@@ -81,10 +81,11 @@ export const POST = withAuth(async (request: Request) => {
   let inserted = 0;
   for (const a of assignments) {
     try {
-      const roleId = a.shiftRoleId || "f57ef947-862f-4cc1-bb95-2d89e8963c11";
+      // shiftRoleId wajib dari client — TIDAK ada fallback hardcode
+      // (sebelumnya default diam-diam ke UUID seed "Ketua Kecer")
       await db.execute(sql`
         INSERT INTO shift_roster (user_id, date, shift_template_id, shift_role_id, week_start)
-        VALUES (${a.userId}::uuid, ${a.date}::date, ${a.shiftTemplateId}::uuid, ${roleId}::uuid, ${weekStart}::date)
+        VALUES (${a.userId}::uuid, ${a.date}::date, ${a.shiftTemplateId}::uuid, ${a.shiftRoleId}::uuid, ${weekStart}::date)
       `);
       inserted++;
     } catch (e: any) { console.error("Insert failed:", e.message); }
