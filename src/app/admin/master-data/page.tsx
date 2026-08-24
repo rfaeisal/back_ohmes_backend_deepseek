@@ -158,7 +158,7 @@ export default function MasterDataPage() {
         <div className="flex gap-2">
           <Button size="sm" onClick={() => { setForm({}); setShowAdd("plant"); }}>+ Pabrik</Button>
           <Button size="sm" onClick={() => { setForm({}); setShowAdd("region"); }}>+ Area</Button>
-          <Button size="sm" onClick={() => { setForm({}); setShowAdd("machine"); }}>+ Mesin</Button>
+          <Button size="sm" onClick={() => { setForm({ type: "MAKER" }); setShowAdd("machine"); }}>+ Mesin</Button>
           <Button size="sm" onClick={() => { setForm({}); setShowAdd("product"); }}>+ Produk</Button>
           <Button size="sm" onClick={() => { setForm({}); setShowAdd("supplier"); }}>+ Supplier</Button>
           <Button size="sm" onClick={() => { setForm({}); setShowAdd("shiftTemplate"); }}>+ Shift</Button>
