@@ -80,9 +80,15 @@ export default function SupplierSjPage() {
 
   const handleVoid = async () => {
     if (!voidCode.trim()) { setVoidMsg("Isi kode label dulu."); return; }
+    if (!confirm(`VOID label ${voidCode.trim()}? Tindakan ini permanen dan tercatat audit.`)) return;
+    // Alasan untuk kolom void_reason — compliance (mobile handoff v2.2.3 §5)
+    const reason = (prompt("Alasan VOID (untuk audit):") ?? "").trim();
     try {
-      await apiFetch(`/supplier-sj/labels/${voidCode.trim()}/void`, { method: "POST" });
-      setVoidMsg(`Label ${voidCode.trim()} → VOID ✓`);
+      await apiFetch(`/supplier-sj/labels/${voidCode.trim()}/void`, {
+        method: "POST",
+        body: JSON.stringify(reason ? { reason } : {}),
+      });
+      setVoidMsg(`Label ${voidCode.trim()} → VOID ✓${reason ? ` (${reason})` : ""}`);
       setVoidCode("");
       loadOverview();
     } catch (e: any) { setVoidMsg(e.message); }
