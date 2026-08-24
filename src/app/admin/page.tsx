@@ -19,15 +19,19 @@ export default async function AdminOverview() {
   // Real data dari database
   const plants = await db.select().from(plant);
   const users = await db.select().from(user).where(sql`${user.deletedAt} IS NULL`);
-  const today = new Date().toISOString().slice(0, 10);
+  // Tanggal WIB (UTC+7) — report_date disimpan sebagai tanggal WIB.
+  // Kalau pakai toISOString() mentah (UTC), antara 00:00–07:00 WIB
+  // "hari ini" meleset satu hari.
+  const wibNow = new Date(Date.now() + 7 * 3600000);
+  const today = wibNow.toISOString().slice(0, 10);
   const todayShifts = await db.select().from(shiftReport).where(sql`${shiftReport.reportDate}::text = ${today} AND ${shiftReport.deletedAt} IS NULL`);
 
   const plantInfo = plants.length === 1 ? `${plants[0]!.code}` : `${plants.length} pabrik`;
   const runningToday = todayShifts.filter((s) => s.status === "RUNNING").length;
   const completedToday = todayShifts.filter((s) => s.status === "COMPLETED" || s.status === "APPROVED").length;
 
-  // Yield harian 7 hari terakhir
-  const sevenDaysAgo = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
+  // Yield harian 7 hari terakhir (basis WIB, konsisten dengan report_date)
+  const sevenDaysAgo = new Date(wibNow.getTime() - 6 * 86400000).toISOString().slice(0, 10);
   const yieldRows = await db
     .select({
       reportDate: shiftReport.reportDate,
@@ -43,7 +47,7 @@ export default async function AdminOverview() {
   const yieldMap = new Map(yieldRows.map((r) => [r.reportDate, r]));
   const yieldData = [];
   for (let i = 6; i >= 0; i--) {
-    const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+    const d = new Date(wibNow.getTime() - i * 86400000).toISOString().slice(0, 10);
     const row = yieldMap.get(d);
     yieldData.push({
       date: d,
