@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import db from "@/db";
+import { isNull } from "drizzle-orm";
 import { user } from "@/db/schema";
 import { hashPassword } from "@/lib/auth";
 
@@ -18,7 +19,7 @@ export const GET = withAuth(async (_req: Request, _ctx: AuthContext) => {
   const users = await db.select({
     id: user.id, username: user.username, fullName: user.fullName,
     email: user.email, isActive: user.isActive, createdAt: user.createdAt,
-  }).from(user).orderBy(user.createdAt).limit(100);
+  }).from(user).where(isNull(user.deletedAt)).orderBy(user.createdAt).limit(100);
   return NextResponse.json({ data: users }, { status: 200 });
 });
 

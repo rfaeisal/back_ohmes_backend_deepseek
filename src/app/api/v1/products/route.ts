@@ -3,12 +3,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import db from "@/db";
+import { isNull } from "drizzle-orm";
 import { product } from "@/db/schema";
 
 const schema = z.object({ code: z.string().min(1), brand: z.string().min(1), variant: z.string().optional() });
 
 export const GET = withAuth(async () => {
-  const items = await db.select().from(product).limit(100);
+  const items = await db.select().from(product).where(isNull(product.deletedAt)).limit(100);
   return NextResponse.json({ data: items }, { status: 200 });
 });
 
