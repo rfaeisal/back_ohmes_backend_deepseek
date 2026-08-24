@@ -123,6 +123,27 @@ export default function MasterDataPage() {
     }
   };
 
+  // Validasi client: tombol Simpan nonaktif sampai field wajib terisi.
+  // Field tersembunyi saat edit (code/regionId/companyId) tidak diwajibkan.
+  const requiredFields: Record<string, string[]> = {
+    machine: ["code", "name", "plantId"],
+    plant: ["code", "name", ...(form.id ? [] : ["regionId"])],
+    supplier: ["code", "name"],
+    product: ["code", "brand"],
+    region: ["code", "name", ...(form.id ? [] : ["companyId"])],
+    shiftTemplate: ["code", "name", "startTime", "endTime", "plantId"],
+  };
+  const fieldLabels: Record<string, string> = {
+    code: "Kode", name: "Nama", plantId: "Pabrik", regionId: "Area / Region",
+    companyId: "Company", brand: "Brand", startTime: "Jam Mulai", endTime: "Jam Selesai",
+  };
+  const missingFields = showAdd
+    ? (requiredFields[showAdd] ?? []).filter((f) => {
+        const v = (form as any)[f];
+        return v === undefined || v === null || String(v).trim() === "";
+      })
+    : [];
+
   if (loading) {
     return <div className="p-8 text-center text-gray-500">Memuat data...</div>;
   }
@@ -406,7 +427,12 @@ export default function MasterDataPage() {
             <Input label="Telepon" value={form.contactPhone ?? ""} onChange={e => setForm({...form, contactPhone: e.target.value})} />
             <Input label="Alamat" value={form.address ?? ""} onChange={e => setForm({...form, address: e.target.value})} />
           </>)}
-          <Button size="lg" className="w-full" onClick={() => form.id ? handleEdit(showAdd!) : handleAdd(showAdd!)}>
+          {missingFields.length > 0 && (
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              Lengkapi: {missingFields.map((f) => fieldLabels[f] ?? f).join(", ")}
+            </p>
+          )}
+          <Button size="lg" className="w-full" disabled={missingFields.length > 0} onClick={() => form.id ? handleEdit(showAdd!) : handleAdd(showAdd!)}>
             {form.id ? "Update" : "Simpan"}
           </Button>
         </div>

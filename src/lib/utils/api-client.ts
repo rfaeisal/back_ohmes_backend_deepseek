@@ -53,7 +53,16 @@ export async function apiFetch(path: string, options?: RequestInit): Promise<any
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: { message: res.statusText } }));
-    throw new Error(err.error?.message ?? res.statusText);
+    // Tampilkan field error zod supaya user tahu persis input mana yang salah
+    const fieldErrors = err.error?.details?.fieldErrors as Record<string, string[]> | undefined;
+    const fieldMsg =
+      fieldErrors && Object.keys(fieldErrors).length > 0
+        ? " — " +
+          Object.entries(fieldErrors)
+            .map(([f, msgs]) => `${f}: ${(msgs as string[]).join(", ")}`)
+            .join("; ")
+        : "";
+    throw new Error((err.error?.message ?? res.statusText) + fieldMsg);
   }
 
   return res.json();
