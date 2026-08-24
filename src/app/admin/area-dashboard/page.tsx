@@ -30,17 +30,22 @@ export default function AreaDashboardPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      // Region diambil dari scope JWT (activeScopeId) — koordinator di-scope REGION
+      // Region dari scope JWT — activeScopeId HANYA dipakai kalau scope REGION.
+      // Scope COMPANY/GLOBAL (mis. HQ_ANALYST) punya activeScopeId = company,
+      // bukan region — kalau dipakai mentah, API dapat region-id palsu → kosong.
       const token = getToken();
       let regionId = "";
       if (token) {
         try {
           const payload = JSON.parse(atob(token.split(".")[1]!));
-          regionId = payload.activeScopeId ?? "";
+          if (payload.activeScopeType === "REGION") {
+            regionId = payload.activeScopeId ?? "";
+          }
         } catch {}
       }
       if (!regionId) {
-        // Fallback: cari region pertama yang ada di scope
+        // Fallback: cari region pertama yang ada di scope (RLS membatasi
+        // daftar region sesuai scope user — COMPANY lihat semua region-nya)
         const regionsRes = await apiFetch("/regions");
         const regions = regionsRes?.data ?? [];
         if (regions.length > 0) regionId = regions[0].id;
