@@ -183,7 +183,9 @@ export default function MasterDataPage() {
                 <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 font-mono font-medium">{p.code}</td>
                   <td className="py-3">{p.name}</td>
-                  <td className="py-3 text-sm text-gray-500">{regions.find((r: any) => r.id === p.regionId)?.code ?? "-"}</td>
+                  <td className="py-3 text-sm text-gray-500">
+                    {(() => { const r = regions.find((x: any) => x.id === p.regionId); return r ? `${r.code} — ${r.name}` : "-"; })()}
+                  </td>
                   <td className="py-3"><Badge variant={!p.deletedAt ? "success" : "error"}>{!p.deletedAt ? "AKTIF" : "OFF"}</Badge></td>
                   <td className="py-3 flex gap-1">
                     <Button size="sm" variant="ghost" onClick={() => handleToggleActive("plant", p.id, !p.deletedAt)} title={!p.deletedAt ? "Nonaktifkan" : "Aktifkan"}>
@@ -207,15 +209,16 @@ export default function MasterDataPage() {
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left">
             <thead className="border-b border-gray-200">
-              <tr><th className="pb-3 text-sm font-semibold text-gray-600">Kode</th><th className="pb-3 text-sm font-semibold text-gray-600">Nama</th><th className="pb-3 text-sm font-semibold text-gray-600">Aksi</th></tr>
+              <tr><th className="pb-3 text-sm font-semibold text-gray-600">Kode</th><th className="pb-3 text-sm font-semibold text-gray-600">Nama</th><th className="pb-3 text-sm font-semibold text-gray-600">Company</th><th className="pb-3 text-sm font-semibold text-gray-600">Aksi</th></tr>
             </thead>
             <tbody>
               {regions.length === 0 ? (
-                <tr><td colSpan={3} className="py-6 text-center text-gray-400">Belum ada area</td></tr>
+                <tr><td colSpan={4} className="py-6 text-center text-gray-400">Belum ada area</td></tr>
               ) : regions.map((r: any) => (
                 <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 font-mono font-medium">{r.code}</td>
                   <td className="py-3">{r.name}</td>
+                  <td className="py-3 text-sm text-gray-500">{companies.find((c: any) => c.id === r.companyId)?.name ?? "-"}</td>
                   <td className="py-3 flex gap-1">
                     <Button size="sm" variant="ghost" onClick={() => { setForm(r); setShowAdd("region"); }}><Pencil className="size-4" /></Button>
                     <Button size="sm" variant="ghost" onClick={() => handleDelete("region", r.id)}><Trash2 className="size-4 text-red-500" /></Button>
@@ -245,7 +248,9 @@ export default function MasterDataPage() {
                   <td className="py-3 font-mono font-medium">{m.code}</td>
                   <td className="py-3">{m.name}</td>
                   <td className="py-3"><Badge variant="neutral">{m.type}</Badge></td>
-                  <td className="py-3 text-sm text-gray-500">{plants.find((p: any) => p.id === m.plantId)?.code ?? "-"}</td>
+                  <td className="py-3 text-sm text-gray-500">
+                    {(() => { const p = plants.find((x: any) => x.id === m.plantId); return p ? `${p.code} — ${p.name}` : "-"; })()}
+                  </td>
                   <td className="py-3"><Badge variant={m.isActive ? "success" : "error"}>{m.isActive ? "AKTIF" : "OFF"}</Badge></td>
                   <td className="py-3 flex gap-1">
                     <Button size="sm" variant="ghost" onClick={() => handleToggleActive("machine", m.id, m.isActive)} title={m.isActive ? "Nonaktifkan" : "Aktifkan"}>
