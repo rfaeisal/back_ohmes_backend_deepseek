@@ -125,7 +125,7 @@ export default function CorrectionsPage() {
                 <Input label="Alasan (wajib)" value={fieldReason} onChange={e => setFieldReason(e.target.value)} placeholder="Salah timbang..." />
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => setShowCorrect(false)}>Batal</Button>
-                  <Button size="sm" variant="danger" onClick={handleCorrect}>Simpan Koreksi</Button>
+                  <Button size="sm" variant="danger" disabled={!fieldPath.trim() || !fieldReason.trim()} onClick={handleCorrect}>Simpan Koreksi</Button>
                 </div>
               </div>
             ) : (

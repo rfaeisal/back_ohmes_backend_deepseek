@@ -24,6 +24,9 @@ Catatan pekerjaan yang belum dikerjakan. Update terakhir: 2026-08-24.
 ### 4. Auto-cleanup sesi expired (produksi)
 - [ ] `user_session` tumbuh tiap login tanpa pembersihan — fungsi `cleanupExpiredSessions()` sudah ada di `lib/auth` tapi tidak ada yang memanggil berkala. Perlu job terjadwal (cron Coolify / Vercel) atau panggil saat server start. Temuan saat audit halaman Sessions (378 sesi numpuk di dev).
 
+### 5. Field Path correction jadi dropdown (UX)
+- [ ] Halaman Corrections: Field Path masih free-text (`waste.MENIR.kg`) — auditor harus hafal nama path. Ganti dengan dropdown field yang tersedia (waste per kategori, pemakaian material, dll) saat membuat koreksi.
+
 ---
 
 ## 🧪 Testing yang belum menyeluruh
