@@ -213,21 +213,32 @@ export default function AreaDashboardPage() {
             {maxWaste > 0 && (
               <Card>
                 <CardTitle>Waste per Pabrik</CardTitle>
-                <p className="text-sm text-gray-500 mb-4">Total waste (kg)</p>
-                <div className="space-y-3">
+                <p className="text-sm text-gray-500 mb-4">Total waste (kg) — rincian per kategori</p>
+                <div className="space-y-4">
                   {kpi.plants.map((p: any) => {
-                    const w = (Object.values(p.waste ?? {}) as number[]).reduce((a: number, b: number) => a + b, 0);
+                    const waste = p.waste ?? {};
+                    const w = (Object.values(waste) as number[]).reduce((a: number, b: number) => a + b, 0);
+                    const categories = ["MENIR", "RIJEKAN", "DEBU_KASAR", "DEBU_HALUS"] as const;
                     return (
-                      <div key={p.id} className="flex items-center gap-3">
-                        <span className="w-32 text-sm font-medium flex-shrink-0">{p.name}</span>
-                        <div className="flex-1 h-5 bg-gray-100 rounded">
-                          <div
-                            className="h-full rounded-sm"
-                            style={{ width: `${maxWaste > 0 ? Math.min(100, (w / maxWaste) * 100) : 0}%`, background: "#2a78d6" }}
-                            title={`${p.name}: ${w.toFixed(2)} kg`}
-                          />
+                      <div key={p.id}>
+                        <div className="flex items-center gap-3">
+                          <span className="w-32 text-sm font-medium flex-shrink-0">{p.name}</span>
+                          <div className="flex-1 h-5 bg-gray-100 rounded">
+                            <div
+                              className="h-full rounded-sm"
+                              style={{ width: `${maxWaste > 0 ? Math.min(100, (w / maxWaste) * 100) : 0}%`, background: "#2a78d6" }}
+                              title={`${p.name}: ${w.toFixed(2)} kg`}
+                            />
+                          </div>
+                          <span className="w-20 text-sm text-right text-gray-600 flex-shrink-0">{w.toFixed(2)} kg</span>
                         </div>
-                        <span className="w-20 text-sm text-right text-gray-600 flex-shrink-0">{w.toFixed(2)} kg</span>
+                        <div className="mt-1 ml-32 text-xs text-gray-500 flex flex-wrap gap-x-3">
+                          {categories.map((c) => (
+                            <span key={c}>
+                              {c.replace("_", " ")}: <span className="font-medium text-gray-600">{(waste[c] ?? 0).toFixed(2)}</span>
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     );
                   })}

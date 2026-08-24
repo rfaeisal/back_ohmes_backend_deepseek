@@ -1,5 +1,6 @@
 "use client";
 import { apiFetch } from "@/lib/utils/api-client";
+import { canAccessAdmin } from "@/lib/utils/admin-gate";
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
@@ -13,19 +14,34 @@ export default function TabletHome() {
   const [loading, setLoading] = useState(true);
   const [canGudang, setCanGudang] = useState(false);
   const [canHlp, setCanHlp] = useState(false);
+  const [canAdmin, setCanAdmin] = useState(false);
+  const [activeShiftCount, setActiveShiftCount] = useState<number | null>(null);
+  const [pendingApprovalCount, setPendingApprovalCount] = useState<number | null>(null);
+  const [availableBoxCount, setAvailableBoxCount] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [mRes, sRes] = await Promise.allSettled([
+      const [mRes, sRes, pRes, iRes] = await Promise.allSettled([
         apiFetch("/machines"),
         apiFetch("/shifts?status=RUNNING&limit=50"),
+        apiFetch("/shifts?status=COMPLETED&limit=100"),
+        apiFetch("/tsg-inventory/available?limit=200"),
       ]);
       if (mRes.status === "fulfilled") {
         // Hanya mesin MAKER yang bisa mulai shift produksi — HLP punya alur sendiri
         setMachines((mRes.value.data ?? []).filter((m: any) => m.type === "MAKER"));
       }
-      if (sRes.status === "fulfilled") setActiveShifts(sRes.value.data ?? []);
+      if (sRes.status === "fulfilled") {
+        setActiveShifts(sRes.value.data ?? []);
+        setActiveShiftCount((sRes.value.data ?? []).length);
+      }
+      if (pRes.status === "fulfilled") {
+        setPendingApprovalCount((pRes.value.data ?? []).length);
+      }
+      if (iRes.status === "fulfilled") {
+        setAvailableBoxCount((iRes.value.data ?? []).length);
+      }
     } catch { setMachines([]); }
     finally { setLoading(false); }
   }, []);
@@ -40,6 +56,9 @@ export default function TabletHome() {
         const perms: string[] = payload.permissions ?? [];
         setCanGudang(payload.isPrivileged || perms.includes("tsg.receiving.create"));
         setCanHlp(payload.isPrivileged || perms.includes("hlp.pack"));
+        // Operator lantai TIDAK boleh lihat shortcut Admin Dashboard —
+        // mereka cukup KPI tablet (dashboard.plant.view).
+        setCanAdmin(canAccessAdmin(perms, !!payload.isPrivileged));
       }
     } catch {}
   }, [load]);
@@ -59,19 +78,19 @@ export default function TabletHome() {
         <Card>
           <div className="text-center">
             <p className="text-sm text-gray-500">Shift Aktif</p>
-            <p className="text-3xl font-bold text-primary-600">1</p>
+            <p className="text-3xl font-bold text-primary-600">{activeShiftCount ?? "—"}</p>
           </div>
         </Card>
         <Card>
           <div className="text-center">
             <p className="text-sm text-gray-500">Menunggu Approval</p>
-            <p className="text-3xl font-bold text-yellow-600">2</p>
+            <p className="text-3xl font-bold text-yellow-600">{pendingApprovalCount ?? "—"}</p>
           </div>
         </Card>
         <Card>
           <div className="text-center">
             <p className="text-sm text-gray-500">Inventory TSG</p>
-            <p className="text-3xl font-bold text-blue-600">48</p>
+            <p className="text-3xl font-bold text-blue-600">{availableBoxCount ?? "—"}</p>
             <p className="text-xs text-gray-400">boks AVAILABLE</p>
           </div>
         </Card>
@@ -156,17 +175,19 @@ export default function TabletHome() {
             </div>
           </Card>
         </Link>
-        <Link href="/admin">
-          <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
-            <div className="flex items-center gap-4">
-              <span className="text-3xl">⚙️</span>
-              <div>
-                <CardTitle>Admin Dashboard</CardTitle>
-                <CardSubtitle>Master data · Approval · Audit · Reports</CardSubtitle>
+        {canAdmin && (
+          <Link href="/admin">
+            <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
+              <div className="flex items-center gap-4">
+                <span className="text-3xl">⚙️</span>
+                <div>
+                  <CardTitle>Admin Dashboard</CardTitle>
+                  <CardSubtitle>Master data · Approval · Audit · Reports</CardSubtitle>
+                </div>
               </div>
-            </div>
-          </Card>
-        </Link>
+            </Card>
+          </Link>
+        )}
       </div>
     </div>
   );

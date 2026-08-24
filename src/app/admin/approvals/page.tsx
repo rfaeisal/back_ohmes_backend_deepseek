@@ -87,6 +87,7 @@ export default function ApprovalsPage() {
             <thead className="border-b border-gray-200">
               <tr>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Shift ID</th>
+                <th className="pb-3 text-sm font-semibold text-gray-600">Mesin</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Tanggal</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Status</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Selesai</th>
@@ -95,10 +96,11 @@ export default function ApprovalsPage() {
             </thead>
             <tbody>
               {shifts.length === 0 ? (
-                <tr><td colSpan={5} className="py-6 text-center text-gray-400">{tab === "PENDING" ? "Tidak ada shift menunggu approval 🎉" : "Belum ada shift approved."}</td></tr>
+                <tr><td colSpan={6} className="py-6 text-center text-gray-400">{tab === "PENDING" ? "Tidak ada shift menunggu approval 🎉" : "Belum ada shift approved."}</td></tr>
               ) : shifts.map((s: any) => (
                 <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 font-mono text-sm">{s.id?.slice(0, 12)}</td>
+                  <td className="py-3 font-medium">{s.machineCode || "-"}</td>
                   <td className="py-3">{s.reportDate}</td>
                   <td className="py-3"><Badge variant="warning">{s.status}</Badge></td>
                   <td className="py-3 text-sm text-gray-500">{s.actualEnd ? new Date(s.actualEnd).toLocaleTimeString("id-ID") : "-"}</td>

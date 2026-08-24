@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { isSessionExpired, redirectToLogin } from "@/lib/utils/api-client";
+import { canAccessAdmin } from "@/lib/utils/admin-gate";
 import Link from "next/link";
 import { LayoutDashboard, ClipboardCheck, MapPin, TrendingUp, Wrench, Users, Settings, ScrollText, Shield, Printer, FileText, FileBarChart, Factory, LogOut, Smartphone, Calendar, Package, BarChart3, Menu, X } from "lucide-react";
 
@@ -90,6 +92,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isPrivileged, setIsPrivileged] = useState(false);
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
+  const router = useRouter();
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -101,8 +104,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       const privileged = payload.isPrivileged ?? (Array.isArray(payload.roles) && payload.roles.includes("SUPERADMIN"));
       setIsPrivileged(privileged);
       setUserPermissions(payload.permissions ?? []);
+
+      // Operator lantai (tanpa permission admin) TIDAK boleh masuk /admin —
+      // redirect ke /tablet supaya cuma bisa akses KPI-nya.
+      if (!canAccessAdmin(payload.permissions ?? [], privileged)) {
+        router.replace("/tablet");
+      }
     } catch {}
-  }, []);
+  }, [router]);
 
   const canSee = (item: { permissions?: string[]; superadminOnly?: boolean }) => {
     if (item.superadminOnly && !isPrivileged) return false;

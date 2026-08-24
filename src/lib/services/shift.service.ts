@@ -658,6 +658,21 @@ export async function listShifts(params: {
     }
   }
 
+  // Kode mesin per shift (kolom tabel approval/laporan)
+  if (shifts.length > 0) {
+    const machineIds = [...new Set(shifts.map((s) => s.machineId).filter(Boolean))];
+    const machines = machineIds.length > 0
+      ? await db
+          .select({ id: machine.id, code: machine.code })
+          .from(machine)
+          .where(inArray(machine.id, machineIds))
+      : [];
+    const machineMap = new Map(machines.map((m) => [m.id, m.code]));
+    for (const s of shifts) {
+      (s as any).machineCode = machineMap.get(s.machineId) ?? null;
+    }
+  }
+
   return { data: shifts, pagination: { hasMore: shifts.length === limit } };
 }
 

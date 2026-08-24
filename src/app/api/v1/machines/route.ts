@@ -1,6 +1,7 @@
 // GET + POST /api/v1/machines
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { isNull } from "drizzle-orm";
 import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import db from "@/db";
 import { machine } from "@/db/schema";
@@ -8,7 +9,12 @@ import { machine } from "@/db/schema";
 const schema = z.object({ plantId: z.string().uuid(), code: z.string().min(1), name: z.string().min(1), type: z.enum(["MAKER", "HLP"]) });
 
 export const GET = withAuth(async () => {
-  const items = await db.select().from(machine).limit(50);
+  // Soft delete (konvensi #8) — mesin yang sudah dihapus TIDAK tampil
+  const items = await db
+    .select()
+    .from(machine)
+    .where(isNull(machine.deletedAt))
+    .limit(50);
   return NextResponse.json({ data: items }, { status: 200 });
 });
 

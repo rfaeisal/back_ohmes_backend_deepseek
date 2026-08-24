@@ -58,7 +58,9 @@ export default function LoginPage() {
       const isGudang = roles.some((r: string) => ["GUDANG_INBOUND", "GUDANG_OUTBOUND", "EKSPEDISI"].includes(r));
 
       const isPlantManager = roles.includes("PLANT_MANAGER");
-      if (isAdmin) router.push("/admin");
+      if (roles.includes("HQ_ANALYST")) router.push("/admin/analytics");
+      else if (roles.includes("HQ_AUDITOR")) router.push("/admin/audit");
+      else if (isAdmin) router.push("/admin");
       else if (isPlantManager) router.push("/admin/plant-dashboard");
       else if (isSupervisor) router.push("/admin/approvals");
       else if (isCoordinator) router.push("/admin/area-dashboard");
