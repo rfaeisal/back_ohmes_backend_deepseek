@@ -21,6 +21,9 @@ Catatan pekerjaan yang belum dikerjakan. Update terakhir: 2026-08-24.
 ### 3. Dashboard Area — pemilih region
 - [ ] Batasan: user scope COMPANY melihat region pertama saja; butuh pemilih region di UI kalau HQ punya >1 region
 
+### 4. Auto-cleanup sesi expired (produksi)
+- [ ] `user_session` tumbuh tiap login tanpa pembersihan — fungsi `cleanupExpiredSessions()` sudah ada di `lib/auth` tapi tidak ada yang memanggil berkala. Perlu job terjadwal (cron Coolify / Vercel) atau panggil saat server start. Temuan saat audit halaman Sessions (378 sesi numpuk di dev).
+
 ---
 
 ## 🧪 Testing yang belum menyeluruh
