@@ -1,6 +1,18 @@
 "use client";
 import { apiFetch } from "@/lib/utils/api-client";
 
+// Preset field path yang umum dikoreksi (backlog #5 — auditor tidak perlu
+// hafal nama path). "Lainnya" tetap tersedia untuk path custom.
+const FIELD_OPTIONS = [
+  "waste.MENIR.kg",
+  "waste.RIJEKAN.kg",
+  "waste.DEBU_KASAR.kg",
+  "waste.DEBU_HALUS.kg",
+  "tsgTotalKg",
+  "outputKg",
+  "notes",
+];
+
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -120,7 +132,23 @@ export default function CorrectionsPage() {
             {showCorrect ? (
               <div className="rounded-lg border-2 border-red-300 bg-red-50 p-4 space-y-3">
                 <p className="font-bold text-red-700">Buat Koreksi Baru</p>
-                <Input label="Field Path" value={fieldPath} onChange={e => setFieldPath(e.target.value)} placeholder="waste.MENIR.kg" />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Field</label>
+                  <select
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white"
+                    value={FIELD_OPTIONS.includes(fieldPath) ? fieldPath : "OTHER"}
+                    onChange={(e) => {
+                      if (e.target.value !== "OTHER") setFieldPath(e.target.value);
+                      else setFieldPath("");
+                    }}
+                  >
+                    {FIELD_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+                    <option value="OTHER">Lainnya (ketik manual)...</option>
+                  </select>
+                </div>
+                {!FIELD_OPTIONS.includes(fieldPath) && (
+                  <Input label="Field Path" value={fieldPath} onChange={e => setFieldPath(e.target.value)} placeholder="waste.MENIR.kg" />
+                )}
                 <Input label="Nilai Baru" value={fieldValue} onChange={e => setFieldValue(e.target.value)} />
                 <Input label="Alasan (wajib)" value={fieldReason} onChange={e => setFieldReason(e.target.value)} placeholder="Salah timbang..." />
                 <div className="flex gap-2">
