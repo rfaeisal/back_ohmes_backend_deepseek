@@ -23,6 +23,13 @@ Proyek MES + WMS Hummer — **Fase 0–6 Complete** (Agustus 2026).
 - ✅ Event level sesi: pemakaian/downtime/maintenance tanpa pilih boks
 - ✅ Start shift hanya mesin MAKER (filter UI + validasi server)
 - ✅ Surat Jalan Supplier v1.1 — pool label generik `TSG-YYYYMMDD-NNN` dicetak via web `/admin/supplier-sj` (PDF 100×75mm multi-halaman, XPrinter 420B), scan di gudang = assign + jenis + berat, VOID, validasi jumlah di pabrik
+- ✅ Label pool v1.2 (26 Agu 2026): inisial R/M/P 43pt bold tanpa frame + kotak angka 1–5 + QR asli dari backend (bukan pseudo-QR) — lihat `pool-label-pdf.service.ts`
+- ✅ FCM push live & terverifikasi end-to-end (firebase-admin, `fcm.service.ts`, trigger shift COMPLETED + receiving PENDING, token mati auto-bersih)
+- ✅ Backlog fitur #1–5 selesai (26–27 Agu 2026, lihat TODO.md): pemakaian material per mesin (enum PEMAKAIAN + machine_id + applicable_machines MAKER/HLP/BOTH), maintenance & downtime level mesin (tabel machine_maintenance/machine_downtime + UI 🔧 di master-data), pemilih region area dashboard, auto-cleanup sesi (`src/instrumentation.ts` boot + 24 jam), dropdown field path corrections
+- ✅ Model pack_qty di carton_content (migrasi 0019): karton diisi JUMLAH pack dari batch (bukan 1 batch utuh), validasi CARTON_FULL + PACK_INSUFFICIENT, UI "➕ Isi Pack" di gudang outbound
+- ✅ Dokumen PDF murni: surat jalan dispatch resmi (kop + tabel boxed + 3 tanda tangan) + Berita Acara Serah Terima/Retur via `berita-acara-pdf.service.ts` (bukan halaman HTML + print)
+- ✅ Semua testing E2E lokal tuntas (produksi→approval→area→HQ, HLP, gudang inbound, outbound, dispatch, transfer/retur) — lihat TODO.md
+- ⚠️ Migrasi manual sampai **0019** (auto-apply entrypoint); dev DB di container `mes_dev_postgres` (port host 5433)
 
 ---
 
@@ -105,8 +112,12 @@ src/
 6. **Print CSS** — `print-color-adjust: exact` agar warna tetap muncul
 7. **Admin layout** — ada auth guard (`useEffect` cek token, redirect `/tablet/login`)
 8. **Jangan `pnpm build` saat dev server jalan** — `.next` dipakai bersama; build menimpa state dev → MODULE_NOT_FOUND / UI rusak (tombol disabled). Fix: matikan dev → `rm -rf .next` → `pnpm dev` ulang
-9. **Migrasi manual di luar journal drizzle** — dulu wajib apply manual via psql. **Sekarang otomatis**: entrypoint container panggil `scripts/apply-manual-migrations.mjs` setelah `drizzle-kit migrate`, jalankan semua `.sql` di `src/db/migrations/` yang tidak ada di `_journal.json`. Syarat: file wajib idempotent (`IF NOT EXISTS`, `OR REPLACE`) karena di-run setiap deploy
-10. **RLS aktif via role `mes_app`** (migrasi 0008, non-superuser). `DATABASE_URL` = runtime (mes_app), `DATABASE_URL_ADMIN` = superuser untuk drizzle-kit & seed. Jangan ganti DATABASE_URL ke role superuser/owner — RLS mati lagi. Seed pakai `pnpm db:seed*` (wrapper run-seed*.ts, otomatis pakai URL admin). Script tsx TIDAK memuat `.env` — `set -a; source .env` dulu kalau dipanggil langsung
+9. **Migrasi manual di luar journal drizzle** — dulu wajib apply manual via psql. **Sekarang otomatis**: entrypoint container panggil `scripts/apply-manual-migrations.mjs` setelah `drizzle-kit migrate`, jalankan semua `.sql` di `src/db/migrations/` yang tidak ada di `_journal.json`. Syarat: file wajib idempotent (`IF NOT EXISTS`, `OR REPLACE`) karena di-run setiap deploy. ⚠️ **`ALTER TYPE ... ADD VALUE` TIDAK boleh di file multi-statement** — script mengeksekusi tiap file dalam satu batch (implicit transaction) → error `check_safe_enum_use`. Taruh di file terpisah berisi SATU statement (lihat migrasi 0016 vs 0017)
+10. **RLS aktif via role `mes_app`** (migrasi 0008, non-superuser). `DATABASE_URL` = runtime (mes_app), `DATABASE_URL_ADMIN` = superuser untuk drizzle-kit & seed. Jangan ganti DATABASE_URL ke role superuser/owner — RLS mati lagi. Seed pakai `pnpm db:seed*` (wrapper run-seed*.ts, otomatis pakai URL admin). Script tsx TIDAK memuat `.env` — `set -a; source .env` dulu kalau dipanggil langsung. ⚠️ Kalau tes RLS lewat script manual, format setting-nya array: `set_config('app.current_plant_ids', '{uuid1,uuid2}', false)`
+11. **Drizzle subquery ter-korelasi di SELECT list** — `${kolom}` di dalam `sql\`...\`` di-render sebagai nama kolom TELANJANG (`"id"`) yang resolve ke tabel INNER, bukan outer → hasil selalu 0/salah. Tulis literal nama tabel: `WHERE cc.carton_id = "carton"."id"`. Lihat contoh di `cartons/route.ts` dan `hlp/packs/route.ts`.
+12. **Timezone** — `report_date` disimpan sebagai tanggal WIB. Hitung "hari ini" pakai `new Date(Date.now() + 7*3600000)` lalu `toISOString().slice(0,10)`, bukan UTC mentah (bug pernah terjadi di admin home).
+13. **zod datetime** — default `.datetime()` tolak offset +07:00; pakai `.datetime({ offset: true })`. Input `datetime-local` dari browser harus dikonversi `new Date(v).toISOString()` sebelum dikirim.
+14. **Dokumen PDF** — pola resmi: service pdf-lib (`berita-acara-pdf.service.ts`, surat jalan di `dispatch/documents/[docNumber]/download/route.ts`) + buka via `fetch` blob + `window.open(URL.createObjectURL(blob))` (bukan halaman HTML + window.print — sidebar admin ikut tercetak).
 
 ---
 
