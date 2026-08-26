@@ -21,8 +21,8 @@ Catatan pekerjaan yang belum dikerjakan. Update terakhir: 2026-08-24.
 ### 3. Dashboard Area — pemilih region — SELESAI (26 Agu 2026)
 - [x] Select "Pilih Area" di Dashboard Area untuk scope COMPANY/GLOBAL (tampil saat >1 region; scope REGION tetap terikat activeScopeId). Terverifikasi Playwright dengan 2 region test.
 
-### 4. Auto-cleanup sesi expired (produksi)
-- [ ] `user_session` tumbuh tiap login tanpa pembersihan — fungsi `cleanupExpiredSessions()` sudah ada di `lib/auth` tapi tidak ada yang memanggil berkala. Perlu job terjadwal (cron Coolify / Vercel) atau panggil saat server start. Temuan saat audit halaman Sessions (378 sesi numpuk di dev).
+### 4. Auto-cleanup sesi expired (produksi) — SELESAI (26 Agu 2026)
+- [x] `src/instrumentation.ts`: saat boot + interval 24 jam panggil `cleanupExpiredSessions()`. Terverifikasi dev: sesi expired test di-revoke otomatis saat server start (log `[cleanup-session] 1 sesi expired di-revoke otomatis.`).
 
 ### 5. Field Path correction jadi dropdown (UX)
 - [ ] Halaman Corrections: Field Path masih free-text (`waste.MENIR.kg`) — auditor harus hafal nama path. Ganti dengan dropdown field yang tersedia (waste per kategori, pemakaian material, dll) saat membuat koreksi.
