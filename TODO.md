@@ -31,7 +31,7 @@ Catatan pekerjaan yang belum dikerjakan. Update terakhir: 2026-08-24.
 
 ## 🧪 Testing yang belum menyeluruh
 
-- [ ] Gudang Inbound — receiving manual tanpa SJ (approve → inventory dibuat)
+- [x] Gudang Inbound — receiving manual tanpa SJ → PENDING → approve PM → inventory dibuat (26 Agu 2026: RCV-20260826-01, 2 boks, inventory 16→18, audit ✓)
 - [ ] WMS Outbound — finished goods, cartoning, lineage
 - [ ] Dispatch — order → dispatch → surat jalan download
 - [ ] Transfer antar pabrik TSG + Retur supplier TSG (dokumen Berita Acara cetak)
