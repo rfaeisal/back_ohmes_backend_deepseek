@@ -25,6 +25,44 @@ export default function GudangOutboundPage() {
   const [confirmShiftId, setConfirmShiftId] = useState("");
   const [confirmPacks, setConfirmPacks] = useState("");
 
+  // Form isi pack ke karton (add-pack)
+  const [showAddPack, setShowAddPack] = useState<any>(null);
+  const [hlpPacks, setHlpPacks] = useState<any[]>([]);
+  const [addPackHlpId, setAddPackHlpId] = useState("");
+  const [addPackQty, setAddPackQty] = useState("");
+  const [addPackSaving, setAddPackSaving] = useState(false);
+
+  const openAddPack = async (carton: any) => {
+    setShowAddPack(carton);
+    setAddPackHlpId("");
+    setAddPackQty("");
+    try {
+      const res = await apiFetch("/hlp/packs");
+      setHlpPacks(res.data ?? []);
+    } catch { setHlpPacks([]); }
+  };
+
+  const selectedPack = hlpPacks.find((h: any) => h.id === addPackHlpId);
+  const sisaBatch = selectedPack ? (selectedPack.packsLolos ?? 0) - (selectedPack.usedPackQty ?? 0) : null;
+  const sisaKarton = showAddPack ? (showAddPack.capacityPack ?? 0) - (showAddPack.packCount ?? 0) : null;
+
+  const handleAddPack = async () => {
+    if (!showAddPack || !addPackHlpId) { setMsg("Pilih pack dulu."); return; }
+    const qty = parseInt(addPackQty, 10);
+    if (isNaN(qty) || qty < 1) { setMsg("Isi jumlah pack (minimal 1)."); return; }
+    setAddPackSaving(true);
+    try {
+      await apiFetch(`/cartons/${showAddPack.id}/add-pack`, {
+        method: "POST",
+        body: JSON.stringify({ hlpPackId: addPackHlpId, packQty: qty }),
+      });
+      setMsg(`✅ ${qty} pack ditambahkan ke ${showAddPack.code ?? "karton"}.`);
+      setShowAddPack(null);
+      load();
+    } catch (e: any) { setMsg(e.message); }
+    finally { setAddPackSaving(false); }
+  };
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -127,7 +165,10 @@ export default function GudangOutboundPage() {
               ) : shifts.map((s) => (
                 <tr key={s.id} className="border-b border-gray-100">
                   <td className="py-3 text-sm font-mono">{s.reportDate}</td>
-                  <td className="py-3 text-sm font-mono">{s.id.slice(0, 8)}...</td>
+                  <td className="py-3 text-sm">
+                    <span className="font-medium">{s.machineCode ?? "-"}</span>
+                    <span className="text-gray-400 font-mono ml-2">{s.id.slice(0, 8)}</span>
+                  </td>
                   <td className="py-3 text-sm text-right">{s.boxesCount ?? 0}</td>
                   <td className="py-3 text-right">
                     {s.yieldPct != null ? (
@@ -135,9 +176,13 @@ export default function GudangOutboundPage() {
                     ) : "-"}
                   </td>
                   <td className="py-3">
-                    <Button size="sm" variant="outline" onClick={() => { setConfirmShiftId(s.id); setConfirmPacks(""); setShowConfirm(true); }}>
-                      ✅ Konfirmasi FG
-                    </Button>
+                    {s.fgConfirmed ? (
+                      <Badge variant="success">✓ FG Terkonfirmasi</Badge>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => { setConfirmShiftId(s.id); setConfirmPacks(""); setShowConfirm(true); }}>
+                        ✅ Konfirmasi FG
+                      </Button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -169,13 +214,16 @@ export default function GudangOutboundPage() {
                   <td className="py-3 font-mono text-sm">{c.code}</td>
                   <td className="py-3 text-sm">{products.find((p) => p.id === c.productId)?.code ?? "-"}</td>
                   <td className="py-3 text-sm text-right">{c.capacityPack}</td>
-                  <td className="py-3 text-sm text-right">{c.actualPackCount}</td>
+                  <td className="py-3 text-sm text-right">{c.packCount ?? 0} / {c.capacityPack}</td>
                   <td className="py-3">
                     <Badge variant={c.status === "OPEN" ? "info" : c.status === "READY" ? "success" : "neutral"}>{c.status}</Badge>
                   </td>
                   <td className="py-3 flex gap-2">
                     {c.status === "OPEN" && (
-                      <Button size="sm" variant="primary" onClick={() => handleCloseCarton(c.id)}>Tutup → READY</Button>
+                      <>
+                        <Button size="sm" variant="outline" onClick={() => openAddPack(c)}>➕ Isi Pack</Button>
+                        <Button size="sm" variant="primary" onClick={() => handleCloseCarton(c.id)}>Tutup → READY</Button>
+                      </>
                     )}
                   </td>
                 </tr>
@@ -205,6 +253,38 @@ export default function GudangOutboundPage() {
           <p className="text-sm text-gray-500">Jumlah pack aktual diterima dari HLP untuk shift ini.</p>
           <Input label="Jumlah Pack Aktual" type="number" value={confirmPacks} onChange={(e) => setConfirmPacks(e.target.value)} placeholder="cth: 25" autoFocus />
           <Button className="w-full" onClick={handleConfirmFG}>Konfirmasi</Button>
+        </div>
+      </Dialog>
+
+      {/* Dialog isi pack ke karton */}
+      <Dialog open={!!showAddPack} onClose={() => setShowAddPack(null)} title={`Isi Pack → Karton ${showAddPack?.code ?? ""}`}>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Pack dari HLP</label>
+            <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white" value={addPackHlpId} onChange={(e) => setAddPackHlpId(e.target.value)}>
+              <option value="">Pilih pack (batch · total pack · sisa)</option>
+              {hlpPacks.map((h: any) => (
+                <option key={h.id} value={h.id}>
+                  {h.batchCode} · {h.packsLolos} pack · sisa {(h.packsLolos ?? 0) - (h.usedPackQty ?? 0)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Input
+            label="Jumlah pack ke karton ini"
+            type="number"
+            value={addPackQty}
+            onChange={(e) => setAddPackQty(e.target.value)}
+            placeholder={sisaKarton != null ? `maks ${sisaKarton} pack` : "cth: 50"}
+          />
+          {selectedPack && sisaBatch != null && (
+            <p className="text-xs text-gray-500">
+              Sisa batch: {sisaBatch} pack · Sisa kapasitas karton: {sisaKarton ?? "-"} pack
+            </p>
+          )}
+          <Button className="w-full" onClick={handleAddPack} disabled={addPackSaving || !addPackHlpId || !addPackQty}>
+            {addPackSaving ? "Menyimpan..." : "Tambah ke Karton"}
+          </Button>
         </div>
       </Dialog>
     </div>

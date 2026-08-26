@@ -150,9 +150,14 @@ export async function createCarton(input: {
 export async function addPackToCarton(input: {
   cartonId: string;
   hlpPackId: string;
+  packQty: number; // jumlah pack FISIK dari batch ini (migrasi 0019)
   plantId: string;
   addedBy: string;
 }) {
+  if (!Number.isInteger(input.packQty) || input.packQty < 1) {
+    throw new ServiceError("INVALID_PACK_QTY", "Jumlah pack harus integer minimal 1.");
+  }
+
   // Validasi carton OPEN
   const [ctn] = await db
     .select()
@@ -165,37 +170,73 @@ export async function addPackToCarton(input: {
     throw new ServiceError("CARTON_NOT_OPEN", "Hanya karton status OPEN yang bisa ditambah pack.");
   }
 
-  // Validasi pack belongs to same product
+  // Validasi pack ada + sisa pack batch cukup
   const [pack] = await db
-    .select({
-      batchId: hlpPack.batchId,
-    })
+    .select({ packsLolos: hlpPack.packsLolos })
     .from(hlpPack)
     .where(eq(hlpPack.id, input.hlpPackId))
     .limit(1);
 
   if (!pack) throw new ServiceError("PACK_NOT_FOUND", "Pack tidak ditemukan.");
 
-  // Add to carton
-  await db.insert(cartonContent).values({
-    cartonId: input.cartonId,
-    plantId: input.plantId,
-    hlpPackId: input.hlpPackId,
-    addedBy: input.addedBy,
-  }).onConflictDoNothing();
-
-  // Update actual pack count
-  const [countResult] = await db
-    .select({ count: sql<number>`count(*)` })
+  // Isi karton saat ini (jumlah pack fisik)
+  const [fillRow] = await db
+    .select({ total: sql<number>`COALESCE(SUM(${cartonContent.packQty}), 0)` })
     .from(cartonContent)
     .where(eq(cartonContent.cartonId, input.cartonId));
 
+  const currentFill = Number(fillRow?.total ?? 0);
+  if (currentFill + input.packQty > ctn.capacityPack) {
+    throw new ServiceError(
+      "CARTON_FULL",
+      `Kapasitas karton ${ctn.capacityPack} pack — sisa ${ctn.capacityPack - currentFill} pack.`,
+      { capacity: ctn.capacityPack, currentFill }
+    );
+  }
+
+  // Total pack batch ini yang sudah dialokasikan ke SEMUA karton
+  const [allocRow] = await db
+    .select({ total: sql<number>`COALESCE(SUM(${cartonContent.packQty}), 0)` })
+    .from(cartonContent)
+    .where(eq(cartonContent.hlpPackId, input.hlpPackId));
+
+  const allocated = Number(allocRow?.total ?? 0);
+  if (allocated + input.packQty > pack.packsLolos) {
+    throw new ServiceError(
+      "PACK_INSUFFICIENT",
+      `Sisa pack batch ini ${pack.packsLolos - allocated} pack.`,
+      { packsLolos: pack.packsLolos, allocated }
+    );
+  }
+
+  // Add/merge ke karton (unique carton+hlpPack → qty dijumlah)
+  await db
+    .insert(cartonContent)
+    .values({
+      cartonId: input.cartonId,
+      plantId: input.plantId,
+      hlpPackId: input.hlpPackId,
+      packQty: input.packQty,
+      addedBy: input.addedBy,
+    })
+    .onConflictDoUpdate({
+      target: [cartonContent.cartonId, cartonContent.hlpPackId],
+      set: { packQty: sql`${cartonContent.packQty} + ${input.packQty}` },
+    });
+
+  // Update actual pack count (jumlah pack fisik)
+  const [countResult] = await db
+    .select({ total: sql<number>`COALESCE(SUM(${cartonContent.packQty}), 0)` })
+    .from(cartonContent)
+    .where(eq(cartonContent.cartonId, input.cartonId));
+
+  const newFill = Number(countResult?.total ?? 0);
   await db
     .update(carton)
-    .set({ actualPackCount: countResult?.count ?? 0 })
+    .set({ actualPackCount: newFill })
     .where(eq(carton.id, input.cartonId));
 
-  return { cartonId: input.cartonId, packCount: countResult?.count ?? 0 };
+  return { cartonId: input.cartonId, packCount: newFill, remainingCapacity: ctn.capacityPack - newFill };
 }
 
 // =============================================================================

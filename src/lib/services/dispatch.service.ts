@@ -7,6 +7,7 @@ import db from "@/db";
 import { dispatchOrder, dispatchItem, dispatchDocument } from "@/db/schema/dispatch";
 import { carton } from "@/db/schema/wms-outbound";
 import { plant } from "@/db/schema/tenancy";
+import { product } from "@/db/schema/master-product";
 import { ServiceError } from "./shift.service";
 export { ServiceError } from "./shift.service";
 
@@ -32,8 +33,10 @@ export interface SuratJalanData {
   plantAddress: string;
   customerName: string;
   customerAddress: string;
+  customerContact: string;
   driverName: string;
   vehicleNo: string;
+  notes: string;
   date: string;
   cartons: Array<{
     code: string;
@@ -192,9 +195,11 @@ export async function buildSuratJalanData(orderId: string): Promise<SuratJalanDa
     .select({
       cartonCode: carton.code,
       packCount: carton.actualPackCount,
+      productName: sql<string>`COALESCE(${product.brand} || ' ' || ${product.variant}, ${product.brand})`,
     })
     .from(dispatchItem)
     .innerJoin(carton, eq(dispatchItem.cartonId, carton.id))
+    .innerJoin(product, eq(carton.productId, product.id))
     .where(eq(dispatchItem.orderId, orderId));
 
   return {
@@ -203,12 +208,14 @@ export async function buildSuratJalanData(orderId: string): Promise<SuratJalanDa
     plantAddress: plt?.address ?? "",
     customerName: order.customerName,
     customerAddress: order.customerAddress,
+    customerContact: order.customerContact ?? "",
     driverName: order.driverName ?? "-",
     vehicleNo: order.vehicleNo ?? "-",
+    notes: order.notes ?? "",
     date: new Date().toISOString().slice(0, 10),
     cartons: items.map((i) => ({
       code: i.cartonCode,
-      productName: "Hummer STD",
+      productName: i.productName ?? "-",
       packCount: i.packCount,
     })),
     totalCartons: items.length,

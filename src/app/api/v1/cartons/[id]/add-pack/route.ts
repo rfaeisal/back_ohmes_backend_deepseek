@@ -4,7 +4,10 @@ import { z } from "zod";
 import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import { addPackToCarton, ServiceError } from "@/lib/services/wms-outbound.service";
 
-const schema = z.object({ hlpPackId: z.string().uuid() });
+const schema = z.object({
+  hlpPackId: z.string().uuid(),
+  packQty: z.number().int().min(1).default(1), // jumlah pack fisik (migrasi 0019)
+});
 
 export const POST = withAuth(
   async (request: Request, ctx: AuthContext, { params }: { params: Promise<{ id: string }> }) => {

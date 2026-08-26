@@ -94,6 +94,8 @@ export const cartonContent = pgTable(
     hlpPackId: uuid("hlp_pack_id")
       .notNull()
       .references(() => hlpPack.id),
+    // Jumlah pack fisik dari batch ini yang masuk karton ini (migrasi 0019)
+    packQty: integer("pack_qty").notNull().default(1),
     addedAt: timestamp("added_at").notNull().defaultNow(),
     addedBy: uuid("added_by")
       .notNull()

@@ -58,74 +58,117 @@ async function buildSuratJalanPdf(
   const W = page.getWidth();
   const M = 48; // margin
   const ink = rgb(0, 0, 0);
-  const gray = rgb(0.35, 0.35, 0.35);
-  let y = 841.89 - 56;
+  const gray = rgb(0.4, 0.4, 0.4);
+  const line = (y: number, t = 1) =>
+    page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: t, color: t === 1 ? ink : gray });
+  const center = (text: string, y: number, size: number, font: typeof bold) =>
+    page.drawText(text, { x: (W - font.widthOfTextAtSize(text, size)) / 2, y, size, font, color: ink });
 
-  // Kop
-  page.drawText("SURAT JALAN", { x: M, y, size: 22, font: bold, color: ink });
-  y -= 24;
-  page.drawText(`${d.plantName} — ${d.plantAddress}`, { x: M, y, size: 10, font: regular, color: gray });
-  y -= 16;
-  page.drawText(`No. ${docNumber}`, { x: M, y, size: 12, font: bold });
-  page.drawText(`Tanggal: ${d.date}`, { x: W - M - 110, y, size: 10, font: regular, color: gray });
-  y -= 28;
+  const tglIndo = new Date(d.date + "T00:00:00").toLocaleDateString("id-ID", {
+    day: "numeric", month: "long", year: "numeric",
+  });
 
-  // Garis pemisah
-  page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 1, color: ink });
+  let y = 841.89 - 44;
+
+  // ---- Kop perusahaan (tengah) ----
+  center(d.plantName, y, 14, bold);
+  y -= 17;
+  center(d.plantAddress, y, 10, regular);
+  y -= 30;
+
+  // ---- Judul + garis ganda ----
+  center("SURAT JALAN", y, 17, bold);
+  y -= 9;
+  line(y, 2);
+  y -= 5;
+  line(y, 0.6);
   y -= 26;
 
-  // Blok customer
+  // ---- No dokumen + tanggal (kanan atas) ----
+  page.drawText(`No: ${docNumber}`, { x: W - M - 180, y, size: 10, font: bold });
+  y -= 15;
+  page.drawText(`Tanggal: ${tglIndo}`, { x: W - M - 180, y, size: 10, font: regular });
+  y -= 8;
+
+  // ---- Blok kepada / pengirim ----
   const leftX = M;
-  const rightX = W / 2 + 8;
-  page.drawText("KEPADA:", { x: leftX, y, size: 9, font: bold, color: gray });
+  const rightX = W / 2 + 10;
+  page.drawText("KEPADA YTH.:", { x: leftX, y, size: 9, font: bold, color: gray });
   page.drawText(`${d.customerName}`, { x: leftX, y: y - 14, size: 12, font: bold });
-  page.drawText(`${d.customerAddress}`, { x: leftX, y: y - 28, size: 10, font: regular, color: gray });
-  page.drawText("PENGIRIM:", { x: rightX, y, size: 9, font: bold, color: gray });
-  page.drawText(`Sopir: ${d.driverName}`, { x: rightX, y: y - 14, size: 11, font: regular });
-  page.drawText(`Kendaraan: ${d.vehicleNo}`, { x: rightX, y: y - 28, size: 11, font: regular });
-  y -= 58;
+  page.drawText(`${d.customerAddress}`, { x: leftX, y: y - 27, size: 10, font: regular });
+  page.drawText("DARI:", { x: rightX, y, size: 9, font: bold, color: gray });
+  page.drawText(`${d.plantName}`, { x: rightX, y: y - 14, size: 11, font: regular });
+  page.drawText(`Sopir: ${d.driverName}`, { x: rightX, y: y - 28, size: 10, font: regular });
+  page.drawText(`No. Kendaraan: ${d.vehicleNo}`, { x: rightX, y: y - 42, size: 10, font: regular });
+  y -= 72;
 
-  // Tabel karton
-  const col1 = M;
-  const col2 = M + 190;
-  const col3 = M + 330;
-  const col4 = W - M - 60;
-  const rowH = 22;
-  page.drawText("KODE KARTON", { x: col1, y, size: 9, font: bold, color: gray });
-  page.drawText("PRODUK", { x: col2, y, size: 9, font: bold, color: gray });
-  page.drawText("PACK", { x: col3, y, size: 9, font: bold, color: gray });
-  y -= 6;
-  page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 1, color: ink });
-  y -= rowH;
+  // ---- Tabel karton (boxed) ----
+  const colNo = M;
+  const colCode = M + 30;
+  const colProd = M + 220;
+  const colPack = M + 400;
+  const colPackW = W - M - colPack;
+  const rowH = 20;
+  const headerH = 22;
+  const tableTop = y;
+  const tableBottom = y - headerH - d.cartons.length * rowH;
 
-  for (const c of d.cartons) {
-    page.drawText(c.code, { x: col1, y, size: 10, font: mono });
-    page.drawText(c.productName, { x: col2, y, size: 10, font: regular });
-    page.drawText(String(c.packCount), { x: col4, y, size: 10, font: regular });
-    y -= rowH;
-    page.drawLine({ start: { x: M, y: y + 8 }, end: { x: W - M, y: y + 8 }, thickness: 0.5, color: gray });
+  // Frame luar
+  page.drawRectangle({
+    x: M, y: tableBottom, width: W - 2 * M, height: tableTop - tableBottom,
+    borderColor: ink, borderWidth: 1,
+  });
+  // Header
+  const headY = y - 16;
+  page.drawText("No", { x: colNo + 8, y: headY, size: 9, font: bold, color: gray });
+  page.drawText("KODE KARTON", { x: colCode + 6, y: headY, size: 9, font: bold, color: gray });
+  page.drawText("PRODUK", { x: colProd + 6, y: headY, size: 9, font: bold, color: gray });
+  page.drawText("PACK", { x: colPack + colPackW - 8 - bold.widthOfTextAtSize("PACK", 9), y: headY, size: 9, font: bold, color: gray });
+  page.drawLine({ start: { x: M, y: y - headerH + 4 }, end: { x: W - M, y: y - headerH + 4 }, thickness: 1, color: ink });
+  // Garis vertikal kolom
+  for (const cx of [colCode, colProd, colPack]) {
+    page.drawLine({ start: { x: cx, y: tableTop }, end: { x: cx, y: tableBottom }, thickness: 1, color: ink });
   }
 
-  y -= 18;
+  // Baris item
+  let rowY = y - headerH - 13;
+  d.cartons.forEach((c, i) => {
+    page.drawText(String(i + 1), { x: colNo + 9, y: rowY, size: 10, font: regular });
+    page.drawText(c.code, { x: colCode + 6, y: rowY, size: 9, font: mono });
+    page.drawText(c.productName, { x: colProd + 6, y: rowY, size: 10, font: regular });
+    page.drawText(String(c.packCount), { x: colPack + colPackW - 8 - regular.widthOfTextAtSize(String(c.packCount), 10), y: rowY, size: 10, font: regular });
+    if (i < d.cartons.length - 1) {
+      page.drawLine({ start: { x: M, y: rowY - 6 }, end: { x: W - M, y: rowY - 6 }, thickness: 0.5, color: gray });
+    }
+    rowY -= rowH;
+  });
+
+  // Total
+  y = tableBottom - 24;
   page.drawText(`Total: ${d.totalCartons} karton · ${d.totalPacks} pack`, {
     x: M, y, size: 11, font: bold,
   });
-  y -= 44;
 
-  // Blok tanda tangan
-  const sigW = 150;
-  page.drawText("Diterima oleh,", { x: M, y, size: 10, font: regular, color: gray });
-  page.drawText("Dikirim oleh,", { x: W - M - sigW, y, size: 10, font: regular, color: gray });
-  page.drawLine({ start: { x: M, y: y - 58 }, end: { x: M + sigW, y: y - 58 }, thickness: 1, color: ink });
-  page.drawLine({ start: { x: W - M - sigW, y: y - 58 }, end: { x: W - M, y: y - 58 }, thickness: 1, color: ink });
-  y -= 76;
-  page.drawText(`( ${d.customerName} )`, { x: M, y, size: 10, font: regular });
-  page.drawText(`( ${d.driverName} )`, { x: W - M - sigW, y, size: 10, font: regular });
+  // ---- Catatan ----
+  if (d.notes) {
+    y -= 18;
+    page.drawText(`Catatan: ${d.notes}`, { x: M, y, size: 9, font: regular, color: gray });
+  }
 
-  // Footer: order code untuk referensi internal
-  page.drawText(`Order: ${d.orderCode}`, {
-    x: M, y: 40, size: 8, font: regular, color: gray,
+  // ---- Blok tanda tangan (3 kolom) ----
+  y -= 64;
+  const sigW = 140;
+  const sigNames = ["Diterima oleh,", "Mengetahui,", "Dikirim oleh,"];
+  const sigCaptions = [`( ${d.customerName} )`, `( ${d.plantName} )`, `( ${d.driverName} )`];
+  sigNames.forEach((label, i) => {
+    const x = M + i * ((W - 2 * M) / 3);
+    page.drawText(label, { x, y, size: 10, font: regular, color: gray });
+    page.drawLine({ start: { x, y: y - 56 }, end: { x: x + sigW, y: y - 56 }, thickness: 1, color: ink });
+    page.drawText(sigCaptions[i]!, { x, y: y - 68, size: 9, font: regular });
   });
+
+  // Footer: order code referensi internal
+  page.drawText(`Ref: ${d.orderCode}`, { x: M, y: 36, size: 8, font: regular, color: gray });
 
   return pdf.save();
 }

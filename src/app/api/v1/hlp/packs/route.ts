@@ -19,6 +19,10 @@ export const GET = withAuth(async () => {
       totalBatang: hlpPack.totalBatang,
       beratPerBatangGram: hlpPack.beratPerBatangGram,
       packedAt: hlpPack.packedAt,
+      // Pack yang sudah dialokasikan ke karton (migrasi 0019).
+      // Outer column harus literal "hlp_pack"."id" — ${hlpPack.id} render
+      // bare "id" yang resolve ke cc.id → selalu 0.
+      usedPackQty: sql<number>`(SELECT COALESCE(SUM(cc.pack_qty), 0) FROM carton_content cc WHERE cc.hlp_pack_id = "hlp_pack"."id")`.mapWith(Number),
     })
     .from(hlpPack)
     .innerJoin(batch, eq(hlpPack.batchId, batch.id))

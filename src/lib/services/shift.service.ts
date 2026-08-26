@@ -16,6 +16,7 @@ import {
   tsgBoxProcess,
   downtimeLog,
   shiftConsumption,
+  finishedGoodsReceiving,
 } from "@/db/schema";
 import { machine, shiftTemplate, product } from "@/db/schema/master-product";
 import { calculateShiftYield } from "@/lib/calc";
@@ -670,6 +671,19 @@ export async function listShifts(params: {
     const machineMap = new Map(machines.map((m) => [m.id, m.code]));
     for (const s of shifts) {
       (s as any).machineCode = machineMap.get(s.machineId) ?? null;
+    }
+  }
+
+  // FG sudah dikonfirmasi? (untuk sembunyikan tombol Konfirmasi FG)
+  if (shifts.length > 0) {
+    const shiftIds = shifts.map((s) => s.id);
+    const fgRows = await db
+      .select({ shiftReportId: finishedGoodsReceiving.shiftReportId })
+      .from(finishedGoodsReceiving)
+      .where(inArray(finishedGoodsReceiving.shiftReportId, shiftIds));
+    const fgSet = new Set(fgRows.map((r) => r.shiftReportId));
+    for (const s of shifts) {
+      (s as any).fgConfirmed = fgSet.has(s.id);
     }
   }
 

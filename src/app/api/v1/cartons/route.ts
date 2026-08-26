@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import { createCarton, ServiceError } from "@/lib/services/wms-outbound.service";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import db from "@/db";
 import { carton } from "@/db/schema/wms-outbound";
 
@@ -50,7 +50,23 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
 export const GET = withAuth(async (_request: Request, ctx: AuthContext) => {
   const plantId = ctx.user.plantIds[0];
   const items = await db
-    .select()
+    .select({
+      id: carton.id,
+      plantId: carton.plantId,
+      productId: carton.productId,
+      code: carton.code,
+      status: carton.status,
+      capacityPack: carton.capacityPack,
+      openedAt: carton.openedAt,
+      closedAt: carton.closedAt,
+      openedBy: carton.openedBy,
+      // Isi karton saat ini (jumlah pack fisik) — SUM pack_qty, bukan
+      // COUNT baris (1 baris = 1 batch dengan qty-nya, migrasi 0019).
+      // Perhatian: kolom outer harus ditulis literal "carton"."id" — kalau
+      // pakai ${carton.id}, drizzle render bare `"id"` yang resolve ke
+      // cc.id (inner) → hasil selalu 0.
+      packCount: sql<number>`(SELECT COALESCE(SUM(cc.pack_qty), 0) FROM carton_content cc WHERE cc.carton_id = "carton"."id")`.mapWith(Number),
+    })
     .from(carton)
     .where(plantId ? eq(carton.plantId, plantId) : undefined)
     .orderBy(desc(carton.openedAt))
