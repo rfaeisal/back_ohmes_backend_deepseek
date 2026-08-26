@@ -138,7 +138,10 @@ export async function generateQr(input: QrGenerateInput) {
     }
   }
 
-  // Store in QR registry
+  // Store in QR registry — UPSERT: generate ulang entitas yang sama
+  // (mis. cetak ulang label rusak) perbarui HMAC + aktor, bukan 500
+  // duplicate uri. Efek samping yang diinginkan: label cetakan lama
+  // dengan HMAC lama otomatis invalid (anti-forgery dinamis).
   const [qr] = await db
     .insert(qrRegistry)
     .values({
@@ -148,6 +151,10 @@ export async function generateQr(input: QrGenerateInput) {
       uri,
       hmac,
       generatedBy: input.generatedBy,
+    })
+    .onConflictDoUpdate({
+      target: qrRegistry.uri,
+      set: { hmac, generatedBy: input.generatedBy },
     })
     .returning();
 

@@ -2,7 +2,7 @@
 // Mobile handoff v2.2.3 §4: ganti workaround fetch list+filter-by-id yang
 // inefisien saat data >100 rows.
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import db from "@/db";
 import {
   tsgReceiving,
@@ -35,11 +35,15 @@ export const GET = withAuth(
         supplierDocRef: tsgReceiving.supplierDocRef,
         receivedAt: tsgReceiving.receivedAt,
         receivedBy: tsgReceiving.receivedBy,
+        // Nama aktor — request tim mobile (26 Agu): receivedBy/approvedBy
+        // masih UUID mentah; field tambahan ini additive, tidak breaking
+        receivedByName: sql<string>`(SELECT u.full_name FROM "user" u WHERE u.id = ${tsgReceiving.receivedBy})`.mapWith(String),
         totalBoxCount: tsgReceiving.totalBoxCount,
         totalWeightKg: tsgReceiving.totalWeightKg,
         source: tsgReceiving.source,
         approvalStatus: tsgReceiving.approvalStatus,
         approvedBy: tsgReceiving.approvedBy,
+        approvedByName: sql<string>`(SELECT u.full_name FROM "user" u WHERE u.id = ${tsgReceiving.approvedBy})`.mapWith(String),
         approvedAt: tsgReceiving.approvedAt,
         notes: tsgReceiving.notes,
         createdAt: tsgReceiving.createdAt,
