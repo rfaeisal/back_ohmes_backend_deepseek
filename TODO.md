@@ -24,8 +24,8 @@ Catatan pekerjaan yang belum dikerjakan. Update terakhir: 2026-08-24.
 ### 4. Auto-cleanup sesi expired (produksi) — SELESAI (26 Agu 2026)
 - [x] `src/instrumentation.ts`: saat boot + interval 24 jam panggil `cleanupExpiredSessions()`. Terverifikasi dev: sesi expired test di-revoke otomatis saat server start (log `[cleanup-session] 1 sesi expired di-revoke otomatis.`).
 
-### 5. Field Path correction jadi dropdown (UX)
-- [ ] Halaman Corrections: Field Path masih free-text (`waste.MENIR.kg`) — auditor harus hafal nama path. Ganti dengan dropdown field yang tersedia (waste per kategori, pemakaian material, dll) saat membuat koreksi.
+### 5. Field Path correction jadi dropdown (UX) — SELESAI (26 Agu 2026)
+- [x] Select preset field (waste 4 kategori, tsgTotalKg, outputKg, notes) + opsi "Lainnya" untuk path custom.
 
 ---
 
