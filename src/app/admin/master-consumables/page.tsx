@@ -17,7 +17,7 @@ export default function MasterConsumablesPage() {
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState({ code: "", name: "", unit: "roll", productId: "", allowAtEndShift: false });
+  const [form, setForm] = useState({ code: "", name: "", unit: "roll", productId: "", allowAtEndShift: false, applicableMachines: "BOTH" as string });
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -36,8 +36,8 @@ export default function MasterConsumablesPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const openAdd = () => { setEditing(null); setForm({ code: "", name: "", unit: "roll", productId: products[0]?.id ?? "", allowAtEndShift: false }); setShowForm(true); };
-  const openEdit = (item: any) => { setEditing(item); setForm({ code: item.code, name: item.name, unit: item.unit ?? "roll", productId: item.productId ?? "", allowAtEndShift: item.allowAtEndShift ?? false }); setShowForm(true); };
+  const openAdd = () => { setEditing(null); setForm({ code: "", name: "", unit: "roll", productId: products[0]?.id ?? "", allowAtEndShift: false, applicableMachines: "BOTH" }); setShowForm(true); };
+  const openEdit = (item: any) => { setEditing(item); setForm({ code: item.code, name: item.name, unit: item.unit ?? "roll", productId: item.productId ?? "", allowAtEndShift: item.allowAtEndShift ?? false, applicableMachines: item.applicableMachines ?? "BOTH" }); setShowForm(true); };
 
   const handleSave = async () => {
     if (!form.code || !form.name || !form.unit) { setError("Kode, nama, dan unit wajib diisi."); return; }
@@ -86,14 +86,15 @@ export default function MasterConsumablesPage() {
                 <th className="pb-3 text-sm font-semibold text-gray-600">Unit</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Produk</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Akhir Shift</th>
+                <th className="pb-3 text-sm font-semibold text-gray-600">Berlaku Untuk</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Aksi</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="py-6 text-center text-gray-400">Memuat...</td></tr>
+                <tr><td colSpan={7} className="py-6 text-center text-gray-400">Memuat...</td></tr>
               ) : items.length === 0 ? (
-                <tr><td colSpan={6} className="py-6 text-center text-gray-400">Belum ada item.</td></tr>
+                <tr><td colSpan={7} className="py-6 text-center text-gray-400">Belum ada item.</td></tr>
               ) : items.map((item) => (
                 <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 font-mono text-sm">{item.code}</td>
@@ -107,6 +108,7 @@ export default function MasterConsumablesPage() {
                       <Badge variant="neutral">—</Badge>
                     )}
                   </td>
+                  <td className="py-3"><Badge variant={item.applicableMachines === "BOTH" ? "info" : "warning"}>{item.applicableMachines ?? "BOTH"}</Badge></td>
                   <td className="py-3 flex gap-2">
                     <Button size="sm" variant="ghost" onClick={() => openEdit(item)}><Pencil className="size-4" /></Button>
                     <Button size="sm" variant="ghost" onClick={() => handleDelete(item.id)}><Trash2 className="size-4 text-red-500" /></Button>
@@ -133,6 +135,14 @@ export default function MasterConsumablesPage() {
             <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white" value={form.productId} onChange={e => setForm({ ...form, productId: e.target.value })}>
               <option value="">Semua Produk</option>
               {products.map((p: any) => <option key={p.id} value={p.id}>{p.brand} {p.code}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Berlaku untuk mesin</label>
+            <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white" value={form.applicableMachines ?? "BOTH"} onChange={e => setForm({ ...form, applicableMachines: e.target.value })}>
+              <option value="MAKER">MAKER</option>
+              <option value="HLP">HLP</option>
+              <option value="BOTH">MAKER & HLP (Keduanya)</option>
             </select>
           </div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700">

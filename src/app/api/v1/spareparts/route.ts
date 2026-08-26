@@ -9,6 +9,7 @@ const createSchema = z.object({
   code: z.string().min(1, "Kode wajib"),
   name: z.string().min(1, "Nama wajib"),
   unit: z.string().min(1, "Unit wajib").default("unit"),
+  applicableMachines: z.enum(["MAKER", "HLP", "BOTH"]).optional().default("BOTH"),
 });
 
 // GET — reference data untuk dialog maintenance (auth-only)
@@ -19,6 +20,7 @@ export const GET = withAuth(async (_req: Request, _ctx: AuthContext) => {
       code: sparepart.code,
       name: sparepart.name,
       unit: sparepart.unit,
+      applicableMachines: sparepart.applicableMachines,
     })
     .from(sparepart)
     .orderBy(sparepart.code);

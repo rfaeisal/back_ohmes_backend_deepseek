@@ -64,6 +64,7 @@ export default function GudangInboundPage() {
   const [matSaving, setMatSaving] = useState(false);
   const [consumableList, setConsumableList] = useState<any[]>([]);
   const [sparepartList, setSparepartList] = useState<any[]>([]);
+  const [machines, setMachines] = useState<any[]>([]);
 
   const loadMaterialItems = async (type: "CONSUMABLE" | "SPAREPART") => {
     try {
@@ -71,6 +72,13 @@ export default function GudangInboundPage() {
       const data = await apiFetch(path);
       if (type === "CONSUMABLE") setConsumableList(data.data ?? []);
       else setSparepartList(data.data ?? []);
+    } catch {}
+  };
+
+  const loadMachines = async () => {
+    try {
+      const data = await apiFetch("/machines");
+      setMachines(data.data ?? []);
     } catch {}
   };
 
@@ -156,7 +164,8 @@ export default function GudangInboundPage() {
   // Material out (kirim pabrik lain / retur supplier)
   const [showMatOut, setShowMatOut] = useState(false);
   const [matOutType, setMatOutType] = useState<"CONSUMABLE" | "SPAREPART">("CONSUMABLE");
-  const [matOutFlow, setMatOutFlow] = useState<"TRANSFER" | "RETUR">("TRANSFER");
+  const [matOutFlow, setMatOutFlow] = useState<"TRANSFER" | "RETUR" | "PEMAKAIAN">("TRANSFER");
+  const [matOutMachine, setMatOutMachine] = useState("");
   const [matOutCounterpart, setMatOutCounterpart] = useState("");
   const [matOutReason, setMatOutReason] = useState("");
   const [matOutItems, setMatOutItems] = useState<Array<{ itemId: string; qty: string }>>([{ itemId: "", qty: "" }]);
@@ -165,7 +174,11 @@ export default function GudangInboundPage() {
 
   const handleSaveMaterialOut = async () => {
     const validItems = matOutItems.filter((i) => i.itemId && parseFloat(i.qty) > 0);
-    if (!matOutCounterpart.trim()) { setMatOutError("Tujuan/supplier wajib diisi."); return; }
+    if (matOutFlow === "PEMAKAIAN") {
+      if (!matOutMachine) { setMatOutError("Pilih mesin tujuan untuk pemakaian produksi."); return; }
+    } else if (!matOutCounterpart.trim()) {
+      setMatOutError("Tujuan/supplier wajib diisi."); return;
+    }
     if (!matOutReason.trim() || matOutReason.trim().length < 3) { setMatOutError("Alasan wajib diisi (min 3 karakter)."); return; }
     if (validItems.length === 0) { setMatOutError("Minimal 1 item dengan quantity > 0."); return; }
     setMatOutSaving(true);
@@ -177,6 +190,7 @@ export default function GudangInboundPage() {
           materialType: matOutType,
           outType: matOutFlow,
           counterpartName: matOutCounterpart.trim(),
+          machineId: matOutFlow === "PEMAKAIAN" ? matOutMachine : undefined,
           reason: matOutReason.trim(),
           items: validItems.map((i) => ({ itemId: i.itemId, quantity: parseFloat(i.qty) })),
         }),
@@ -295,7 +309,7 @@ export default function GudangInboundPage() {
           <Button size="xl" variant="outline" onClick={() => { loadSuppliers(); setReturnReason(""); setReturnNotes(""); setReturnSelected(new Set()); setReturnError(""); setShowReturn(true); }}>
             ↩️ Retur TSG ke Supplier
           </Button>
-          <Button size="xl" variant="outline" onClick={() => { setMatOutFlow("TRANSFER"); setMatOutCounterpart(""); setMatOutReason(""); setMatOutItems([{ itemId: "", qty: "" }]); setMatOutError(""); loadMaterialItems(matOutType); setShowMatOut(true); }}>
+          <Button size="xl" variant="outline" onClick={() => { setMatOutFlow("TRANSFER"); setMatOutMachine(""); setMatOutCounterpart(""); setMatOutReason(""); setMatOutItems([{ itemId: "", qty: "" }]); setMatOutError(""); loadMaterialItems(matOutType); loadMachines(); setShowMatOut(true); }}>
             📤 Keluar Material & Sparepart
           </Button>
         </div>
@@ -707,7 +721,7 @@ export default function GudangInboundPage() {
 
           {/* Toggle alur keluar */}
           <div className="flex gap-2">
-            {(["TRANSFER", "RETUR"] as const).map((f) => (
+            {(["TRANSFER", "RETUR", "PEMAKAIAN"] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setMatOutFlow(f)}
@@ -715,19 +729,29 @@ export default function GudangInboundPage() {
                   matOutFlow === f ? "border-orange-500 bg-orange-50 text-orange-700" : "border-gray-200 text-gray-500 hover:border-gray-300"
                 }`}
               >
-                {f === "TRANSFER" ? "🚚 Kirim Pabrik Lain" : "↩️ Retur Supplier"}
+                {f === "TRANSFER" ? "🚚 Kirim Pabrik Lain" : f === "RETUR" ? "↩️ Retur Supplier" : "🏭 Pemakaian Produksi"}
               </button>
             ))}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label={matOutFlow === "TRANSFER" ? "Pabrik Tujuan" : "Nama Supplier"}
-              value={matOutCounterpart}
-              onChange={e => setMatOutCounterpart(e.target.value)}
-              placeholder={matOutFlow === "TRANSFER" ? "cth: Pabrik Pamekasan" : "cth: Supplier Jawa 1"}
-            />
-            <Input label="Alasan *" value={matOutReason} onChange={e => setMatOutReason(e.target.value)} placeholder="cth: Cacat / transfer stok / salah kirim" />
+            {matOutFlow === "PEMAKAIAN" ? (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mesin Tujuan</label>
+                <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white" value={matOutMachine} onChange={e => setMatOutMachine(e.target.value)}>
+                  <option value="">Pilih Mesin</option>
+                  {machines.map((m: any) => <option key={m.id} value={m.id}>{m.code} — {m.name} ({m.type})</option>)}
+                </select>
+              </div>
+            ) : (
+              <Input
+                label={matOutFlow === "TRANSFER" ? "Pabrik Tujuan" : "Nama Supplier"}
+                value={matOutCounterpart}
+                onChange={e => setMatOutCounterpart(e.target.value)}
+                placeholder={matOutFlow === "TRANSFER" ? "cth: Pabrik Pamekasan" : "cth: Supplier Jawa 1"}
+              />
+            )}
+            <Input label="Alasan *" value={matOutReason} onChange={e => setMatOutReason(e.target.value)} placeholder={matOutFlow === "PEMAKAIAN" ? "cth: Pemakaian mesin HLP minggu ini" : "cth: Cacat / transfer stok / salah kirim"} />
           </div>
 
           <div>
@@ -737,7 +761,12 @@ export default function GudangInboundPage() {
             </div>
             <div className="space-y-2 max-h-[300px] overflow-y-auto">
               {matOutItems.map((item, i) => {
-                const list = matOutType === "CONSUMABLE" ? consumableList : sparepartList;
+                const baseList = matOutType === "CONSUMABLE" ? consumableList : sparepartList;
+                // Filter penanda mesin berlaku (MAKER/HLP/BOTH) saat PEMAKAIAN
+                const machineType = matOutFlow === "PEMAKAIAN" ? machines.find((m: any) => m.id === matOutMachine)?.type : null;
+                const list = machineType
+                  ? baseList.filter((c: any) => (c.applicableMachines ?? "BOTH") === "BOTH" || c.applicableMachines === machineType)
+                  : baseList;
                 return (
                   <div key={i} className="flex items-center gap-3 rounded-lg border border-gray-200 p-3">
                     <span className="w-8 text-center font-bold text-gray-400">{i + 1}</span>

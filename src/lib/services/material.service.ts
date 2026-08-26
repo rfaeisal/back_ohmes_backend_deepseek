@@ -15,7 +15,7 @@ import {
 } from "@/db/schema";
 import { tsgBoxConsumption, maintenanceEvent, tsgBoxProcess, shiftConsumption } from "@/db/schema/box";
 import { shiftReport } from "@/db/schema/shift";
-import { consumableItem, sparepart } from "@/db/schema/master-product";
+import { consumableItem, sparepart, machine } from "@/db/schema/master-product";
 import { ServiceError } from "./shift.service";
 export { ServiceError } from "./shift.service";
 
@@ -519,13 +519,15 @@ export async function getMaterialUsage(params: {
 // Material Out — keluar consumable/sparepart (transfer antar pabrik / retur)
 // =============================================================================
 
-export type MaterialOutType = "TRANSFER" | "RETUR";
+export type MaterialOutType = "TRANSFER" | "RETUR" | "PEMAKAIAN";
 
 export interface CreateMaterialOutInput {
   plantId: string;
   materialType: MaterialType;
   outType: MaterialOutType;
   counterpartName: string;
+  // Mesin tujuan — WAJIB untuk outType PEMAKAIAN (backlog HLP material)
+  machineId?: string;
   reason: string;
   notes?: string;
   outBy: string;
@@ -534,9 +536,27 @@ export interface CreateMaterialOutInput {
 
 export async function createMaterialOut(input: CreateMaterialOutInput) {
   if (input.items.length === 0) throw new ServiceError("EMPTY_ITEMS", "Minimal 1 item.");
-  if (!input.counterpartName.trim()) throw new ServiceError("COUNTERPART_REQUIRED", "Tujuan/supplier wajib diisi.");
   if (!input.reason.trim() || input.reason.trim().length < 3) {
     throw new ServiceError("REASON_REQUIRED", "Alasan keluar wajib diisi (min 3 karakter).");
+  }
+
+  // PEMAKAIAN: mesin tujuan wajib — counterpartName diisi otomatis dari kode mesin
+  let counterpartName = input.counterpartName;
+  let machineId: string | null = null;
+  if (input.outType === "PEMAKAIAN") {
+    if (!input.machineId) {
+      throw new ServiceError("MACHINE_REQUIRED", "Pilih mesin tujuan untuk pemakaian produksi.");
+    }
+    const [m] = await db
+      .select({ code: machine.code })
+      .from(machine)
+      .where(eq(machine.id, input.machineId))
+      .limit(1);
+    if (!m) throw new ServiceError("MACHINE_NOT_FOUND", "Mesin tujuan tidak ditemukan.");
+    machineId = input.machineId;
+    counterpartName = m.code;
+  } else if (!input.counterpartName.trim()) {
+    throw new ServiceError("COUNTERPART_REQUIRED", "Tujuan/supplier wajib diisi.");
   }
 
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
@@ -559,7 +579,8 @@ export async function createMaterialOut(input: CreateMaterialOutInput) {
         plantId: input.plantId,
         materialType: input.materialType,
         outType: input.outType,
-        counterpartName: input.counterpartName.trim(),
+        machineId,
+        counterpartName: counterpartName.trim(),
         outCode,
         reason: input.reason.trim(),
         notes: input.notes ?? null,

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
 import { UNIT_OPTIONS } from "@/lib/constants/units";
+import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2 } from "lucide-react";
 
 export default function MasterSparepartsPage() {
@@ -15,7 +16,7 @@ export default function MasterSparepartsPage() {
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState({ code: "", name: "", unit: "unit" });
+  const [form, setForm] = useState({ code: "", name: "", unit: "unit", applicableMachines: "BOTH" });
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -30,8 +31,8 @@ export default function MasterSparepartsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const openAdd = () => { setEditing(null); setForm({ code: "", name: "", unit: "unit" }); setShowForm(true); };
-  const openEdit = (item: any) => { setEditing(item); setForm({ code: item.code, name: item.name, unit: item.unit ?? "unit" }); setShowForm(true); };
+  const openAdd = () => { setEditing(null); setForm({ code: "", name: "", unit: "unit", applicableMachines: "BOTH" }); setShowForm(true); };
+  const openEdit = (item: any) => { setEditing(item); setForm({ code: item.code, name: item.name, unit: item.unit ?? "unit", applicableMachines: item.applicableMachines ?? "BOTH" }); setShowForm(true); };
 
   const handleSave = async () => {
     if (!form.code || !form.name || !form.unit) { setError("Kode, nama, dan unit wajib diisi."); return; }
@@ -78,19 +79,21 @@ export default function MasterSparepartsPage() {
                 <th className="pb-3 text-sm font-semibold text-gray-600">Kode</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Nama</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Unit</th>
+                <th className="pb-3 text-sm font-semibold text-gray-600">Berlaku Untuk</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Aksi</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={4} className="py-6 text-center text-gray-400">Memuat...</td></tr>
+                <tr><td colSpan={5} className="py-6 text-center text-gray-400">Memuat...</td></tr>
               ) : items.length === 0 ? (
-                <tr><td colSpan={4} className="py-6 text-center text-gray-400">Belum ada sparepart.</td></tr>
+                <tr><td colSpan={5} className="py-6 text-center text-gray-400">Belum ada sparepart.</td></tr>
               ) : items.map((item) => (
                 <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 font-mono text-sm">{item.code}</td>
                   <td className="py-3 font-medium">{item.name}</td>
                   <td className="py-3 text-sm text-gray-500">{item.unit}</td>
+                  <td className="py-3"><Badge variant={item.applicableMachines === "BOTH" ? "info" : "warning"}>{item.applicableMachines ?? "BOTH"}</Badge></td>
                   <td className="py-3 flex gap-2">
                     <Button size="sm" variant="ghost" onClick={() => openEdit(item)}><Pencil className="size-4" /></Button>
                     <Button size="sm" variant="ghost" onClick={() => handleDelete(item.id)}><Trash2 className="size-4 text-red-500" /></Button>
@@ -110,6 +113,14 @@ export default function MasterSparepartsPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
             <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white" value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })}>
               {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Berlaku untuk mesin</label>
+            <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white" value={form.applicableMachines ?? "BOTH"} onChange={e => setForm({ ...form, applicableMachines: e.target.value })}>
+              <option value="MAKER">MAKER</option>
+              <option value="HLP">HLP</option>
+              <option value="BOTH">MAKER & HLP (Keduanya)</option>
             </select>
           </div>
           <Button className="w-full" onClick={handleSave} disabled={saving}>

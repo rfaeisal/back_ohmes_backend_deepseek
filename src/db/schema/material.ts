@@ -19,7 +19,7 @@ import {
 import { plant } from "./tenancy";
 import { user } from "./identity";
 import { tsgSupplier } from "./wms-inbound";
-import { consumableItem, sparepart } from "./master-product";
+import { consumableItem, sparepart, machine } from "./master-product";
 
 // =============================================================================
 // Enums
@@ -118,7 +118,7 @@ export const sparepartReceivingItem = pgTable(
 // Material Out — keluar consumable/sparepart (kirim pabrik lain / retur supplier)
 // =============================================================================
 
-export const materialOutTypeEnum = pgEnum("material_out_type", ["TRANSFER", "RETUR"]);
+export const materialOutTypeEnum = pgEnum("material_out_type", ["TRANSFER", "RETUR", "PEMAKAIAN"]);
 
 export const materialOut = pgTable(
   "material_out",
@@ -129,7 +129,9 @@ export const materialOut = pgTable(
       .references(() => plant.id), // ← untuk RLS
     materialType: materialTypeEnum("material_type").notNull(),
     outType: materialOutTypeEnum("out_type").notNull(),
-    counterpartName: text("counterpart_name").notNull(), // pabrik tujuan / nama supplier
+    // Mesin tujuan — wajib untuk PEMAKAIAN, NULL untuk TRANSFER/RETUR
+    machineId: uuid("machine_id").references(() => machine.id),
+    counterpartName: text("counterpart_name").notNull(), // pabrik tujuan / nama supplier / kode mesin
     outCode: text("out_code").notNull(), // 'MTR-20260814-01' unique per plant
     reason: text("reason").notNull(),
     notes: text("notes"),

@@ -6,13 +6,13 @@ Catatan pekerjaan yang belum dikerjakan. Update terakhir: 2026-08-24.
 
 ## 🔴 Backlog fitur
 
-### 1. Pemakaian material mesin HLP (dibahas 24 Agu 2026)
+### 1. Pemakaian material mesin HLP — SELESAI (26 Agu 2026)
 **Alur**: gudang input (material keluar → mesin tujuan), operator HLP lihat read-only di `/tablet/hlp`.
 
-- [ ] `material_out`: tambah tipe enum `PEMAKAIAN` + kolom opsional `machine_id`
-- [ ] Form gudang: material keluar → tipe "Pemakaian Produksi" → pilih mesin tujuan → item + jumlah (stok berkurang otomatis)
-- [ ] Panel "Bahan di mesin ini" di halaman HLP (read-only, daftar material yang dikeluarkan gudang ke HLP-01)
-- [ ] **Penanda mesin berlaku di master consumable DAN sparepart** (MAKER / HLP / keduanya) — form gudang hanya tampilkan item yang relevan untuk mesin tujuan
+- [x] `material_out`: tipe enum `PEMAKAIAN` (migrasi 0016) + kolom `machine_id` (migrasi 0017)
+- [x] Form gudang: toggle "🏭 Pemakaian Produksi" → pilih mesin tujuan → item + jumlah; counterpartName diisi otomatis dari kode mesin
+- [x] Panel "📦 Bahan di Mesin Ini" di halaman HLP (read-only via GET /material-out?machineId=&outType=PEMAKAIAN)
+- [x] Penanda `applicable_machines` (MAKER/HLP/BOTH) di master consumable & sparepart — form + tabel + API; daftar item di form gudang difilter sesuai tipe mesin tujuan
 
 ### 2. Maintenance & downtime level mesin (pertimbangan — belum diputuskan)
 - [ ] Maintenance level mesin (tanpa shift) — catatan perbaikan/preventive per mesin

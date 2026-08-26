@@ -122,6 +122,8 @@ export const consumableItem = pgTable("consumable_item", {
   productId: uuid("product_id").references(() => product.id), // NULL = universal
   isActive: boolean("is_active").notNull().default(true),
   allowAtEndShift: boolean("allow_at_end_shift").notNull().default(false), // boleh dicatat saat akhiri shift
+  // Penanda mesin berlaku — MAKER / HLP / BOTH (filter form gudang pemakaian)
+  applicableMachines: text("applicable_machines").notNull().default("BOTH"),
 });
 
 export const sparepart = pgTable("sparepart", {
@@ -130,6 +132,8 @@ export const sparepart = pgTable("sparepart", {
   name: text("name").notNull(),
   unit: text("unit").notNull().default("unit"),
   isActive: boolean("is_active").notNull().default(true),
+  // Penanda mesin berlaku — MAKER / HLP / BOTH (filter form gudang pemakaian)
+  applicableMachines: text("applicable_machines").notNull().default("BOTH"),
 });
 
 export const shiftRole = pgTable(

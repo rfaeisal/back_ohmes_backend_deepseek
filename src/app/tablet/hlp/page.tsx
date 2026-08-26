@@ -63,6 +63,21 @@ export default function HlpPage() {
   const [selectedBatch, setSelectedBatch] = useState<BatchItem | null>(null);
   const [showBatchPicker, setShowBatchPicker] = useState(false);
   const [hlpMachineId, setHlpMachineId] = useState("");
+
+  // Bahan yang sudah dikeluarkan gudang ke mesin HLP terpilih (backlog
+  // HLP material: gudang input, operator lihat read-only)
+  const [machineMaterials, setMachineMaterials] = useState<any[]>([]);
+  const loadMachineMaterials = useCallback(async (machineId: string) => {
+    try {
+      const res = await apiFetch(`/material-out?machineId=${machineId}&outType=PEMAKAIAN`);
+      setMachineMaterials(res.data ?? []);
+    } catch { setMachineMaterials([]); }
+  }, []);
+
+  useEffect(() => {
+    if (hlpMachineId) loadMachineMaterials(hlpMachineId);
+    else setMachineMaterials([]);
+  }, [hlpMachineId, loadMachineMaterials]);
   const [packsLolos, setPacksLolos] = useState("");
   const [isiPerPack, setIsiPerPack] = useState("20");
   const [rejectBatangan, setRejectBatangan] = useState("0");
@@ -109,6 +124,7 @@ export default function HlpPage() {
       setSelectedBatch(null);
       setBatchSearch("");
       load();
+      loadMachineMaterials(hlpMachineId);
     } catch (e: any) {
       setActionMsg(e.message);
     } finally {
@@ -259,6 +275,36 @@ export default function HlpPage() {
           </div>
         </Card>
       )}
+
+      {/* Bahan di mesin ini (gudang input, operator lihat) */}
+      <Card className="mb-6">
+        <CardTitle>📦 Bahan di Mesin Ini</CardTitle>
+        {!hlpMachineId ? (
+          <p className="mt-3 text-sm text-gray-400">Pilih mesin HLP dulu untuk melihat bahan yang dikeluarkan gudang.</p>
+        ) : machineMaterials.length === 0 ? (
+          <p className="mt-3 text-sm text-gray-400">Belum ada material yang dikeluarkan gudang ke mesin ini.</p>
+        ) : (
+          <div className="mt-3 space-y-3">
+            {machineMaterials.map((m: any) => (
+              <div key={m.id} className="rounded-lg border border-gray-200 p-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-sm font-bold">{m.outCode}</span>
+                  <span className="text-xs text-gray-400">{new Date(m.outAt).toLocaleDateString("id-ID")}</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">{m.reason}</p>
+                <ul className="mt-2 text-sm">
+                  {m.items.map((i: any, idx: number) => (
+                    <li key={idx} className="flex justify-between border-t border-gray-100 py-1">
+                      <span>{i.name}</span>
+                      <span className="font-medium">{i.quantity} {i.unit}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
 
       {/* Riwayat packing */}
       <h3 className="text-lg font-bold text-gray-900 mb-1">Riwayat Packing</h3>

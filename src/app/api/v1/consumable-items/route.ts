@@ -11,6 +11,7 @@ const createSchema = z.object({
   unit: z.string().min(1, "Unit wajib").default("roll"),
   productId: z.string().uuid().optional(),
   allowAtEndShift: z.boolean().optional().default(false),
+  applicableMachines: z.enum(["MAKER", "HLP", "BOTH"]).optional().default("BOTH"),
 });
 
 // GET — reference data untuk dialog pemakaian (auth-only)
@@ -23,6 +24,7 @@ export const GET = withAuth(async (_req: Request, _ctx: AuthContext) => {
       unit: consumableItem.unit,
       productId: consumableItem.productId,
       allowAtEndShift: consumableItem.allowAtEndShift,
+      applicableMachines: consumableItem.applicableMachines,
     })
     .from(consumableItem)
     .orderBy(consumableItem.code);

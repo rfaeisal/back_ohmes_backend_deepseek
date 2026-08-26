@@ -12,6 +12,7 @@ const updateSchema = z.object({
   unit: z.string().min(1).optional(),
   productId: z.string().uuid().nullable().optional(),
   allowAtEndShift: z.boolean().optional(),
+  applicableMachines: z.enum(["MAKER", "HLP", "BOTH"]).optional(),
 });
 
 export const PATCH = withAuth(async (request: Request, ctx: AuthContext, { params }: { params: Promise<{ id: string }> }) => {
