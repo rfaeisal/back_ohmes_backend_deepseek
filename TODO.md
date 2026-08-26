@@ -18,8 +18,8 @@ Catatan pekerjaan yang belum dikerjakan. Update terakhir: 2026-08-24.
 - [x] Maintenance level mesin (tanpa shift) — tabel `machine_maintenance`, API `/machines/:id/maintenance`, UI riwayat di master-data (tombol 🔧 per mesin)
 - [x] Downtime level mesin — tabel `machine_downtime` (terpisah dari downtime_log yang shift-bound), API `/machines/:id/downtime`, durasi dihitung UI. Keputusan arsitektur: tabel terpisah, tidak menyentuh alur shift MAKER.
 
-### 3. Dashboard Area — pemilih region
-- [ ] Batasan: user scope COMPANY melihat region pertama saja; butuh pemilih region di UI kalau HQ punya >1 region
+### 3. Dashboard Area — pemilih region — SELESAI (26 Agu 2026)
+- [x] Select "Pilih Area" di Dashboard Area untuk scope COMPANY/GLOBAL (tampil saat >1 region; scope REGION tetap terikat activeScopeId). Terverifikasi Playwright dengan 2 region test.
 
 ### 4. Auto-cleanup sesi expired (produksi)
 - [ ] `user_session` tumbuh tiap login tanpa pembersihan — fungsi `cleanupExpiredSessions()` sudah ada di `lib/auth` tapi tidak ada yang memanggil berkala. Perlu job terjadwal (cron Coolify / Vercel) atau panggil saat server start. Temuan saat audit halaman Sessions (378 sesi numpuk di dev).

@@ -27,29 +27,40 @@ export default function AreaDashboardPage() {
     setWeekStart(d.toISOString().slice(0, 10));
   };
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      // Region dari scope JWT — activeScopeId HANYA dipakai kalau scope REGION.
-      // Scope COMPANY/GLOBAL (mis. HQ_ANALYST) punya activeScopeId = company,
-      // bukan region — kalau dipakai mentah, API dapat region-id palsu → kosong.
+  // Backlog #3 — pemilih region: user scope COMPANY/GLOBAL bisa ganti area.
+  // Scope REGION tetap terikat activeScopeId (koordinator area).
+  const [regions, setRegions] = useState<any[]>([]);
+  const [regionId, setRegionId] = useState("");
+  const [scopeType, setScopeType] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      let scopedRegionId = "";
+      let type = "";
       const token = getToken();
-      let regionId = "";
       if (token) {
         try {
           const payload = JSON.parse(atob(token.split(".")[1]!));
-          if (payload.activeScopeType === "REGION") {
-            regionId = payload.activeScopeId ?? "";
-          }
+          type = payload.activeScopeType ?? "";
+          if (type === "REGION") scopedRegionId = payload.activeScopeId ?? "";
         } catch {}
       }
-      if (!regionId) {
-        // Fallback: cari region pertama yang ada di scope (RLS membatasi
-        // daftar region sesuai scope user — COMPANY lihat semua region-nya)
-        const regionsRes = await apiFetch("/regions");
-        const regions = regionsRes?.data ?? [];
-        if (regions.length > 0) regionId = regions[0].id;
+      setScopeType(type);
+      const regionsRes = await apiFetch("/regions").catch(() => ({ data: [] }));
+      const list = regionsRes?.data ?? [];
+      setRegions(list);
+      if (type === "REGION") {
+        setRegionId(scopedRegionId);
+      } else if (list.length > 0) {
+        setRegionId((prev) => prev || list[0].id);
       }
+    })();
+  }, []);
+
+  const load = useCallback(async () => {
+    if (!regionId) return;
+    setLoading(true);
+    try {
       const params = new URLSearchParams();
       if (mode === "week") {
         params.set("mode", "week");
@@ -60,7 +71,7 @@ export default function AreaDashboardPage() {
       const data = await apiFetch(`/dashboards/area/${regionId}/kpi?${params.toString()}`);
       setKpi(data);
     } catch { setKpi(null); } finally { setLoading(false); }
-  }, [date, mode, weekStart]);
+  }, [date, mode, weekStart, regionId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -77,6 +88,18 @@ export default function AreaDashboardPage() {
           </p>
         </div>
         <div className="flex items-end gap-3 flex-wrap">
+          {scopeType !== "REGION" && regions.length > 1 && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Pilih Area</label>
+              <select
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white"
+                value={regionId}
+                onChange={(e) => setRegionId(e.target.value)}
+              >
+                {regions.map((r: any) => <option key={r.id} value={r.id}>{r.code} — {r.name}</option>)}
+              </select>
+            </div>
+          )}
           <div className="flex gap-2">
             {(["day", "week"] as const).map((m) => (
               <button
