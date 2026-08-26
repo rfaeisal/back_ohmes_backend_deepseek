@@ -228,9 +228,14 @@ export async function getAvailableInventory(
       locationCode: tsgInventory.locationCode,
       fifoOverrideAt: tsgInventory.fifoOverrideAt,
       createdAt: tsgInventory.createdAt,
+      // Asal supplier boks — untuk default supplier di form retur
+      supplierId: tsgReceiving.supplierId,
+      supplierName: tsgSupplier.name,
     })
     .from(tsgInventory)
     .innerJoin(tsgReceivingBox, eq(tsgInventory.boxId, tsgReceivingBox.id))
+    .innerJoin(tsgReceiving, eq(tsgReceivingBox.receivingId, tsgReceiving.id))
+    .leftJoin(tsgSupplier, eq(tsgReceiving.supplierId, tsgSupplier.id))
     .where(
       and(
         eq(tsgInventory.plantId, plantId),

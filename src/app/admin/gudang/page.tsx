@@ -82,6 +82,17 @@ export default function GudangInboundPage() {
     } catch {}
   };
 
+  // Buka dokumen PDF (Berita Acara) di tab baru — murni PDF tanpa sidebar
+  const openDoc = async (path: string) => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch(path, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!res.ok) { alert("Gagal membuka dokumen."); return; }
+      const blob = await res.blob();
+      window.open(URL.createObjectURL(blob), "_blank");
+    } catch { alert("Gagal membuka dokumen."); }
+  };
+
   // TSG transfer ke pabrik lain
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferDest, setTransferDest] = useState("");
@@ -637,7 +648,13 @@ export default function GudangInboundPage() {
                     checked={returnSelected.has(item.id)}
                     onChange={(e) => {
                       const next = new Set(returnSelected);
-                      if (e.target.checked) next.add(item.id); else next.delete(item.id);
+                      if (e.target.checked) {
+                        next.add(item.id);
+                        // Default supplier = asal boks saat receiving
+                        if (!returnSupplierId && item.supplierId) setReturnSupplierId(item.supplierId);
+                      } else {
+                        next.delete(item.id);
+                      }
                       setReturnSelected(next);
                     }}
                     className="size-4"
@@ -684,9 +701,7 @@ export default function GudangInboundPage() {
                     <td className="py-3 font-bold">{parseFloat(r.totalWeightKg || "0").toFixed(1)} kg</td>
                     <td className="py-3 text-sm text-gray-500 max-w-[200px] truncate" title={r.reason}>{r.reason}</td>
                     <td className="py-3">
-                      <Link href={`/admin/gudang/return/${r.id}/print`} target="_blank">
-                        <Button size="sm" variant="outline">🖨 Cetak</Button>
-                      </Link>
+                      <Button size="sm" variant="outline" onClick={() => openDoc(`/api/v1/tsg-returns/${r.id}/document`)}>🖨 Cetak</Button>
                     </td>
                   </tr>
                 ))}
@@ -833,9 +848,7 @@ export default function GudangInboundPage() {
                       {(t.items ?? []).map((it: any) => it.boxCode).join(", ")}
                     </td>
                     <td className="py-3">
-                      <Link href={`/admin/gudang/transfer/${t.id}/print`} target="_blank">
-                        <Button size="sm" variant="outline">🖨 Cetak</Button>
-                      </Link>
+                      <Button size="sm" variant="outline" onClick={() => openDoc(`/api/v1/tsg-transfers/${t.id}/document`)}>🖨 Cetak</Button>
                     </td>
                   </tr>
                 ))}
