@@ -104,6 +104,70 @@ export default function MasterDataPage() {
     } catch (e: any) { alert(e.message); }
   };
 
+  // ---- Riwayat maintenance & downtime level mesin (backlog #2) ----
+  const [showMachineHistory, setShowMachineHistory] = useState<any>(null);
+  const [histTab, setHistTab] = useState<"maintenance" | "downtime">("maintenance");
+  const [histList, setHistList] = useState<any[]>([]);
+  const [histForm, setHistForm] = useState<Record<string, string>>({});
+  const [histSaving, setHistSaving] = useState(false);
+  const [histMsg, setHistMsg] = useState("");
+
+  const openMachineHistory = async (m: any) => {
+    setShowMachineHistory(m);
+    setHistTab("maintenance");
+    setHistForm({});
+    setHistMsg("");
+    await loadHist(m.id, "maintenance");
+  };
+
+  const loadHist = async (machineId: string, tab: "maintenance" | "downtime") => {
+    setHistList([]);
+    try {
+      const res = await apiFetch(`/machines/${machineId}/${tab}`);
+      setHistList(res.data ?? []);
+    } catch { setHistList([]); }
+  };
+
+  const switchHistTab = async (tab: "maintenance" | "downtime") => {
+    setHistTab(tab);
+    setHistForm({});
+    setHistMsg("");
+    if (showMachineHistory) await loadHist(showMachineHistory.id, tab);
+  };
+
+  const saveHist = async () => {
+    if (!showMachineHistory) return;
+    setHistSaving(true);
+    setHistMsg("");
+    try {
+      if (histTab === "maintenance") {
+        await apiFetch(`/machines/${showMachineHistory.id}/maintenance`, {
+          method: "POST",
+          body: JSON.stringify({
+            maintenanceType: histForm.mType || "PERBAIKAN",
+            description: histForm.description,
+            // datetime-local → ISO UTC (zod datetime)
+            maintenanceAt: histForm.mAt ? new Date(histForm.mAt).toISOString() : undefined,
+            notes: histForm.notes || undefined,
+          }),
+        });
+      } else {
+        await apiFetch(`/machines/${showMachineHistory.id}/downtime`, {
+          method: "POST",
+          body: JSON.stringify({
+            startedAt: new Date(histForm.startedAt!).toISOString(),
+            endedAt: new Date(histForm.endedAt!).toISOString(),
+            reason: histForm.reason,
+          }),
+        });
+      }
+      setHistMsg("✅ Tersimpan.");
+      setHistForm({});
+      await loadHist(showMachineHistory.id, histTab);
+    } catch (e: any) { setHistMsg(e.message); }
+    finally { setHistSaving(false); }
+  };
+
   const handleDelete = async (type: string, id: string) => {
     if (!confirm("Yakin hapus?")) return;
     try {
@@ -257,6 +321,7 @@ export default function MasterDataPage() {
                       {m.isActive ? <Power className="size-4 text-green-600" /> : <PowerOff className="size-4 text-red-500" />}
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => { setForm(m); setShowAdd("machine"); }}><Pencil className="size-4" /></Button>
+                    <Button size="sm" variant="ghost" title="Riwayat maintenance & downtime" onClick={() => openMachineHistory(m)}>🔧</Button>
                     <Button size="sm" variant="ghost" onClick={() => handleDelete("machine", m.id)}><Trash2 className="size-4 text-red-500" /></Button>
                   </td>
                 </tr>
@@ -440,6 +505,79 @@ export default function MasterDataPage() {
           <Button size="lg" className="w-full" disabled={missingFields.length > 0} onClick={() => form.id ? handleEdit(showAdd!) : handleAdd(showAdd!)}>
             {form.id ? "Update" : "Simpan"}
           </Button>
+        </div>
+      </Dialog>
+
+      {/* Riwayat Maintenance & Downtime mesin (backlog #2) */}
+      <Dialog open={!!showMachineHistory} onClose={() => setShowMachineHistory(null)} title={`Riwayat Mesin: ${showMachineHistory?.code ?? ""}`}>
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <Button size="sm" variant={histTab === "maintenance" ? "primary" : "outline"} onClick={() => switchHistTab("maintenance")}>🔧 Maintenance</Button>
+            <Button size="sm" variant={histTab === "downtime" ? "primary" : "outline"} onClick={() => switchHistTab("downtime")}>⏸ Downtime</Button>
+          </div>
+
+          {/* Form tambah cepat */}
+          {histTab === "maintenance" ? (
+            <div className="rounded-lg border border-gray-200 p-3 space-y-2">
+              <p className="text-sm font-semibold">Catat Maintenance Baru</p>
+              <select className="w-full rounded-lg border px-3 py-2 text-sm bg-white" value={histForm.mType ?? "PERBAIKAN"} onChange={e => setHistForm({ ...histForm, mType: e.target.value })}>
+                <option value="PERBAIKAN">Perbaikan</option>
+                <option value="PREVENTIVE">Preventive</option>
+              </select>
+              <Input label="Deskripsi *" value={histForm.description ?? ""} onChange={e => setHistForm({ ...histForm, description: e.target.value })} placeholder="cth: Ganti pisau filter" />
+              <Input label="Tanggal (opsional, default sekarang)" type="datetime-local" value={histForm.mAt ?? ""} onChange={e => setHistForm({ ...histForm, mAt: e.target.value })} />
+              <Input label="Catatan" value={histForm.notes ?? ""} onChange={e => setHistForm({ ...histForm, notes: e.target.value })} />
+              <Button size="sm" disabled={histSaving || !(histForm.description ?? "").trim() || (histForm.description ?? "").trim().length < 3} onClick={saveHist}>
+                {histSaving ? "..." : "Simpan Maintenance"}
+              </Button>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-gray-200 p-3 space-y-2">
+              <p className="text-sm font-semibold">Catat Downtime Baru</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Input label="Mulai *" type="datetime-local" value={histForm.startedAt ?? ""} onChange={e => setHistForm({ ...histForm, startedAt: e.target.value })} />
+                <Input label="Selesai *" type="datetime-local" value={histForm.endedAt ?? ""} onChange={e => setHistForm({ ...histForm, endedAt: e.target.value })} />
+              </div>
+              <Input label="Alasan *" value={histForm.reason ?? ""} onChange={e => setHistForm({ ...histForm, reason: e.target.value })} placeholder="cth: Motor penggerak panas" />
+              <Button size="sm" disabled={histSaving || !(histForm.startedAt ?? "") || !(histForm.endedAt ?? "") || (histForm.reason ?? "").trim().length < 3} onClick={saveHist}>
+                {histSaving ? "..." : "Simpan Downtime"}
+              </Button>
+            </div>
+          )}
+
+          {histMsg && <p className={`text-sm ${histMsg.startsWith("✅") ? "text-green-700" : "text-red-600"}`}>{histMsg}</p>}
+
+          {/* Daftar */}
+          <div className="max-h-64 overflow-y-auto space-y-2">
+            {histList.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-4">Belum ada catatan {histTab === "maintenance" ? "maintenance" : "downtime"}.</p>
+            ) : histList.map((h: any) => (
+              <div key={h.id} className="rounded-lg border border-gray-100 p-3 text-sm">
+                {histTab === "maintenance" ? (
+                  <>
+                    <div className="flex justify-between">
+                      <Badge variant={h.maintenanceType === "PREVENTIVE" ? "info" : "warning"}>{h.maintenanceType}</Badge>
+                      <span className="text-xs text-gray-400">{new Date(h.maintenanceAt).toLocaleString("id-ID")}</span>
+                    </div>
+                    <p className="mt-1 font-medium">{h.description}</p>
+                    {h.notes && <p className="text-xs text-gray-500 mt-1">{h.notes}</p>}
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-xs text-gray-500">
+                        {new Date(h.startedAt).toLocaleString("id-ID")} → {new Date(h.endedAt).toLocaleTimeString("id-ID")}
+                      </span>
+                      <span className="text-xs font-medium">
+                        {Math.max(0, Math.round((new Date(h.endedAt).getTime() - new Date(h.startedAt).getTime()) / 60000))} menit
+                      </span>
+                    </div>
+                    <p className="mt-1 font-medium">{h.reason}</p>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </Dialog>
     </div>

@@ -13,6 +13,8 @@ export {
   plantProduct,
   machine,
   machineTemplate,
+  machineMaintenance,
+  machineDowntime,
   consumableItem,
   sparepart,
   shiftRole,

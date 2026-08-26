@@ -14,6 +14,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { plant } from "./tenancy";
+import { user } from "./identity";
 
 // Enums akan digunakan di schema ini — didefinisikan di sini untuk circular ref avoidance
 export const machineTypeEnum = pgEnum("machine_type", ["MAKER", "HLP"]);
@@ -176,4 +177,39 @@ export const rejectReason = pgTable("reject_reason", {
   code: text("code").notNull().unique(), // 'BATANG_PATAH'
   name: text("name").notNull(),
   isActive: boolean("is_active").notNull().default(true),
+});
+
+// =============================================================================
+// Maintenance & downtime level mesin (backlog #2 — tanpa terikat shift)
+// =============================================================================
+
+export const machineMaintenance = pgTable("machine_maintenance", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  plantId: uuid("plant_id")
+    .notNull()
+    .references(() => plant.id), // ← untuk RLS
+  machineId: uuid("machine_id")
+    .notNull()
+    .references(() => machine.id),
+  maintenanceType: text("maintenance_type").notNull().default("PERBAIKAN"), // PERBAIKAN | PREVENTIVE
+  description: text("description").notNull(),
+  maintenanceAt: timestamp("maintenance_at").notNull().defaultNow(),
+  doneBy: uuid("done_by").references(() => user.id),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const machineDowntime = pgTable("machine_downtime", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  plantId: uuid("plant_id")
+    .notNull()
+    .references(() => plant.id), // ← untuk RLS
+  machineId: uuid("machine_id")
+    .notNull()
+    .references(() => machine.id),
+  startedAt: timestamp("started_at").notNull(),
+  endedAt: timestamp("ended_at").notNull(),
+  reason: text("reason").notNull(),
+  loggedBy: uuid("logged_by").references(() => user.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
