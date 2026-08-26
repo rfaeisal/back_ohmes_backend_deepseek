@@ -35,7 +35,7 @@ Catatan pekerjaan yang belum dikerjakan. Update terakhir: 2026-08-24.
 - [x] WMS Outbound — FG confirm → 2 karton 50/50 READY → lineage batch ✓ (27 Agu 2026; sekalian fix: UI isi pack + model pack_qty migrasi 0019)
 - [x] Dispatch — order → dispatch → dokumen → download PDF ✓ (27 Agu 2026; sekalian redesign surat jalan resmi)
 - [ ] Transfer antar pabrik TSG + Retur supplier TSG (dokumen Berita Acara cetak)
-- [ ] Mobile app E2E di produksi (shift asli → push FCM otomatis)
+- [~] Mobile app E2E di produksi — S9 smoke-test PASS + nama aktor tampil benar (konfirmasi tim mobile, 27 Agu 2026). Tinggal verifikasi natural: shift asli di produksi → push FCM otomatis ke PM (terjadi dengan sendirinya saat pabrik beroperasi; trigger sudah terverifikasi lokal + push prod teruji).
 
 ---
 
