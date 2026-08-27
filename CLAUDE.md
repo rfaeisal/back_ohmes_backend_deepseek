@@ -29,6 +29,11 @@ Proyek MES + WMS Hummer — **Fase 0–6 Complete** (Agustus 2026).
 - ✅ Model pack_qty di carton_content (migrasi 0019): karton diisi JUMLAH pack dari batch (bukan 1 batch utuh), validasi CARTON_FULL + PACK_INSUFFICIENT, UI "➕ Isi Pack" di gudang outbound
 - ✅ Dokumen PDF murni: surat jalan dispatch resmi (kop + tabel boxed + 3 tanda tangan) + Berita Acara Serah Terima/Retur via `berita-acara-pdf.service.ts` (bukan halaman HTML + print)
 - ✅ Semua testing E2E lokal tuntas (produksi→approval→area→HQ, HLP, gudang inbound, outbound, dispatch, transfer/retur) — lihat TODO.md
+- ✅ Suite E2E Playwright resmi (27 Agu 2026): 9 spec `tests/e2e/` rantai bisnis penuh + job CI — lihat seksi E2E di bawah
+- ✅ CI GitHub Actions 5/5 hijau: lint, test (unit+integration), build, security audit, E2E (coverage step non-blocking — threshold aspirasional)
+- ✅ Audit dependency: 24→1 vuln (uuid moderate transitif firebase-admin) — vitest 3.2.7, drizzle-orm 0.45.2, overrides di pnpm-workspace.yaml
+- ✅ 2 bug produksi ditemukan suite E2E & diperbaiki: fgConfirmed (tombol Konfirmasi FG mati setelah approve) + permission hlp.pack GUDANG_OUTBOUND (dialog Isi Pack kosong) — migrasi 0020
+- ⚠️ **Sisa go-live produksi ada di TODO.md seksi "🎯 Sisa — Menuju go-live produksi"** (re-login user, FCM natural, checklist manual)
 - ⚠️ Migrasi manual sampai **0020** (auto-apply entrypoint); dev DB di container `mes_dev_postgres` (port host 5433)
 
 ---
