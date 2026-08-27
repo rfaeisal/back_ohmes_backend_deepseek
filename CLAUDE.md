@@ -35,6 +35,7 @@ Proyek MES + WMS Hummer — **Fase 0–6 Complete** (Agustus 2026).
 
 ## Tech Stack (Wajib)
 
+- **Node ≥ 22** (pnpm 11.5 butuh `node:sqlite` — Node 20 crash ERR_UNKNOWN_BUILTIN_MODULE) · pnpm 11.5.1 (`packageManager` di package.json; CI & Dockerfile harus sinkron)
 - Next.js 15 (App Router) · TypeScript strict · Drizzle ORM · PostgreSQL 16
 - Tailwind CSS + Shadcn/UI (custom wrapper) + Lucide icons
 - JWT auth (jose) + bcrypt · Zod validation
