@@ -14,8 +14,9 @@ env:
   NODE_VERSION: "20"
   # Wajib sinkron dengan pnpm lokal & Dockerfile — lockfile ditulis pnpm 11
   # (pnpm-workspace.yaml pakai allowBuilds/minimumReleaseAge), pnpm 9 menolak
-  # frozen-lockfile hasil pnpm 11
-  PNPM_VERSION: "11"
+  # frozen-lockfile hasil pnpm 11. Versi EKSAK — action-setup gagal
+  # resolve "11" polos (lookup dist-tag)
+  PNPM_VERSION: "11.5.1"
 
 jobs:
   # ============================================================
@@ -26,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v3
         with:
           version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
@@ -68,7 +69,7 @@ jobs:
       NEXT_PUBLIC_BASE_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v3
         with:
           version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
@@ -90,7 +91,7 @@ jobs:
     needs: [lint]
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v3
         with:
           version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
@@ -113,7 +114,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v3
         with:
           version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
@@ -154,7 +155,7 @@ jobs:
       E2E_DB_MAINTENANCE_DSN: postgres://mes_user:mes_pass@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v3
         with:
           version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
