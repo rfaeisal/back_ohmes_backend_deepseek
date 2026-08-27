@@ -277,6 +277,8 @@ async function seed() {
     GUDANG_OUTBOUND: [
       "finishedgoods.receive", "finishedgoods.dispute", "finishedgoods.view",
       "cartoning.create", "cartoning.add_pack", "cartoning.close", "cartoning.view",
+      // GET /hlp/packs butuh hlp.pack — wajib untuk dialog "Isi Pack" karton
+      "hlp.pack", "batch.view",
       "shift.view", "dashboard.plant.view",
     ],
     EKSPEDISI: [
