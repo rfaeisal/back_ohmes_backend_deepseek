@@ -30,7 +30,6 @@ export interface AuthContext {
   requestId: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AuthHandler = (...args: any[]) => Promise<NextResponse>;
 
 interface AuthOptions {
@@ -46,7 +45,6 @@ export function withAuth(
   handler: AuthHandler,
   options?: AuthOptions
 ) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return async function (request: Request, ...args: any[]): Promise<NextResponse> {
     const requestId =
       request.headers.get("X-Request-Id") ||

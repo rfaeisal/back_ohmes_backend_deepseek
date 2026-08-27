@@ -15,7 +15,6 @@ import { POST as sjVoidPost } from "@/app/api/v1/supplier-sj/labels/[boxCode]/vo
 import { POST as receivingFromSjPost } from "@/app/api/v1/tsg-receiving/from-sj/route";
 import { POST as receivingApprovePost } from "@/app/api/v1/tsg-receiving/[id]/approve/route";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type RouteHandler = (...args: any[]) => Promise<NextResponse>;
 
 interface RouteEntry {

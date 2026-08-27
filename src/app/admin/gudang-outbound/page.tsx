@@ -208,7 +208,7 @@ export default function GudangOutboundPage() {
             </thead>
             <tbody>
               {cartons.length === 0 ? (
-                <tr><td colSpan={6} className="py-6 text-center text-gray-400">Belum ada karton. Klik "Buat Karton Baru".</td></tr>
+                <tr><td colSpan={6} className="py-6 text-center text-gray-400">Belum ada karton. Klik &quot;Buat Karton Baru&quot;.</td></tr>
               ) : cartons.map((c) => (
                 <tr key={c.id} className="border-b border-gray-100">
                   <td className="py-3 font-mono text-sm">{c.code}</td>
