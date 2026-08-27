@@ -75,8 +75,11 @@ run("node scripts/apply-manual-migrations.mjs", {
   DATABASE_MIGRATION_URL: ADMIN_URL,
 });
 
-// Seed idempotent (run-seed.ts memaksa DATABASE_URL = DATABASE_URL_ADMIN)
-run("pnpm db:seed", {
+// Seed idempotent (run-seed.ts memaksa DATABASE_URL = DATABASE_URL_ADMIN).
+// Panggil tsx LANGSUNG, bukan `pnpm db:seed` — script itu pakai
+// `--env-file=.env` yang ERROR kalau file tidak ada (CI tidak punya .env).
+// Sama dengan scripts/entrypoint.sh.
+run("node node_modules/tsx/dist/cli.mjs src/db/run-seed.ts", {
   DATABASE_URL_ADMIN: ADMIN_URL,
   DATABASE_URL: ADMIN_URL,
   SUPERADMIN_DEFAULT_PASSWORD:
