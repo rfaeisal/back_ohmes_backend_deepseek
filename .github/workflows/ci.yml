@@ -127,16 +127,53 @@ jobs:
       # Optional: CodeQL, Snyk, dsb.
 
   # ============================================================
-  # E2E (hanya jalan setelah preview deploy — di workflow terpisah)
+  # E2E (Playwright) — rantai bisnis penuh 9 spec
+  # DB mes_e2e dibuat ulang via scripts/e2e-reset-db.mjs (mode CI:
+  # psql langsung ke service postgres — tanpa docker-in-docker).
+  # webServer Playwright menjalankan next build && next start -p 3100
+  # (distDir .next-e2e), jadi DB harus siap SEBELUM playwright test.
   # ============================================================
-  # e2e:
-  #   name: E2E (Playwright)
-  #   runs-on: ubuntu-latest
-  #   needs: [test, build]
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - run: pnpm install --frozen-lockfile
-  #     - run: pnpm exec playwright install --with-deps
-  #     - run: pnpm test:e2e
-  #       env:
-  #         BASE_URL: ${{ secrets.STAGING_URL }}
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: mes_user
+          POSTGRES_PASSWORD: mes_pass
+          POSTGRES_DB: postgres # maintenance DB untuk DROP/CREATE mes_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U mes_user -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      E2E_DATABASE_URL: postgres://mes_app:mes_app_pass@localhost:5432/mes_e2e
+      E2E_ADMIN_DATABASE_URL: postgres://mes_user:mes_pass@localhost:5432/mes_e2e
+      E2E_DB_MAINTENANCE_DSN: postgres://mes_user:mes_pass@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      # Reset DB mes_e2e: drop → create → migrate → migrasi manual → seed
+      - run: node scripts/e2e-reset-db.mjs
+      # Tanpa script test:e2e penuh — reset DB sudah dijalankan di atas
+      - run: pnpm test:e2e:iterate
+      - name: Upload laporan Playwright (kalau gagal)
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

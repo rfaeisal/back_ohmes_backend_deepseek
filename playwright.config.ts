@@ -9,7 +9,13 @@ import { defineConfig, devices } from "@playwright/test";
 const PORT = 3100;
 const BASE_URL = `http://localhost:${PORT}`;
 const E2E_DB = "mes_e2e";
-const ADMIN_DB_URL = `postgres://mes_user:mes_pass@localhost:5433/${E2E_DB}`;
+// Lokal: postgres dev di host 5433. CI: override lewat env (service postgres 5432)
+const RUNTIME_DB_URL =
+  process.env.E2E_DATABASE_URL ??
+  `postgres://mes_app:mes_app_pass@localhost:5433/${E2E_DB}`;
+const ADMIN_DB_URL =
+  process.env.E2E_ADMIN_DATABASE_URL ??
+  `postgres://mes_user:mes_pass@localhost:5433/${E2E_DB}`;
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -43,7 +49,7 @@ export default defineConfig({
     stdout: "pipe",
     stderr: "pipe",
     env: {
-      DATABASE_URL: `postgres://mes_app:mes_app_pass@localhost:5433/${E2E_DB}`,
+      DATABASE_URL: RUNTIME_DB_URL,
       DATABASE_URL_ADMIN: ADMIN_DB_URL,
       DATABASE_MIGRATION_URL: ADMIN_DB_URL,
       NEXT_DIST_DIR: ".next-e2e",
