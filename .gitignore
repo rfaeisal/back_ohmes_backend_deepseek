@@ -45,3 +45,7 @@ google-services.json
 # Playwright artifacts
 test-results/
 playwright-report/
+
+# E2E: build dir terpisah + state antar spec
+.next-e2e/
+.e2e/

@@ -31,6 +31,7 @@ Catatan pekerjaan yang belum dikerjakan. Update terakhir: 2026-08-24.
 
 ## 🧪 Testing yang belum menyeluruh
 
+- [x] Suite E2E Playwright resmi — 9 spec `tests/e2e/` (smoke login, receiving→approve, shift lifecycle, approval, HLP, outbound, dispatch+PDF, transfer PDF, retur PDF); `pnpm test:e2e` = reset DB `mes_e2e` + build `.next-e2e` + server :3100 (27 Agu 2026)
 - [x] Gudang Inbound — receiving manual tanpa SJ → PENDING → approve PM → inventory dibuat (26 Agu 2026: RCV-20260826-01, 2 boks, inventory 16→18, audit ✓)
 - [x] WMS Outbound — FG confirm → 2 karton 50/50 READY → lineage batch ✓ (27 Agu 2026; sekalian fix: UI isi pack + model pack_qty migrasi 0019)
 - [x] Dispatch — order → dispatch → dokumen → download PDF ✓ (27 Agu 2026; sekalian redesign surat jalan resmi)

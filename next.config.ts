@@ -18,6 +18,9 @@ const cspValue = isProd
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // E2E Playwright pakai distDir terpisah (.next-e2e) supaya build/start
+  // suite tidak menimpa .next milik dev server (lihat CLAUDE.md gotcha #8).
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   typescript: {
     // Type errors from Next.js generated types are non-blocking
     // Run `pnpm typecheck` separately for source-level verification

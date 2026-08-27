@@ -6,6 +6,8 @@ export default defineConfig({
     globals: true,
     environment: "node",
     include: ["tests/**/*.test.ts", "tests/**/*.spec.ts"],
+    // Spec Playwright (.e2e.spec.ts) bukan milik Vitest
+    exclude: ["tests/e2e/**"],
     // Set env vars for tests
     env: {
       DATABASE_URL: "postgres://test:test@localhost:5432/test",

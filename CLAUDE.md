@@ -29,7 +29,7 @@ Proyek MES + WMS Hummer — **Fase 0–6 Complete** (Agustus 2026).
 - ✅ Model pack_qty di carton_content (migrasi 0019): karton diisi JUMLAH pack dari batch (bukan 1 batch utuh), validasi CARTON_FULL + PACK_INSUFFICIENT, UI "➕ Isi Pack" di gudang outbound
 - ✅ Dokumen PDF murni: surat jalan dispatch resmi (kop + tabel boxed + 3 tanda tangan) + Berita Acara Serah Terima/Retur via `berita-acara-pdf.service.ts` (bukan halaman HTML + print)
 - ✅ Semua testing E2E lokal tuntas (produksi→approval→area→HQ, HLP, gudang inbound, outbound, dispatch, transfer/retur) — lihat TODO.md
-- ⚠️ Migrasi manual sampai **0019** (auto-apply entrypoint); dev DB di container `mes_dev_postgres` (port host 5433)
+- ⚠️ Migrasi manual sampai **0020** (auto-apply entrypoint); dev DB di container `mes_dev_postgres` (port host 5433)
 
 ---
 
@@ -111,7 +111,7 @@ src/
 5. **Next.js fetch cache** — tambah `cache: "no-store"` + `_t=Date.now()` untuk client fetch
 6. **Print CSS** — `print-color-adjust: exact` agar warna tetap muncul
 7. **Admin layout** — ada auth guard (`useEffect` cek token, redirect `/tablet/login`)
-8. **Jangan `pnpm build` saat dev server jalan** — `.next` dipakai bersama; build menimpa state dev → MODULE_NOT_FOUND / UI rusak (tombol disabled). Fix: matikan dev → `rm -rf .next` → `pnpm dev` ulang
+8. **Jangan `pnpm build` saat dev server jalan** — `.next` dipakai bersama; build menimpa state dev → MODULE_NOT_FOUND / UI rusak (tombol disabled). Fix: matikan dev → `rm -rf .next` → `pnpm dev` ulang. ⚠️ **Pengecualian**: `pnpm test:e2e` AMAN dijalankan saat dev jalan — suite pakai `NEXT_DIST_DIR=.next-e2e` (lihat seksi E2E di bawah)
 9. **Migrasi manual di luar journal drizzle** — dulu wajib apply manual via psql. **Sekarang otomatis**: entrypoint container panggil `scripts/apply-manual-migrations.mjs` setelah `drizzle-kit migrate`, jalankan semua `.sql` di `src/db/migrations/` yang tidak ada di `_journal.json`. Syarat: file wajib idempotent (`IF NOT EXISTS`, `OR REPLACE`) karena di-run setiap deploy. ⚠️ **`ALTER TYPE ... ADD VALUE` TIDAK boleh di file multi-statement** — script mengeksekusi tiap file dalam satu batch (implicit transaction) → error `check_safe_enum_use`. Taruh di file terpisah berisi SATU statement (lihat migrasi 0016 vs 0017)
 10. **RLS aktif via role `mes_app`** (migrasi 0008, non-superuser). `DATABASE_URL` = runtime (mes_app), `DATABASE_URL_ADMIN` = superuser untuk drizzle-kit & seed. Jangan ganti DATABASE_URL ke role superuser/owner — RLS mati lagi. Seed pakai `pnpm db:seed*` (wrapper run-seed*.ts, otomatis pakai URL admin). Script tsx TIDAK memuat `.env` — `set -a; source .env` dulu kalau dipanggil langsung. ⚠️ Kalau tes RLS lewat script manual, format setting-nya array: `set_config('app.current_plant_ids', '{uuid1,uuid2}', false)`
 11. **Drizzle subquery ter-korelasi di SELECT list** — `${kolom}` di dalam `sql\`...\`` di-render sebagai nama kolom TELANJANG (`"id"`) yang resolve ke tabel INNER, bukan outer → hasil selalu 0/salah. Tulis literal nama tabel: `WHERE cc.carton_id = "carton"."id"`. Lihat contoh di `cartons/route.ts` dan `hlp/packs/route.ts`.
@@ -130,3 +130,22 @@ pnpm install && pnpm db:migrate && pnpm db:seed
 pnpm seed:superadmin --username admin --email admin@hummer.example
 pnpm dev  # → http://localhost:3001
 ```
+
+---
+
+## E2E (Playwright)
+
+Suite UI-driven rantai bisnis penuh di `tests/e2e/` (9 spec, `00_`–`08_`). Jalankan dengan:
+
+```bash
+pnpm test:e2e          # full: reset DB mes_e2e → build (.next-e2e) → server :3100 → 9 spec
+pnpm test:e2e:headed   # sama, browser terlihat
+pnpm test:e2e:iterate  # tanpa reset DB (syarat: DB + build .next-e2e sudah ada)
+```
+
+- **DB**: `mes_e2e` di container `mes_dev_postgres` (host 5433), dibuat ulang tiap run oleh `scripts/e2e-reset-db.mjs` (drop → create → drizzle migrate → migrasi manual 0013–0019 → seed). DB dev `mes_dev` tidak tersentuh.
+- **Server**: `next build && next start -p 3100` dengan `NEXT_DIST_DIR=.next-e2e` (distDir env di `next.config.ts`) — AMAN dijalankan paralel dengan `pnpm dev` (gotcha #8). Jangan pakai port 3100 untuk server lain (`reuseExistingServer` akan me-reuse-nya). Escape hatch: `E2E_SKIP_BUILD=1` (skip build), `E2E_SKIP_RESET=1` (skip reset DB).
+- **Chain antar spec**: `workers: 1`, state lewat `.e2e/e2e-state.json` (gitignored; dihapus reset script). `shiftId`+`batchCode` dari 02 (pivot), `packsLolos` dari 04, `cartonCode` dari 05. Spec downstream `skip` kalau state prasyarat tidak ada — selalu jalankan full suite untuk determinisme.
+- **Login**: API `POST /api/v1/auth/login` (`deviceType: "WEB"`) + inject token (fixture `login`). Tanpa logout (revoke semua sesi user). Rate limit middleware (100 req/menit per path per proses) aman karena server fresh tiap run.
+- **PDF**: asersi via `waitForResponse` pada route API dokumen (bukan buka tab print).
+- Laporan HTML gagal: `playwright-report/`; trace/screenshot/video: `test-results/` (keduanya gitignored).
