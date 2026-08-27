@@ -148,4 +148,5 @@ pnpm test:e2e:iterate  # tanpa reset DB (syarat: DB + build .next-e2e sudah ada)
 - **Chain antar spec**: `workers: 1`, state lewat `.e2e/e2e-state.json` (gitignored; dihapus reset script). `shiftId`+`batchCode` dari 02 (pivot), `packsLolos` dari 04, `cartonCode` dari 05. Spec downstream `skip` kalau state prasyarat tidak ada — selalu jalankan full suite untuk determinisme.
 - **Login**: API `POST /api/v1/auth/login` (`deviceType: "WEB"`) + inject token (fixture `login`). Tanpa logout (revoke semua sesi user). Rate limit middleware (100 req/menit per path per proses) aman karena server fresh tiap run.
 - **PDF**: asersi via `waitForResponse` pada route API dokumen (bukan buka tab print).
+- **CI**: job `e2e` di `.github/workflows/ci.yml` jalan otomatis tiap push/PR — service postgres:16 + reset DB mode psql (`E2E_DB_MAINTENANCE_DSN`) + `pnpm test:e2e:iterate`; laporan Playwright ter-upload kalau gagal.
 - Laporan HTML gagal: `playwright-report/`; trace/screenshot/video: `test-results/` (keduanya gitignored).
