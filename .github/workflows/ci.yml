@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: "22"
   # Wajib sinkron dengan pnpm lokal & Dockerfile — lockfile ditulis pnpm 11
   # (pnpm-workspace.yaml pakai allowBuilds/minimumReleaseAge), pnpm 9 menolak
   # frozen-lockfile hasil pnpm 11. Versi EKSAK — action-setup gagal
