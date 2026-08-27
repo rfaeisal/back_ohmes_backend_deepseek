@@ -675,13 +675,21 @@ export async function listShifts(params: {
   }
 
   // FG sudah dikonfirmasi? (untuk sembunyikan tombol Konfirmasi FG)
+  // ⚠️ Jangan pakai keberadaan baris — autoCreateFinishedGoods membuat baris
+  // PENDING saat shift di-approve, yang justru MEMBUTUHKAN konfirmasi FG.
+  // Tombol hanya hilang kalau status sudah terminal (CONFIRMED / DISPUTED).
   if (shifts.length > 0) {
     const shiftIds = shifts.map((s) => s.id);
     const fgRows = await db
-      .select({ shiftReportId: finishedGoodsReceiving.shiftReportId })
+      .select({
+        shiftReportId: finishedGoodsReceiving.shiftReportId,
+        status: finishedGoodsReceiving.status,
+      })
       .from(finishedGoodsReceiving)
       .where(inArray(finishedGoodsReceiving.shiftReportId, shiftIds));
-    const fgSet = new Set(fgRows.map((r) => r.shiftReportId));
+    const fgSet = new Set(
+      fgRows.filter((r) => r.status !== "PENDING").map((r) => r.shiftReportId)
+    );
     for (const s of shifts) {
       (s as any).fgConfirmed = fgSet.has(s.id);
     }
