@@ -1,6 +1,30 @@
 # TODO — MES + WMS Hummer
 
-Catatan pekerjaan yang belum dikerjakan. Update terakhir: 2026-08-24.
+Catatan pekerjaan yang belum dikerjakan. Update terakhir: 2026-08-27.
+
+---
+
+## 🎯 Sisa — Menuju go-live produksi
+
+Kode & testing teknis SELESAI (CI 5/5 hijau: lint, test, build, audit, E2E 9 spec).
+Yang tersisa hanya verifikasi lapangan — tidak bisa dikerjakan dari laptop:
+
+1. **Re-login semua user produksi** (setelah deploy 27 Agu) — permission `hlp.pack`
+   untuk GUDANG_OUTBOUND masuk JWT saat login; sesi lama belum punya sampai login ulang.
+2. **Verifikasi natural FCM** (lihat item [~] di seksi Testing) — amati satu siklus
+   shift asli: shift COMPLETED → HP PM dapat notifikasi push.
+3. **Checklist manual produksi** (docs/15-testing-strategy.md §9.1):
+   - [ ] Operator asli (bukan dev) jalankan full shift di tablet pilot
+   - [ ] Supervisor pabrik approve → data masuk rollup dashboard
+   - [ ] Handoff antar 2 shift berurutan bersih
+   - [ ] Staff gudang inbound terima 20 boks TSG < 10 menit
+   - [ ] SUPERADMIN revoke sesi mobile → user bisa login di device baru
+4. **Ditunda secara sadar** (bukan blocker):
+   - Coverage threshold vitest (80%) belum tercapai (~1% line; service layer 0%)
+     — step CI non-blocking, angka tetap terlihat di log. Enforcement diaktifkan
+     lagi setelah ada effort test service-layer.
+   - 1 vulnerability moderate: `uuid` (transitif firebase-admin) — override ke v11
+     berisiko (ESM-only), tidak menggagalkan CI (`--audit-level=high`).
 
 ---
 
@@ -52,5 +76,7 @@ Catatan pekerjaan yang belum dikerjakan. Update terakhir: 2026-08-24.
 ## 📋 Catatan
 
 - Reset data produksi dev: bilang "kosongkan produksi" (prosedur tersimpan)
-- Jangan `pnpm build` saat dev server jalan (`.next` konflik)
+- Jangan `pnpm build` saat dev server jalan (`.next` konflik) — kecuali `pnpm test:e2e` (distDir `.next-e2e`, aman)
+- Toolchain wajib sinkron: **Node ≥ 22 + pnpm 11.5.1** (pnpm 11 crash `node:sqlite` di Node 20; pnpm 9 tolak lockfile pnpm 11). Ada `packageManager` di package.json + `engines`.
+- CI GitHub Actions 5/5 hijau (lint, test, build, audit, e2e) — E2E = 9 spec rantai bisnis penuh
 - Perubahan kontrak API/TLS/domain wajib koordinasi tim mobile (BACKEND_HANDOFF.md §9–14)
