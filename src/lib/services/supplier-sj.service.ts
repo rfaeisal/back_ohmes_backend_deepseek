@@ -259,11 +259,9 @@ export async function weighSupplierSjBox(input: WeighSjBoxInput) {
   if (!box) {
     throw new ServiceError("LABEL_NOT_FOUND", "Label tidak ditemukan.");
   }
-  // Isolasi pool label di level kode — role DB saat ini superuser (RLS bypass),
-  // jadi label pool milik petugas lain harus diperlakukan tidak ada.
-  if (box.supplierSjId == null && box.createdBy !== input.actorUserId) {
-    throw new ServiceError("LABEL_NOT_FOUND", "Label tidak ditemukan.");
-  }
+  // Pool = inventaris bersama area office (migrasi 0010, SOP §3.2) — label
+  // pool cetakan petugas lain boleh di-assign. Scope di-enforce RLS
+  // p_sjb_update, bukan filter createdBy di level aplikasi.
   if (box.labelStatus === "VOID") {
     throw new ServiceError("LABEL_VOIDED", `Label ${box.boxCode} sudah ditandai hilang/rusak.`);
   }

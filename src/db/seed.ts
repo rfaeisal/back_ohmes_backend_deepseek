@@ -216,6 +216,9 @@ async function seed() {
       "report.export_operational", "audit.read",
       "tsg.inventory.view", "tsg.receiving.view",
       "supplier.sj.create", "supplier.sj.view", "supplier.sj.label",
+      // Koordinator area mencetak pool label di office (web) — produksi sudah
+      // meng-grant ini; seed disinkronkan supaya dev/E2E sama dengan produksi.
+      "supplier.sj.pool",
     ],
     AREA_SJ_OFFICER: [
       "supplier.sj.create", "supplier.sj.view", "supplier.sj.label", "supplier.sj.pool",
