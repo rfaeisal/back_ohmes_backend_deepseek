@@ -45,6 +45,11 @@ export const GET = withAuth(
         approvedBy: tsgReceiving.approvedBy,
         approvedByName: sql<string>`(SELECT u.full_name FROM "user" u WHERE u.id = ${tsgReceiving.approvedBy})`.mapWith(String),
         approvedAt: tsgReceiving.approvedAt,
+        // Tolak approval + catatan (request tim mobile)
+        rejectionReason: tsgReceiving.rejectionReason,
+        rejectedBy: tsgReceiving.rejectedBy,
+        rejectedByName: sql<string>`(SELECT u.full_name FROM "user" u WHERE u.id = ${tsgReceiving.rejectedBy})`.mapWith(String),
+        rejectedAt: tsgReceiving.rejectedAt,
         notes: tsgReceiving.notes,
         createdAt: tsgReceiving.createdAt,
       })

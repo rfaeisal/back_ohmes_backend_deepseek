@@ -257,6 +257,8 @@ async function seed() {
       "hlp.pack", "batch.view",
       "dashboard.plant.view", "audit.read",
       "tsg.inventory.view", "tsg.receiving.view",
+      // Approver cadangan receiving manual — terima push notifikasi FCM juga
+      "tsg.receiving.approve",
     ],
     OPERATOR_KECER: [
       "shift.start", "shift.member.assign", "shift.box.open", "shift.box.weigh",

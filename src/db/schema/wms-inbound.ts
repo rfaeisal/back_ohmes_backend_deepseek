@@ -59,9 +59,13 @@ export const tsgReceiving = pgTable(
     }).notNull(),
     supplierDocRef: text("supplier_doc_ref"), // nomor surat jalan supplier
     source: text("source").notNull().default("MANUAL"), // MANUAL | SJ
-    approvalStatus: text("approval_status").notNull().default("APPROVED"), // PENDING | APPROVED (manual tanpa SJ wajib approve)
+    approvalStatus: text("approval_status").notNull().default("APPROVED"), // PENDING | APPROVED | REJECTED (manual tanpa SJ wajib approve)
     approvedBy: uuid("approved_by").references(() => user.id),
     approvedAt: timestamp("approved_at"),
+    // Penolakan approval (mobile minta tolak + catatan) — diisi saat status REJECTED
+    rejectionReason: text("rejection_reason"),
+    rejectedBy: uuid("rejected_by").references(() => user.id),
+    rejectedAt: timestamp("rejected_at"),
     notes: text("notes"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     deletedAt: timestamp("deleted_at"),

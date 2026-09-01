@@ -174,7 +174,10 @@ export async function approveReceiving(
     throw new ServiceError("RECEIVING_WRONG_PLANT", "Receiving bukan untuk plant ini.");
   }
   if (receiving.approvalStatus !== "PENDING") {
-    throw new ServiceError("RECEIVING_ALREADY_APPROVED", "Receiving sudah di-approve.");
+    throw new ServiceError(
+      receiving.approvalStatus === "REJECTED" ? "RECEIVING_REJECTED" : "RECEIVING_ALREADY_APPROVED",
+      receiving.approvalStatus === "REJECTED" ? "Receiving sudah ditolak." : "Receiving sudah di-approve."
+    );
   }
 
   const boxes = await db
@@ -208,6 +211,67 @@ export async function approveReceiving(
   });
 
   return { receivingId, approvalStatus: "APPROVED", inventoryCreated: count };
+}
+
+// =============================================================================
+// Reject Receiving — tolak approval receiving manual + catatan (request mobile)
+// =============================================================================
+// Status REJECTED tidak membuat inventory; boks tetap tercatat di receiving
+// (tidak masuk stok). Gudang bisa merevisi dengan receiving baru.
+
+export async function rejectReceiving(
+  receivingId: string,
+  plantId: string,
+  actorUserId: string,
+  reason: string
+) {
+  const [receiving] = await db
+    .select()
+    .from(tsgReceiving)
+    .where(eq(tsgReceiving.id, receivingId))
+    .limit(1);
+
+  if (!receiving) throw new ServiceError("RECEIVING_NOT_FOUND", "Receiving tidak ditemukan.");
+  if (receiving.plantId !== plantId) {
+    throw new ServiceError("RECEIVING_WRONG_PLANT", "Receiving bukan untuk plant ini.");
+  }
+  if (receiving.approvalStatus !== "PENDING") {
+    throw new ServiceError(
+      receiving.approvalStatus === "REJECTED" ? "RECEIVING_REJECTED" : "RECEIVING_ALREADY_APPROVED",
+      receiving.approvalStatus === "REJECTED" ? "Receiving sudah ditolak." : "Receiving sudah di-approve."
+    );
+  }
+  const trimmed = reason?.trim() ?? "";
+  if (trimmed.length < 3) {
+    throw new ServiceError("REJECT_REASON_REQUIRED", "Catatan penolakan wajib diisi (min 3 karakter).");
+  }
+
+  const [updated] = await db
+    .update(tsgReceiving)
+    .set({
+      approvalStatus: "REJECTED",
+      rejectionReason: trimmed,
+      rejectedBy: actorUserId,
+      rejectedAt: new Date(),
+    })
+    .where(eq(tsgReceiving.id, receivingId))
+    .returning({ id: tsgReceiving.id, receivingCode: tsgReceiving.receivingCode });
+
+  await writeAudit({
+    actorUserId,
+    action: "tsg.receiving.reject",
+    entityTable: "tsg_receiving",
+    entityId: receivingId,
+    before: { approvalStatus: "PENDING" },
+    after: { approvalStatus: "REJECTED", rejectionReason: trimmed },
+  });
+
+  return {
+    receivingId,
+    receivingCode: updated?.receivingCode,
+    approvalStatus: "REJECTED",
+    rejectionReason: trimmed,
+  };
 }
 
 // =============================================================================

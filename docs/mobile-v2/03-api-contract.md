@@ -626,7 +626,29 @@ Response 200:
 
 Error:
 - `403 NO_PLANT_SCOPE`
-- `409` code ServiceError: `RECEIVING_NOT_FOUND`, `RECEIVING_WRONG_PLANT`, `RECEIVING_ALREADY_APPROVED`
+- `409` code ServiceError: `RECEIVING_NOT_FOUND`, `RECEIVING_WRONG_PLANT`, `RECEIVING_ALREADY_APPROVED`, `RECEIVING_REJECTED` (sudah ditolak — tidak bisa di-approve)
+- `500 INTERNAL_ERROR`
+
+### `POST /api/v1/tsg-receiving/[id]/reject`
+**Permission**: `tsg.receiving.approve` · **DeviceType**: MOBILE/WEB — tolak receiving manual PENDING + catatan.
+
+Body:
+```json
+{ "reason": "Berat boks tidak sesuai surat jalan" }
+```
+
+Response 200:
+```json
+{ "receivingId": "uuid", "receivingCode": "RCV-20260901-01", "approvalStatus": "REJECTED", "rejectionReason": "Berat boks tidak sesuai surat jalan" }
+```
+
+- Status `REJECTED` tidak membuat inventory — boks tidak masuk stok.
+- Detail receiving kini memuat `rejectionReason`, `rejectedBy`, `rejectedByName`, `rejectedAt`; list memuat `rejectionReason` + `rejectedAt` (additive, tidak breaking).
+- Approver: PLANT_MANAGER **dan SHIFT_SUPERVISOR** (grant baru — supervisor terima push notifikasi juga).
+
+Error:
+- `400 VALIDATION_ERROR` (reason < 3 karakter) · `403 NO_PLANT_SCOPE`
+- `409` code ServiceError: `RECEIVING_NOT_FOUND`, `RECEIVING_WRONG_PLANT`, `RECEIVING_ALREADY_APPROVED`, `RECEIVING_REJECTED`, `REJECT_REASON_REQUIRED`
 - `500 INTERNAL_ERROR`
 
 ### `GET /api/v1/tsg-inventory/available`

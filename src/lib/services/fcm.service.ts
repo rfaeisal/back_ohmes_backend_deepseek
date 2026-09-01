@@ -96,6 +96,24 @@ export async function getPlantManagerUserIds(plantId: string): Promise<string[]>
   return [...new Set(rows.map((r) => r.userId))];
 }
 
+// Shift Supervisor yang punya assignment PLANT aktif di plant tsb
+export async function getSupervisorUserIds(plantId: string): Promise<string[]> {
+  const rows = await db
+    .select({ userId: userAssignment.userId })
+    .from(userAssignment)
+    .innerJoin(role, eq(userAssignment.roleId, role.id))
+    .where(
+      and(
+        eq(userAssignment.scopeType, "PLANT"),
+        eq(userAssignment.scopeId, plantId),
+        eq(role.code, "SHIFT_SUPERVISOR"),
+        isNull(userAssignment.revokedAt)
+      )
+    );
+
+  return [...new Set(rows.map((r) => r.userId))];
+}
+
 // =============================================================================
 // Send
 // =============================================================================
@@ -178,7 +196,8 @@ export async function notifyShiftCompleted(shift: {
   }
 }
 
-// Receiving status → PENDING (manual tanpa SJ): Plant Manager plant tsb
+// Receiving status → PENDING (manual tanpa SJ): Plant Manager + Shift
+// Supervisor plant tsb (keduanya pemegang tsg.receiving.approve)
 export async function notifyReceivingPending(receiving: {
   receivingId: string;
   plantId: string;
@@ -186,7 +205,11 @@ export async function notifyReceivingPending(receiving: {
   boxCount: number;
 }): Promise<void> {
   try {
-    const userIds = await getPlantManagerUserIds(receiving.plantId);
+    const [pmIds, supervisorIds] = await Promise.all([
+      getPlantManagerUserIds(receiving.plantId),
+      getSupervisorUserIds(receiving.plantId),
+    ]);
+    const userIds = [...new Set([...pmIds, ...supervisorIds])];
     if (userIds.length === 0) return;
 
     await sendPushToUsers(userIds, {

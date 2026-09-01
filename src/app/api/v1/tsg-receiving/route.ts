@@ -89,6 +89,8 @@ export const GET = withAuth(async (request: Request, ctx: AuthContext) => {
       supplierDocRef: tsgReceiving.supplierDocRef,
       source: tsgReceiving.source,
       approvalStatus: tsgReceiving.approvalStatus,
+      rejectionReason: tsgReceiving.rejectionReason,
+      rejectedAt: tsgReceiving.rejectedAt,
       notes: tsgReceiving.notes,
       supplierName: tsgSupplier.name,
       supplierCode: tsgSupplier.code,
