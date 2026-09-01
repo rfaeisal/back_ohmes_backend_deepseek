@@ -211,7 +211,7 @@ TODO #6 disupersede oleh desain ini.
 ## 7. Pertanyaan tertunda (dijawab sebelum eksekusi)
 
 1. Packing/input tanpa sesi OPEN — boleh standalone (rekomendasi saya) atau wajib buka sesi?
-2. Angka idle untuk auto-tutup sesi (X jam).
+2. ~~Angka idle untuk auto-tutup sesi (X jam).~~ **DIJAWAB: 6 jam** (env `HLP_SHIFT_IDLE_HOURS`, sudah diimplementasikan di instrumentation — tahap 2).
 3. Permission role operator HLP untuk input material/downtime/sparepart dari tablet.
 4. Koreksi data historis reject pack — wajib atau tidak.
 

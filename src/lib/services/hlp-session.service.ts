@@ -6,7 +6,7 @@
 // sesi hanya dimensi akuntabilitas (siapa bertugas kapan).
 // =============================================================================
 
-import { eq, and, isNull, desc } from "drizzle-orm";
+import { eq, and, isNull, desc, lt } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import db from "@/db";
 import { hlpShift, hlpShiftMember } from "@/db/schema";
@@ -136,6 +136,53 @@ export async function closeHlpShift(shiftId: string, endedBy: string) {
   });
 
   return { hlpShiftId: shiftId, status: "CLOSED", endedAt: updated!.endedAt };
+}
+
+// =============================================================================
+// Auto-tutup sesi idle (docs/23 §2.1) — dipanggil dari instrumentation
+// =============================================================================
+// Sesi OPEN yang tidak punya packing dalam X jam (atau belum pernah packing
+// dan dibuka lebih dari X jam lalu) ditutup otomatis — tablet dimatikan /
+// lupa tutup tidak meninggalkan sesi hantu. Ditutup sistem (ended_by NULL).
+// Angka idle masih asumsi (open question §7.2) — env HLP_SHIFT_IDLE_HOURS.
+
+export async function closeIdleHlpShifts(idleHours = 6): Promise<number> {
+  const cutoff = new Date(Date.now() - idleHours * 3600 * 1000);
+
+  const openShifts = await db
+    .select({ id: hlpShift.id })
+    .from(hlpShift)
+    .where(
+      and(
+        eq(hlpShift.status, "OPEN"),
+        isNull(hlpShift.deletedAt),
+        lt(hlpShift.startedAt, cutoff)
+      )
+    );
+
+  let closed = 0;
+  for (const s of openShifts) {
+    // Masih dianggap aktif kalau ada packing setelah cutoff
+    const [last] = await db
+      .select({ packedAt: hlpPack.packedAt })
+      .from(hlpPack)
+      .where(eq(hlpPack.hlpShiftId, s.id))
+      .orderBy(desc(hlpPack.packedAt))
+      .limit(1);
+    if (last && last.packedAt >= cutoff) continue;
+
+    await db
+      .update(hlpShift)
+      .set({ status: "CLOSED", endedAt: new Date(), endedBy: null })
+      .where(eq(hlpShift.id, s.id));
+    await db
+      .update(hlpShiftMember)
+      .set({ leftAt: new Date() })
+      .where(and(eq(hlpShiftMember.hlpShiftId, s.id), isNull(hlpShiftMember.leftAt)));
+    closed++;
+  }
+
+  return closed;
 }
 
 // =============================================================================

@@ -2,7 +2,7 @@
 // Box Service — Business Logic Boks TSG & Production Events
 // =============================================================================
 
-import { eq, and, isNull, sql, inArray } from "drizzle-orm";
+import { eq, and, isNull, sql, inArray, desc } from "drizzle-orm";
 import db from "@/db";
 import {
   shiftReport,
@@ -789,4 +789,63 @@ export async function hlpPackInput(input: HlpPackInput) {
   }
 
   return { ...pack, beratPerBatangGram };
+}
+
+// =============================================================================
+// Sisa Batch — ringkasan konteks pekerjaan saat ganti kru / tutup sesi
+// (docs/23 §2.4). Kalkulasi server-side (konvensi #5).
+// =============================================================================
+
+export async function getBatchSisaSummary(batchId: string) {
+  const [b] = await db
+    .select({ id: batch.id, code: batch.code, batanganKg: batch.batanganKg })
+    .from(batch)
+    .where(eq(batch.id, batchId))
+    .limit(1);
+  if (!b) throw new ServiceError("BATCH_NOT_FOUND", "Batch tidak ditemukan.");
+
+  const aggRows = await db
+    .select({
+      totalBatangPakai: sql<number>`COALESCE(SUM(${hlpPack.totalBatang}), 0)::int`.mapWith(Number),
+      packsLolos: sql<number>`COALESCE(SUM(${hlpPack.packsLolos}), 0)::int`.mapWith(Number),
+      rejectPacks: sql<number>`COALESCE(SUM(${hlpPack.rejectPacks}), 0)::int`.mapWith(Number),
+      rejectBatangan: sql<number>`COALESCE(SUM(${hlpPack.rejectBatangan}), 0)::int`.mapWith(Number),
+    })
+    .from(hlpPack)
+    .where(eq(hlpPack.batchId, batchId));
+  const agg = aggRows[0] ?? { totalBatangPakai: 0, packsLolos: 0, rejectPacks: 0, rejectBatangan: 0 };
+
+  const [lastPack] = await db
+    .select({ beratPerBatangGram: hlpPack.beratPerBatangGram })
+    .from(hlpPack)
+    .where(eq(hlpPack.batchId, batchId))
+    .orderBy(desc(hlpPack.packedAt))
+    .limit(1);
+
+  const beratPerBatang = lastPack?.beratPerBatangGram != null ? Number(lastPack.beratPerBatangGram) : null;
+  const batanganKg = Number(b.batanganKg);
+  const kgPakai = beratPerBatang != null
+    ? Math.round((agg.totalBatangPakai * beratPerBatang) / 1000 * 100) / 100
+    : null;
+  // Sisa estimasi dari berat/batang terakhir — presisi mengikuti entry paling baru
+  const sisaBatangEst = beratPerBatang != null
+    ? Math.max(0, Math.round((batanganKg * 1000) / beratPerBatang) - agg.totalBatangPakai)
+    : null;
+  const sisaKgEst = beratPerBatang != null
+    ? Math.max(0, Math.round((batanganKg - kgPakai!) * 100) / 100)
+    : null;
+
+  return {
+    batchId,
+    code: b.code,
+    batanganKg,
+    packsLolos: agg.packsLolos,
+    rejectPacks: agg.rejectPacks,
+    rejectBatangan: agg.rejectBatangan,
+    totalBatangPakai: agg.totalBatangPakai,
+    beratPerBatangGramTerakhir: beratPerBatang,
+    kgPakai,
+    sisaBatangEst,
+    sisaKgEst,
+  };
 }

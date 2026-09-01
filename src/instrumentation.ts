@@ -9,6 +9,7 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     const { cleanupExpiredSessions } = await import("@/lib/auth");
+    const { closeIdleHlpShifts } = await import("@/lib/services/hlp-session.service");
 
     const run = async () => {
       try {
@@ -21,8 +22,24 @@ export async function register() {
       }
     };
 
-    // Jalankan saat boot, lalu ulangi tiap 24 jam
+    // Sesi HLP idle (docs/23 §2.1): tutup otomatis — angka idle env,
+    // default 6 jam (open question §7.2)
+    const runHlpIdle = async () => {
+      try {
+        const idleHours = parseInt(process.env.HLP_SHIFT_IDLE_HOURS || "6", 10);
+        const closed = await closeIdleHlpShifts(idleHours);
+        if (closed > 0) {
+          console.log(`[hlp-session] ${closed} sesi HLP idle >${idleHours} jam di-tutup otomatis.`);
+        }
+      } catch (err) {
+        console.error("[hlp-session] auto-tutup idle gagal:", err);
+      }
+    };
+
+    // Jalankan saat boot, lalu ulangi berkala (sesi 24 jam, HLP idle tiap jam)
     await run();
+    await runHlpIdle();
     setInterval(() => { void run(); }, 24 * 60 * 60 * 1000);
+    setInterval(() => { void runHlpIdle(); }, 60 * 60 * 1000);
   }
 }
