@@ -17,7 +17,7 @@ import { plant } from "./tenancy";
 import { user } from "./identity";
 
 // Enums akan digunakan di schema ini — didefinisikan di sini untuk circular ref avoidance
-export const machineTypeEnum = pgEnum("machine_type", ["MAKER", "HLP"]);
+export const machineTypeEnum = pgEnum("machine_type", ["MAKER", "HLP", "WR", "SLOP", "BAL"]);
 export const downtimeCategoryEnum = pgEnum("downtime_category", [
   "GANTI_MATERIAL",
   "KENDALA_MESIN",

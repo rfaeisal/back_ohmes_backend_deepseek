@@ -5,6 +5,7 @@ import {
   timestamp,
   integer,
   decimal,
+  numeric,
   boolean,
   unique,
   index,
@@ -171,6 +172,8 @@ export const batch = pgTable("batch", {
   // INTERNAL (dari MAKER) | EXTERNAL (makloon — docs/24)
   source: text("source").notNull().default("INTERNAL"),
   externalReceivingId: uuid("external_receiving_id"),
+  // Progress rantai produksi (docs/25): PACKED | WRAPPED | SLOPPED | BALED
+  stage: text("stage").notNull().default("PACKED"),
   code: text("code").notNull().unique(), // 'btc_MKR01_20260810_03' | 'btx_...'
   batanganKg: decimal("batangan_kg", { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -234,5 +237,42 @@ export const shiftConsumption = pgTable(
   },
   (t) => ({
     idxShift: index("idx_shift_cons_shift").on(t.shiftReportId),
+  })
+);
+
+// =============================================================================
+// Batch Stage Event — catatan per-stage rantai produksi (docs/25)
+// =============================================================================
+// HLP → WR → SLOP → BAL. Tanpa sesi formal: 1 baris = 1 kegiatan selesai,
+// input/output/reject per satuan stage (pack/slop/bal). Urutan bebas.
+// =============================================================================
+
+export const batchStageEvent = pgTable(
+  "batch_stage_event",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    batchId: uuid("batch_id")
+      .notNull()
+      .references(() => batch.id),
+    plantId: uuid("plant_id")
+      .notNull()
+      .references(() => plant.id), // ← RLS
+    stage: text("stage").notNull(), // WR | SLOP | BAL
+    machineId: uuid("machine_id").references(() => machine.id), // NULL kalau manual
+    inputQty: numeric("input_qty").notNull(),
+    outputQty: numeric("output_qty").notNull(),
+    rejectQty: numeric("reject_qty").notNull().default("0"),
+    unit: text("unit").notNull(), // PACK | SLOP | BAL
+    operatorBy: uuid("operator_by")
+      .notNull()
+      .references(() => user.id),
+    eventAt: timestamp("event_at").notNull().defaultNow(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at"),
+  },
+  (t) => ({
+    idxBatch: index("idx_stage_event_batch").on(t.batchId, t.eventAt),
+    idxPlant: index("idx_stage_event_plant").on(t.plantId, t.stage),
   })
 );

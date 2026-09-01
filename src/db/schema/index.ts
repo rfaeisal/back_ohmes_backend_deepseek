@@ -97,3 +97,4 @@ export {
   externalBatanganReceiving,
   externalPackOut,
 } from "./makloon";
+export { batchStageEvent } from "./box";

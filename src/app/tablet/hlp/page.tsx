@@ -19,6 +19,7 @@ interface BatchItem {
   batanganKg: number;
   machineCode: string;
   source?: string; // INTERNAL | EXTERNAL (makloon, docs/24)
+  stage?: string; // PACKED | WRAPPED | SLOPPED | BALED (docs/25)
   createdAt: string;
   packCount?: number;
   packedBatang?: number;
@@ -44,6 +45,7 @@ export default function HlpPage() {
           batanganKg: parseFloat(b.batanganKg ?? "0"),
           machineCode: b.machineCode ?? "-",
           source: b.source ?? "INTERNAL",
+          stage: b.stage ?? "PACKED",
           createdAt: b.createdAt,
           packCount: b.packCount ?? 0,
           packedBatang: b.packedBatang ?? 0,
@@ -196,6 +198,63 @@ export default function HlpPage() {
     })();
     return () => { cancelled = true; };
   }, [selectedBatch]);
+
+  // Rantai produksi (docs/25): WR → SLOP → BAL — catatan per-stage tanpa sesi
+  const [stageEvents, setStageEvents] = useState<any[]>([]);
+  const [showStageDialog, setShowStageDialog] = useState(false);
+  const [stageSel, setStageSel] = useState<"WR" | "SLOP" | "BAL">("WR");
+  const [stageMachineId, setStageMachineId] = useState("");
+  const [stageInput, setStageInput] = useState("");
+  const [stageOutput, setStageOutput] = useState("");
+  const [stageReject, setStageReject] = useState("0");
+  const [stageNotes, setStageNotes] = useState("");
+  const [stageBusy, setStageBusy] = useState(false);
+
+  useEffect(() => {
+    if (!selectedBatch) { setStageEvents([]); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiFetch(`/batch-stage-events?batchId=${selectedBatch.id}`);
+        if (!cancelled) setStageEvents(res.data ?? []);
+      } catch { if (!cancelled) setStageEvents([]); }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedBatch]);
+
+  const handleSubmitStage = async () => {
+    if (!selectedBatch) { setActionMsg("Pilih batch dulu."); return; }
+    const input = parseInt(stageInput || "0", 10) || 0;
+    const output = parseInt(stageOutput || "0", 10) || 0;
+    const reject = parseInt(stageReject || "0", 10) || 0;
+    if (input + output + reject === 0) { setActionMsg("Isi minimal satu jumlah (input/output/reject)."); return; }
+    setStageBusy(true);
+    try {
+      await apiFetch("/batch-stage-events", {
+        method: "POST",
+        body: JSON.stringify({
+          batchId: selectedBatch.id,
+          stage: stageSel,
+          machineId: stageMachineId || undefined,
+          inputQty: input,
+          outputQty: output,
+          rejectQty: reject,
+          notes: stageNotes || undefined,
+        }),
+      });
+      setActionMsg(`✅ Stage ${stageSel} dicatat — batch kini ${stageSel === "WR" ? "WRAPPED" : stageSel === "SLOP" ? "SLOPPED" : "BALED"}`);
+      setShowStageDialog(false);
+      setStageInput(""); setStageOutput(""); setStageReject("0"); setStageNotes("");
+      const res = await apiFetch(`/batch-stage-events?batchId=${selectedBatch.id}`);
+      setStageEvents(res.data ?? []);
+      load();
+    } catch (e: any) {
+      setActionMsg(e.message);
+    } finally { setStageBusy(false); }
+  };
+
+  const stageLabel = (s: string) =>
+    s === "PACKED" ? "PACKED" : s === "WRAPPED" ? "WRAPPED" : s === "SLOPPED" ? "SLOPPED" : "BALED";
 
   // Input operasional (material/downtime/maintenance/waste) — docs/23 §3
   const [showMatOut, setShowMatOut] = useState(false);
@@ -383,6 +442,7 @@ export default function HlpPage() {
                   <p className="font-bold font-mono text-lg">
                     {selectedBatch.code}{" "}
                     {selectedBatch.source === "EXTERNAL" && <Badge variant="warning">EXTERNAL</Badge>}
+                    <Badge variant="neutral">{stageLabel(selectedBatch.stage ?? "PACKED")}</Badge>
                   </p>
                   <p className="text-sm text-gray-600">
                     {selectedBatch.batanganKg.toFixed(2)} kg · dari {selectedBatch.machineCode ?? (selectedBatch.source === "EXTERNAL" ? "makloon" : "-")}
@@ -593,6 +653,45 @@ export default function HlpPage() {
         {!hlpMachineId && <p className="mt-2 text-xs text-gray-400">Pilih mesin HLP dulu.</p>}
       </Card>
 
+      {/* Rantai produksi (docs/25): WR → SLOP → BAL */}
+      <Card className="mb-6">
+        <CardTitle>🏭 Rantai Produksi</CardTitle>
+        {!selectedBatch ? (
+          <p className="mt-3 text-sm text-gray-400">Pilih batch dulu untuk melihat/catat stage WR → SLOP → BAL.</p>
+        ) : (
+          <div className="mt-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                Progress: <Badge variant={selectedBatch.stage !== "PACKED" ? "info" : "neutral"}>{stageLabel(selectedBatch.stage ?? "PACKED")}</Badge>
+              </p>
+              <Button size="sm" variant="outline" onClick={() => { setStageSel("WR"); setStageMachineId(""); setStageInput(""); setStageOutput(""); setStageReject("0"); setStageNotes(""); setShowStageDialog(true); }}>
+                + Catat Stage
+              </Button>
+            </div>
+            {stageEvents.length === 0 ? (
+              <p className="text-sm text-gray-400 py-2">Belum ada catatan stage untuk batch ini.</p>
+            ) : (
+              <div className="space-y-2">
+                {stageEvents.map((ev) => (
+                  <div key={ev.id} className="rounded-lg border border-gray-200 p-3 text-sm">
+                    <div className="flex items-center justify-between">
+                      <Badge variant={ev.stage === "WR" ? "info" : ev.stage === "SLOP" ? "success" : "warning"}>
+                        {ev.stage}{ev.machineCode ? ` · ${ev.machineCode}` : ""}
+                      </Badge>
+                      <span className="text-xs text-gray-400">{new Date(ev.eventAt).toLocaleString("id-ID")}</span>
+                    </div>
+                    <p className="mt-1 text-gray-600">
+                      in {Number(ev.inputQty)} → out {Number(ev.outputQty)} · reject {Number(ev.rejectQty)} {ev.unit}
+                    </p>
+                    {ev.notes && <p className="text-xs text-gray-400 mt-1">{ev.notes}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
+
       {/* Bahan di mesin ini (gudang input, operator lihat) */}
       <Card className="mb-6">
         <CardTitle>📦 Bahan di Mesin Ini</CardTitle>
@@ -674,11 +773,10 @@ export default function HlpPage() {
               return (
                 <button
                   key={b.id}
-                  disabled={packed}
                   onClick={() => { setSelectedBatch(b); setShowBatchPicker(false); }}
                   className={`w-full rounded-lg border-2 p-3 text-left transition-colors ${
                     packed
-                      ? "border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed"
+                      ? "border-gray-100 bg-gray-50"
                       : "border-gray-200 hover:border-primary-400"
                   }`}
                 >
@@ -687,6 +785,7 @@ export default function HlpPage() {
                       <p className="font-bold font-mono text-lg">
                         {b.code}{" "}
                         {b.source === "EXTERNAL" && <Badge variant="warning">EXTERNAL</Badge>}
+                        <Badge variant="neutral">{stageLabel(b.stage ?? "PACKED")}</Badge>
                       </p>
                       <p className="text-sm text-gray-500">
                         {b.batanganKg.toFixed(2)} kg · dari {b.machineCode ?? "makloon"}
@@ -776,6 +875,47 @@ export default function HlpPage() {
           <Input label="Alasan *" value={dtReason} onChange={(e) => setDtReason(e.target.value)} placeholder="cth: Ganti material" />
           <Button size="operator" className="w-full" disabled={dtBusy} onClick={handleSubmitDowntime}>
             {dtBusy ? "Menyimpan..." : "SIMPAN"}
+          </Button>
+        </div>
+      </Dialog>
+
+      {/* Dialog catatan stage rantai */}
+      <Dialog open={showStageDialog} onClose={() => setShowStageDialog(false)} title="🏭 Catat Stage Rantai">
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            {(["WR", "SLOP", "BAL"] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => setStageSel(s)}
+                className={`flex-1 rounded-lg border-2 px-3 py-2 text-sm font-medium ${
+                  stageSel === s ? "border-orange-500 bg-orange-50 text-orange-700" : "border-gray-200 text-gray-500"
+                }`}
+              >
+                {s === "WR" ? "WR (Wrapping)" : s === "SLOP" ? "SLOP" : "BAL (Baling)"}
+              </button>
+            ))}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Mesin (opsional)</label>
+            <select
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white"
+              value={stageMachineId}
+              onChange={(e) => setStageMachineId(e.target.value)}
+            >
+              <option value="">Tanpa mesin / manual</option>
+              {hlpMachines.map((m: any) => (
+                <option key={m.id} value={m.id}>{m.code} — {m.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Input label={`Input (${stageSel === "WR" ? "pack" : stageSel === "SLOP" ? "slop" : "bal"})`} type="number" inputMode="numeric" value={stageInput} onChange={(e) => setStageInput(e.target.value)} placeholder="0" />
+            <Input label="Output" type="number" inputMode="numeric" value={stageOutput} onChange={(e) => setStageOutput(e.target.value)} placeholder="0" />
+            <Input label="Reject" type="number" inputMode="numeric" value={stageReject} onChange={(e) => setStageReject(e.target.value)} placeholder="0" />
+          </div>
+          <Input label="Catatan (opsional)" value={stageNotes} onChange={(e) => setStageNotes(e.target.value)} />
+          <Button size="operator" className="w-full" disabled={stageBusy} onClick={handleSubmitStage}>
+            {stageBusy ? "Menyimpan..." : "SIMPAN STAGE"}
           </Button>
         </div>
       </Dialog>
