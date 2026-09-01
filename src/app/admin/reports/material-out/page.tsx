@@ -36,12 +36,25 @@ export default function MaterialOutReport() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Dokumen Berita Acara Retur Material — PDF asli via fetch blob (bukan halaman print)
+  const openMaterialDocument = async (id: string) => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch(`/api/v1/material-out/${id}/document`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) { alert("Gagal membuka dokumen."); return; }
+      const blob = await res.blob();
+      window.open(URL.createObjectURL(blob));
+    } catch { alert("Gagal membuka dokumen."); }
+  };
+
   const handleExport = () => {
     const headers = ["Kode", "Jenis Material", "Alur", "Tujuan/Supplier", "Tanggal", "Alasan", "Oleh"];
     const rows = entries.map((e) => [
       e.outCode,
       e.materialType === "CONSUMABLE" ? "CONSUMABLE" : "SPAREPART",
-      e.outType === "TRANSFER" ? "KIRIM PABRIK" : "RETUR",
+      e.outType === "TRANSFER" ? "KIRIM PABRIK" : e.outType === "RETUR" ? "RETUR" : e.outType === "PEMAKAIAN" ? "PEMAKAIAN" : "RUSAK",
       `"${e.counterpartName}"`,
       e.outAt ? new Date(e.outAt).toLocaleDateString("id-ID") : "-",
       `"${(e.reason ?? "").replace(/"/g, '""')}"`,
@@ -57,7 +70,7 @@ export default function MaterialOutReport() {
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Material &amp; Sparepart Keluar</h1>
-          <p className="text-gray-500">Kirim antar pabrik &amp; retur ke supplier</p>
+          <p className="text-gray-500">Kirim antar pabrik · retur supplier · pemakaian · rusak</p>
         </div>
         <Button onClick={handleExport} disabled={entries.length === 0}>📥 Export CSV</Button>
       </div>
@@ -88,6 +101,8 @@ export default function MaterialOutReport() {
               <option value="">Semua</option>
               <option value="TRANSFER">🚚 Kirim Pabrik Lain</option>
               <option value="RETUR">↩️ Retur Supplier</option>
+              <option value="PEMAKAIAN">🏭 Pemakaian Produksi</option>
+              <option value="RUSAK">🗑️ Rusak</option>
             </select>
           </div>
           <Button onClick={load} disabled={loading}>{loading ? "..." : "🔍 Filter"}</Button>
@@ -100,6 +115,7 @@ export default function MaterialOutReport() {
         <Card><p className="text-xs text-gray-500">Total Item</p><p className="text-3xl font-bold text-indigo-700">{summary?.totalItems ?? 0}</p></Card>
         <Card><p className="text-xs text-gray-500">Kirim Pabrik</p><p className="text-3xl font-bold text-green-700">{summary?.totalTransfer ?? 0}</p></Card>
         <Card><p className="text-xs text-gray-500">Retur Supplier</p><p className="text-3xl font-bold text-red-700">{summary?.totalReturn ?? 0}</p></Card>
+        <Card><p className="text-xs text-gray-500">Rusak</p><p className="text-3xl font-bold text-amber-700">{summary?.totalRusak ?? 0}</p></Card>
       </div>
 
       {/* Table */}
@@ -116,21 +132,26 @@ export default function MaterialOutReport() {
                 <th className="pb-3 text-sm font-semibold text-gray-600">Item</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Alasan</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Oleh</th>
+                <th className="pb-3 text-sm font-semibold text-gray-600">Dok</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="py-6 text-center text-gray-400">Memuat...</td></tr>
+                <tr><td colSpan={8} className="py-6 text-center text-gray-400">Memuat...</td></tr>
               ) : entries.length === 0 ? (
-                <tr><td colSpan={7} className="py-6 text-center text-gray-400">Belum ada data keluar. Keluarkan material di halaman Gudang.</td></tr>
+                <tr><td colSpan={8} className="py-6 text-center text-gray-400">Belum ada data keluar. Keluarkan material di halaman Gudang.</td></tr>
               ) : entries.map((e) => (
                 <tr key={e.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 font-mono text-sm">{e.outCode}</td>
                   <td className="py-3">
                     {e.outType === "TRANSFER" ? (
                       <Badge variant="info">🚚 KIRIM PABRIK</Badge>
-                    ) : (
+                    ) : e.outType === "RETUR" ? (
                       <Badge variant="error">↩️ RETUR</Badge>
+                    ) : e.outType === "PEMAKAIAN" ? (
+                      <Badge variant="success">🏭 PEMAKAIAN</Badge>
+                    ) : (
+                      <Badge variant="warning">🗑️ RUSAK</Badge>
                     )}
                   </td>
                   <td className="py-3 font-medium">{e.counterpartName}</td>
@@ -140,6 +161,13 @@ export default function MaterialOutReport() {
                   </td>
                   <td className="py-3 text-sm text-gray-500 max-w-[200px] truncate" title={e.reason ?? ""}>{e.reason ?? "-"}</td>
                   <td className="py-3 text-sm text-gray-500">{e.outByName ?? "-"}</td>
+                  <td className="py-3">
+                    {e.outType === "RETUR" ? (
+                      <Button variant="outline" onClick={() => openMaterialDocument(e.id)}>📄 Dokumen</Button>
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

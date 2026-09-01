@@ -16,6 +16,7 @@ import {
 import { tsgBoxConsumption, maintenanceEvent, tsgBoxProcess, shiftConsumption } from "@/db/schema/box";
 import { shiftReport } from "@/db/schema/shift";
 import { consumableItem, sparepart, machine } from "@/db/schema/master-product";
+import { plant } from "@/db/schema/tenancy";
 import { ServiceError } from "./shift.service";
 export { ServiceError } from "./shift.service";
 
@@ -519,7 +520,7 @@ export async function getMaterialUsage(params: {
 // Material Out — keluar consumable/sparepart (transfer antar pabrik / retur)
 // =============================================================================
 
-export type MaterialOutType = "TRANSFER" | "RETUR" | "PEMAKAIAN";
+export type MaterialOutType = "TRANSFER" | "RETUR" | "PEMAKAIAN" | "RUSAK";
 
 export interface CreateMaterialOutInput {
   plantId: string;
@@ -540,7 +541,8 @@ export async function createMaterialOut(input: CreateMaterialOutInput) {
     throw new ServiceError("REASON_REQUIRED", "Alasan keluar wajib diisi (min 3 karakter).");
   }
 
-  // PEMAKAIAN: mesin tujuan wajib — counterpartName diisi otomatis dari kode mesin
+  // PEMAKAIAN: mesin tujuan wajib — counterpartName diisi otomatis dari kode mesin.
+  // RUSAK: barang rusak di gudang — tanpa mesin dan tanpa tujuan.
   let counterpartName = input.counterpartName;
   let machineId: string | null = null;
   if (input.outType === "PEMAKAIAN") {
@@ -555,6 +557,8 @@ export async function createMaterialOut(input: CreateMaterialOutInput) {
     if (!m) throw new ServiceError("MACHINE_NOT_FOUND", "Mesin tujuan tidak ditemukan.");
     machineId = input.machineId;
     counterpartName = m.code;
+  } else if (input.outType === "RUSAK") {
+    counterpartName = "—";
   } else if (!input.counterpartName.trim()) {
     throw new ServiceError("COUNTERPART_REQUIRED", "Tujuan/supplier wajib diisi.");
   }
@@ -621,6 +625,59 @@ export async function createMaterialOut(input: CreateMaterialOutInput) {
     outType: input.outType,
     totalItems: input.items.length,
   };
+}
+
+// =============================================================================
+// Detail Material Out — untuk dokumen Berita Acara Retur Material
+// =============================================================================
+
+export async function getMaterialOutDetail(outId: string) {
+  const [h] = await db
+    .select({
+      id: materialOut.id,
+      outCode: materialOut.outCode,
+      materialType: materialOut.materialType,
+      outType: materialOut.outType,
+      counterpartName: materialOut.counterpartName,
+      reason: materialOut.reason,
+      notes: materialOut.notes,
+      outAt: materialOut.outAt,
+      outByName: sql<string>`u.full_name`.mapWith(String),
+      plantCode: plant.code,
+      plantName: plant.name,
+    })
+    .from(materialOut)
+    .leftJoin(sql`"user" u`, eq(materialOut.outBy, sql`u.id`))
+    .leftJoin(plant, eq(materialOut.plantId, plant.id))
+    .where(eq(materialOut.id, outId))
+    .limit(1);
+
+  if (!h) return null;
+
+  const items =
+    h.materialType === "CONSUMABLE"
+      ? await db
+          .select({
+            name: consumableItem.name,
+            unit: consumableItem.unit,
+            quantity: consumableOutItem.quantity,
+          })
+          .from(consumableOutItem)
+          .innerJoin(consumableItem, eq(consumableOutItem.consumableItemId, consumableItem.id))
+          .where(eq(consumableOutItem.outId, h.id))
+          .orderBy(consumableOutItem.seq)
+      : await db
+          .select({
+            name: sparepart.name,
+            unit: sparepart.unit,
+            quantity: sparepartOutItem.quantity,
+          })
+          .from(sparepartOutItem)
+          .innerJoin(sparepart, eq(sparepartOutItem.sparepartId, sparepart.id))
+          .where(eq(sparepartOutItem.outId, h.id))
+          .orderBy(sparepartOutItem.seq);
+
+  return { ...h, items };
 }
 
 export async function listMaterialOutReport(
@@ -691,6 +748,7 @@ export async function listMaterialOutReport(
       totalItems,
       totalTransfer: rows.filter((r) => r.outType === "TRANSFER").length,
       totalReturn: rows.filter((r) => r.outType === "RETUR").length,
+      totalRusak: rows.filter((r) => r.outType === "RUSAK").length,
     },
     data: rows,
   };

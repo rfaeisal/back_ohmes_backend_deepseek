@@ -6,7 +6,7 @@ import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import db from "@/db";
 import { materialOut, consumableOutItem, sparepartOutItem } from "@/db/schema";
 import { consumableItem, sparepart } from "@/db/schema/master-product";
-import { createMaterialOut, ServiceError } from "@/lib/services/material.service";
+import { createMaterialOut, ServiceError, type MaterialOutType } from "@/lib/services/material.service";
 
 // GET — daftar material keluar; filter opsional machineId + outType
 // (dipakai panel "Bahan di mesin ini" di halaman HLP)
@@ -17,7 +17,7 @@ export const GET = withAuth(async (request: Request) => {
 
   const conditions = [];
   if (machineId) conditions.push(eq(materialOut.machineId, machineId));
-  if (outType) conditions.push(eq(materialOut.outType, outType as "TRANSFER" | "RETUR" | "PEMAKAIAN"));
+  if (outType) conditions.push(eq(materialOut.outType, outType as MaterialOutType));
 
   const headers = await db
     .select()
@@ -67,8 +67,8 @@ export const GET = withAuth(async (request: Request) => {
 
 const outSchema = z.object({
   materialType: z.enum(["CONSUMABLE", "SPAREPART"]),
-  outType: z.enum(["TRANSFER", "RETUR", "PEMAKAIAN"]),
-  // counterpartName wajib untuk TRANSFER/RETUR; PEMAKAIAN diisi otomatis dari kode mesin
+  outType: z.enum(["TRANSFER", "RETUR", "PEMAKAIAN", "RUSAK"]),
+  // counterpartName wajib untuk TRANSFER/RETUR; PEMAKAIAN diisi otomatis dari kode mesin; RUSAK tanpa tujuan
   counterpartName: z.string().optional().default(""),
   machineId: z.string().uuid().optional(),
   reason: z.string().min(3, "Alasan wajib (min 3 karakter)"),

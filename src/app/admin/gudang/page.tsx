@@ -140,6 +140,20 @@ export default function GudangInboundPage() {
   const [returnSaving, setReturnSaving] = useState(false);
   const [returnError, setReturnError] = useState("");
   const [returnHistory, setReturnHistory] = useState<any[]>([]);
+  // Filter supplier asal boks di dialog retur
+  const [returnSupplierFilter, setReturnSupplierFilter] = useState("");
+
+  // Supplier asal boks (distinct dari inventory AVAILABLE)
+  const returnOriginSuppliers = Array.from(
+    new Map(
+      inventory
+        .filter((i) => i.supplierId)
+        .map((i) => [i.supplierId, i.supplierName ?? "-"])
+    ).entries()
+  );
+  const returnFilteredInventory = returnSupplierFilter
+    ? inventory.filter((i) => i.supplierId === returnSupplierFilter)
+    : inventory;
 
   const loadReturns = async () => {
     try {
@@ -175,7 +189,7 @@ export default function GudangInboundPage() {
   // Material out (kirim pabrik lain / retur supplier)
   const [showMatOut, setShowMatOut] = useState(false);
   const [matOutType, setMatOutType] = useState<"CONSUMABLE" | "SPAREPART">("CONSUMABLE");
-  const [matOutFlow, setMatOutFlow] = useState<"TRANSFER" | "RETUR" | "PEMAKAIAN">("TRANSFER");
+  const [matOutFlow, setMatOutFlow] = useState<"TRANSFER" | "RETUR" | "PEMAKAIAN" | "RUSAK">("TRANSFER");
   const [matOutMachine, setMatOutMachine] = useState("");
   const [matOutCounterpart, setMatOutCounterpart] = useState("");
   const [matOutReason, setMatOutReason] = useState("");
@@ -187,7 +201,7 @@ export default function GudangInboundPage() {
     const validItems = matOutItems.filter((i) => i.itemId && parseFloat(i.qty) > 0);
     if (matOutFlow === "PEMAKAIAN") {
       if (!matOutMachine) { setMatOutError("Pilih mesin tujuan untuk pemakaian produksi."); return; }
-    } else if (!matOutCounterpart.trim()) {
+    } else if (matOutFlow !== "RUSAK" && !matOutCounterpart.trim()) {
       setMatOutError("Tujuan/supplier wajib diisi."); return;
     }
     if (!matOutReason.trim() || matOutReason.trim().length < 3) { setMatOutError("Alasan wajib diisi (min 3 karakter)."); return; }
@@ -317,7 +331,7 @@ export default function GudangInboundPage() {
           <Button size="xl" variant="outline" onClick={() => { setTransferDest(""); setTransferNotes(""); setTransferSelected(new Set()); setTransferError(""); setShowTransfer(true); }}>
             🚚 Kirim TSG ke Pabrik Lain
           </Button>
-          <Button size="xl" variant="outline" onClick={() => { loadSuppliers(); setReturnReason(""); setReturnNotes(""); setReturnSelected(new Set()); setReturnError(""); setShowReturn(true); }}>
+          <Button size="xl" variant="outline" onClick={() => { loadSuppliers(); setReturnReason(""); setReturnNotes(""); setReturnSelected(new Set()); setReturnSupplierId(""); setReturnSupplierFilter(""); setReturnError(""); setShowReturn(true); }}>
             ↩️ Retur TSG ke Supplier
           </Button>
           <Button size="xl" variant="outline" onClick={() => { setMatOutFlow("TRANSFER"); setMatOutMachine(""); setMatOutCounterpart(""); setMatOutReason(""); setMatOutItems([{ itemId: "", qty: "" }]); setMatOutError(""); loadMaterialItems(matOutType); loadMachines(); setShowMatOut(true); }}>
@@ -638,10 +652,23 @@ export default function GudangInboundPage() {
               <h3 className="font-bold text-lg">Pilih Boks TSG</h3>
               <span className="text-sm text-gray-500">{returnSelected.size} boks dipilih</span>
             </div>
+            <div className="flex items-center gap-2 mb-3">
+              <label className="text-sm text-gray-500">Filter Supplier:</label>
+              <select
+                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm bg-white"
+                value={returnSupplierFilter}
+                onChange={(e) => setReturnSupplierFilter(e.target.value)}
+              >
+                <option value="">Semua Supplier</option>
+                {returnOriginSuppliers.map(([id, name]) => (
+                  <option key={id} value={id}>{name}</option>
+                ))}
+              </select>
+            </div>
             <div className="space-y-1 max-h-[300px] overflow-y-auto">
-              {inventory.length === 0 ? (
+              {returnFilteredInventory.length === 0 ? (
                 <p className="text-sm text-gray-400 py-4 text-center">Tidak ada boks AVAILABLE.</p>
-              ) : inventory.map((item) => (
+              ) : returnFilteredInventory.map((item) => (
                 <label key={item.id} className="flex items-center gap-3 rounded-lg border border-gray-200 p-3 cursor-pointer hover:bg-gray-50">
                   <input
                     type="checkbox"
@@ -662,6 +689,7 @@ export default function GudangInboundPage() {
                   <span className="font-mono text-sm">{item.boxCode}</span>
                   <span className="text-sm text-gray-500">{item.weightKg} kg</span>
                   <span className="text-sm text-gray-400">{item.tsgType}</span>
+                  <span className="text-sm text-gray-600 ml-auto">📦 {item.supplierName ?? "-"}</span>
                 </label>
               ))}
             </div>
@@ -736,7 +764,7 @@ export default function GudangInboundPage() {
 
           {/* Toggle alur keluar */}
           <div className="flex gap-2">
-            {(["TRANSFER", "RETUR", "PEMAKAIAN"] as const).map((f) => (
+            {(["TRANSFER", "RETUR", "PEMAKAIAN", "RUSAK"] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setMatOutFlow(f)}
@@ -744,7 +772,7 @@ export default function GudangInboundPage() {
                   matOutFlow === f ? "border-orange-500 bg-orange-50 text-orange-700" : "border-gray-200 text-gray-500 hover:border-gray-300"
                 }`}
               >
-                {f === "TRANSFER" ? "🚚 Kirim Pabrik Lain" : f === "RETUR" ? "↩️ Retur Supplier" : "🏭 Pemakaian Produksi"}
+                {f === "TRANSFER" ? "🚚 Kirim Pabrik Lain" : f === "RETUR" ? "↩️ Retur Supplier" : f === "PEMAKAIAN" ? "🏭 Pemakaian Produksi" : "🗑️ Rusak"}
               </button>
             ))}
           </div>
@@ -758,6 +786,10 @@ export default function GudangInboundPage() {
                   {machines.map((m: any) => <option key={m.id} value={m.id}>{m.code} — {m.name} ({m.type})</option>)}
                 </select>
               </div>
+            ) : matOutFlow === "RUSAK" ? (
+              <div className="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-sm text-gray-500">
+                Barang rusak di gudang — tanpa mesin maupun tujuan.
+              </div>
             ) : (
               <Input
                 label={matOutFlow === "TRANSFER" ? "Pabrik Tujuan" : "Nama Supplier"}
@@ -766,7 +798,7 @@ export default function GudangInboundPage() {
                 placeholder={matOutFlow === "TRANSFER" ? "cth: Pabrik Pamekasan" : "cth: Supplier Jawa 1"}
               />
             )}
-            <Input label="Alasan *" value={matOutReason} onChange={e => setMatOutReason(e.target.value)} placeholder={matOutFlow === "PEMAKAIAN" ? "cth: Pemakaian mesin HLP minggu ini" : "cth: Cacat / transfer stok / salah kirim"} />
+            <Input label="Alasan *" value={matOutReason} onChange={e => setMatOutReason(e.target.value)} placeholder={matOutFlow === "PEMAKAIAN" ? "cth: Pemakaian mesin HLP minggu ini" : matOutFlow === "RUSAK" ? "cth: Karung sobek / bearing pecah saat dibongkar" : "cth: Cacat / transfer stok / salah kirim"} />
           </div>
 
           <div>

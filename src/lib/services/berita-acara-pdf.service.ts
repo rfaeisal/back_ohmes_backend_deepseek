@@ -26,7 +26,7 @@ export interface BeritaAcaraInput {
   pihak1Rows: Array<[string, string]>;
   pihak2Label: string;
   pihak2Rows: Array<[string, string]>;
-  items: Array<{ boxCode: string; tsgType: string | null; weightKg: number }>;
+  items: Array<{ boxCode: string; tsgType: string | null; weightKg: number; supplierName?: string | null }>;
   totalBoxCount: number;
   totalWeightKg: number;
   catatan?: string;
@@ -35,6 +35,8 @@ export interface BeritaAcaraInput {
   sign1Name: string;
   sign2Label: string;
   sign2Name: string;
+  /** Tampilkan kolom "SUPPLIER ASAL" di tabel rincian (dipakai Berita Acara Retur) */
+  withSupplierColumn?: boolean;
 }
 
 export async function buildBeritaAcaraPdf(input: BeritaAcaraInput): Promise<Uint8Array> {
@@ -92,23 +94,39 @@ export async function buildBeritaAcaraPdf(input: BeritaAcaraInput): Promise<Uint
   );
   y -= 18;
 
+  const withSupplier = input.withSupplierColumn === true;
   const colNo = M;
-  const colCode = M + 30;
-  const colType = M + 230;
+  const colCode = M + 28;
+  // 5 kolom (retur): kode lebih sempit, ada kolom SUPPLIER ASAL.
+  // 4 kolom (transfer): layout lama tidak berubah.
+  const colType = withSupplier ? M + 168 : M + 230;
+  const colSup = M + 252;
   const colKg = M + 360;
+  const supplierCellW = colKg - colSup - 8; // lebar teks supplier (104pt)
   const rowH = 20;
   const headerH = 22;
   const tableTop = y;
   const tableBottom = y - headerH - input.items.length * rowH - rowH; // + baris total
+
+  // Potong teks supaya muat di kolomnya (pdf-lib tidak auto-wrap)
+  const fit = (text: string, maxW: number, font: typeof regular, size: number) => {
+    if (font.widthOfTextAtSize(text, size) <= maxW) return text;
+    let t = text;
+    while (t.length > 2 && font.widthOfTextAtSize(t + "…", size) > maxW) t = t.slice(0, -1);
+    return t + "…";
+  };
 
   page.drawRectangle({ x: M, y: tableBottom, width: W - 2 * M, height: tableTop - tableBottom, borderColor: ink, borderWidth: 1 });
   const headY = y - 16;
   page.drawText("No", { x: colNo + 8, y: headY, size: 9, font: bold, color: gray });
   page.drawText("KODE BOKS", { x: colCode + 6, y: headY, size: 9, font: bold, color: gray });
   page.drawText("JENIS TSG", { x: colType + 6, y: headY, size: 9, font: bold, color: gray });
+  if (withSupplier) {
+    page.drawText("SUPPLIER ASAL", { x: colSup + 6, y: headY, size: 8, font: bold, color: gray });
+  }
   page.drawText("BERAT (KG)", { x: W - M - 8 - bold.widthOfTextAtSize("BERAT (KG)", 9), y: headY, size: 9, font: bold, color: gray });
   page.drawLine({ start: { x: M, y: y - headerH + 4 }, end: { x: W - M, y: y - headerH + 4 }, thickness: 1, color: ink });
-  for (const cx of [colCode, colType, colKg]) {
+  for (const cx of withSupplier ? [colCode, colType, colSup, colKg] : [colCode, colType, colKg]) {
     page.drawLine({ start: { x: cx, y: tableTop }, end: { x: cx, y: tableBottom }, thickness: 1, color: ink });
   }
 
@@ -117,6 +135,9 @@ export async function buildBeritaAcaraPdf(input: BeritaAcaraInput): Promise<Uint
     page.drawText(String(i + 1), { x: colNo + 9, y: rowY, size: 10, font: regular });
     page.drawText(it.boxCode, { x: colCode + 6, y: rowY, size: 9, font: mono });
     page.drawText(it.tsgType ?? "-", { x: colType + 6, y: rowY, size: 10, font: regular });
+    if (withSupplier) {
+      page.drawText(fit(it.supplierName ?? "-", supplierCellW, regular, 8), { x: colSup + 6, y: rowY + 1, size: 8, font: regular });
+    }
     page.drawText(Number(it.weightKg).toFixed(2), { x: W - M - 8 - regular.widthOfTextAtSize(Number(it.weightKg).toFixed(2), 10), y: rowY, size: 10, font: regular });
     if (i < input.items.length - 1) {
       page.drawLine({ start: { x: M, y: rowY - 6 }, end: { x: W - M, y: rowY - 6 }, thickness: 0.5, color: gray });
@@ -127,7 +148,7 @@ export async function buildBeritaAcaraPdf(input: BeritaAcaraInput): Promise<Uint
   // Baris total
   page.drawLine({ start: { x: M, y: rowY + 6 }, end: { x: W - M, y: rowY + 6 }, thickness: 1, color: ink });
   page.drawText("TOTAL", { x: colCode + 6, y: rowY - 4, size: 9, font: bold });
-  page.drawText(`${input.totalBoxCount} boks`, { x: colType + 6, y: rowY - 4, size: 9, font: bold });
+  page.drawText(`${input.totalBoxCount} boks`, { x: (withSupplier ? colSup : colType) + 6, y: rowY - 4, size: 9, font: bold });
   page.drawText(Number(input.totalWeightKg).toFixed(2), { x: W - M - 8 - bold.widthOfTextAtSize(Number(input.totalWeightKg).toFixed(2), 9), y: rowY - 4, size: 9, font: bold });
 
   y = tableBottom - 22;

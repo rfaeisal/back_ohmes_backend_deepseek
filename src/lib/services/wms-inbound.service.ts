@@ -2,7 +2,7 @@
 // WMS Inbound Service — Receiving TSG + Inventory FIFO
 // =============================================================================
 
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import db from "@/db";
 import {
   tsgSupplier,
@@ -215,7 +215,7 @@ export async function approveReceiving(
 // =============================================================================
 
 export async function getAvailableInventory(
-  plantId: string,
+  plantIds: string[],
   limit = 20
 ) {
   const items = await db
@@ -228,6 +228,10 @@ export async function getAvailableInventory(
       locationCode: tsgInventory.locationCode,
       fifoOverrideAt: tsgInventory.fifoOverrideAt,
       createdAt: tsgInventory.createdAt,
+      // Pabrik pemilik boks — untuk filter/kolom di laporan lintas pabrik
+      plantId: tsgInventory.plantId,
+      plantCode: plant.code,
+      plantName: plant.name,
       // Asal supplier boks — untuk default supplier di form retur
       supplierId: tsgReceiving.supplierId,
       supplierName: tsgSupplier.name,
@@ -236,9 +240,10 @@ export async function getAvailableInventory(
     .innerJoin(tsgReceivingBox, eq(tsgInventory.boxId, tsgReceivingBox.id))
     .innerJoin(tsgReceiving, eq(tsgReceivingBox.receivingId, tsgReceiving.id))
     .leftJoin(tsgSupplier, eq(tsgReceiving.supplierId, tsgSupplier.id))
+    .innerJoin(plant, eq(tsgInventory.plantId, plant.id))
     .where(
       and(
-        eq(tsgInventory.plantId, plantId),
+        inArray(tsgInventory.plantId, plantIds),
         eq(tsgInventory.status, "AVAILABLE")
       )
     )
@@ -515,8 +520,16 @@ export async function createTsgReturn(input: CreateTsgReturnInput) {
   const inventoryBoxes: Array<{ inventoryId: string; boxCode: string; weightKg: number }> = [];
   for (const invId of input.inventoryBoxIds) {
     const [inv] = await db
-      .select({ id: tsgInventory.id, status: tsgInventory.status, boxId: tsgInventory.boxId })
+      .select({
+        id: tsgInventory.id,
+        status: tsgInventory.status,
+        boxId: tsgInventory.boxId,
+        // Asal supplier boks — retur wajib ke supplier asal (dokumen retur harus konsisten)
+        supplierId: tsgReceiving.supplierId,
+      })
       .from(tsgInventory)
+      .innerJoin(tsgReceivingBox, eq(tsgInventory.boxId, tsgReceivingBox.id))
+      .innerJoin(tsgReceiving, eq(tsgReceivingBox.receivingId, tsgReceiving.id))
       .where(and(eq(tsgInventory.id, invId), eq(tsgInventory.plantId, input.plantId)))
       .limit(1);
 
@@ -529,6 +542,13 @@ export async function createTsgReturn(input: CreateTsgReturnInput) {
       .from(tsgReceivingBox)
       .where(eq(tsgReceivingBox.id, inv.boxId))
       .limit(1);
+    if (inv.supplierId !== input.supplierId) {
+      throw new ServiceError(
+        "SUPPLIER_MISMATCH",
+        `Boks ${rb?.boxCode ?? invId} berasal dari supplier lain — retur wajib ke supplier asal boks.`,
+        { inventoryId: invId, boxSupplierId: inv.supplierId, returnSupplierId: input.supplierId }
+      );
+    }
     inventoryBoxes.push({ inventoryId: inv.id, boxCode: rb?.boxCode ?? "-", weightKg: Number(rb?.weightKg ?? 0) });
   }
 
@@ -661,9 +681,13 @@ export async function getTsgReturnDetail(returnId: string) {
       boxCode: tsgReturnOutItem.boxCode,
       weightKg: tsgReturnOutItem.weightKg,
       tsgType: tsgReceivingBox.tsgType,
+      // Asal supplier per boks — dicetak di dokumen Berita Acara Retur
+      supplierName: tsgSupplier.name,
     })
     .from(tsgReturnOutItem)
     .leftJoin(tsgReceivingBox, sql`${tsgReceivingBox.boxCode} = ${tsgReturnOutItem.boxCode}`)
+    .leftJoin(tsgReceiving, eq(tsgReceivingBox.receivingId, tsgReceiving.id))
+    .leftJoin(tsgSupplier, eq(tsgReceiving.supplierId, tsgSupplier.id))
     .where(eq(tsgReturnOutItem.returnId, returnId))
     .orderBy(tsgReturnOutItem.seq);
 

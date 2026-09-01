@@ -18,8 +18,14 @@ export default function TsgStockReport() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiFetch("/tsg-inventory/available?limit=500");
-      const items = (data.data ?? []).map((item: any) => ({ ...item, id: item.inventoryId ?? item.id }));
+      // plantId=all: semua plant dalam scope user (area = sekawasan, plant = 1 pabrik)
+      const data = await apiFetch("/tsg-inventory/available?limit=500&plantId=all");
+      const items = (data.data ?? [])
+        .map((item: any) => ({ ...item, id: item.inventoryId ?? item.id }))
+        .sort((a: any, b: any) =>
+          (a.plantCode ?? "").localeCompare(b.plantCode ?? "") ||
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
       setAllInventory(items);
       setInventory(items);
     } catch {}
@@ -47,8 +53,8 @@ export default function TsgStockReport() {
   const cautionStock = inventory.filter(i => (i.ageInDays ?? 0) > 14 && (i.ageInDays ?? 0) <= 30).length;
 
   const handleExport = () => {
-    const headers = ["Kode Boks", "Jenis", "Berat (kg)", "Umur (hari)", "Lokasi", "Status"];
-    const rows = inventory.map(i => [i.boxCode, i.tsgType || "REGULER", i.weightKg, i.ageInDays ?? "?", i.locationCode ?? "-", "AVAILABLE"]);
+    const headers = ["Kode Boks", "Pabrik", "Jenis", "Berat (kg)", "Umur (hari)", "Lokasi", "Status"];
+    const rows = inventory.map(i => [i.boxCode, i.plantCode ?? "-", i.tsgType || "REGULER", i.weightKg, i.ageInDays ?? "?", i.locationCode ?? "-", "AVAILABLE"]);
     const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "stok-tsg.csv"; a.click();
@@ -108,14 +114,15 @@ export default function TsgStockReport() {
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left">
             <thead className="border-b border-gray-200">
-              <tr><th className="pb-3 text-sm font-semibold text-gray-600">Kode Boks</th><th className="pb-3 text-sm font-semibold text-gray-600">Jenis</th><th className="pb-3 text-sm font-semibold text-gray-600">Berat</th><th className="pb-3 text-sm font-semibold text-gray-600">Umur</th><th className="pb-3 text-sm font-semibold text-gray-600">Lokasi</th></tr>
+              <tr><th className="pb-3 text-sm font-semibold text-gray-600">Kode Boks</th><th className="pb-3 text-sm font-semibold text-gray-600">Pabrik</th><th className="pb-3 text-sm font-semibold text-gray-600">Jenis</th><th className="pb-3 text-sm font-semibold text-gray-600">Berat</th><th className="pb-3 text-sm font-semibold text-gray-600">Umur</th><th className="pb-3 text-sm font-semibold text-gray-600">Lokasi</th></tr>
             </thead>
             <tbody>
               {inventory.length === 0 ? (
-                <tr><td colSpan={5} className="py-8 text-center text-gray-400">Stok kosong. Terima TSG dulu di halaman Gudang.</td></tr>
+                <tr><td colSpan={6} className="py-8 text-center text-gray-400">Stok kosong. Terima TSG dulu di halaman Gudang.</td></tr>
               ) : inventory.map((item, i) => (
                 <tr key={i} className="border-b border-gray-100">
                   <td className="py-2 font-mono text-sm">{item.boxCode}</td>
+                  <td className="py-2 text-sm text-gray-600">{item.plantCode ?? "-"}</td>
                   <td className="py-2"><Badge variant={item.tsgType === "REGULER" ? "info" : item.tsgType === "MILD" ? "success" : "warning"}>{item.tsgType ?? "REGULER"}</Badge></td>
                   <td className="py-2">{item.weightKg} kg</td>
                   <td className="py-2"><Badge variant={(item.ageInDays ?? 0) > 30 ? "error" : (item.ageInDays ?? 0) > 14 ? "warning" : "success"}>{item.ageInDays ?? "?"} hari</Badge></td>
