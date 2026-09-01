@@ -520,7 +520,7 @@ export async function getMaterialUsage(params: {
 // Material Out — keluar consumable/sparepart (transfer antar pabrik / retur)
 // =============================================================================
 
-export type MaterialOutType = "TRANSFER" | "RETUR" | "PEMAKAIAN" | "RUSAK";
+export type MaterialOutType = "TRANSFER" | "RETUR" | "PEMAKAIAN" | "RUSAK" | "WASTE";
 
 export interface CreateMaterialOutInput {
   plantId: string;
@@ -543,6 +543,7 @@ export async function createMaterialOut(input: CreateMaterialOutInput) {
 
   // PEMAKAIAN: mesin tujuan wajib — counterpartName diisi otomatis dari kode mesin.
   // RUSAK: barang rusak di gudang — tanpa mesin dan tanpa tujuan.
+  // WASTE: material terbuang saat proses (docs/23 §3) — mesin opsional, tanpa tujuan.
   let counterpartName = input.counterpartName;
   let machineId: string | null = null;
   if (input.outType === "PEMAKAIAN") {
@@ -557,8 +558,9 @@ export async function createMaterialOut(input: CreateMaterialOutInput) {
     if (!m) throw new ServiceError("MACHINE_NOT_FOUND", "Mesin tujuan tidak ditemukan.");
     machineId = input.machineId;
     counterpartName = m.code;
-  } else if (input.outType === "RUSAK") {
-    counterpartName = "—";
+  } else if (input.outType === "RUSAK" || input.outType === "WASTE") {
+    machineId = input.machineId ?? null;
+    counterpartName = input.counterpartName.trim() || "—";
   } else if (!input.counterpartName.trim()) {
     throw new ServiceError("COUNTERPART_REQUIRED", "Tujuan/supplier wajib diisi.");
   }

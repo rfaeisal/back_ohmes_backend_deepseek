@@ -67,7 +67,7 @@ export const GET = withAuth(async (request: Request) => {
 
 const outSchema = z.object({
   materialType: z.enum(["CONSUMABLE", "SPAREPART"]),
-  outType: z.enum(["TRANSFER", "RETUR", "PEMAKAIAN", "RUSAK"]),
+  outType: z.enum(["TRANSFER", "RETUR", "PEMAKAIAN", "RUSAK", "WASTE"]),
   // counterpartName wajib untuk TRANSFER/RETUR; PEMAKAIAN diisi otomatis dari kode mesin; RUSAK tanpa tujuan
   counterpartName: z.string().optional().default(""),
   machineId: z.string().uuid().optional(),
@@ -86,6 +86,21 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
       return NextResponse.json(
         { error: { code: "VALIDATION_ERROR", message: "Input tidak valid.", details: parsed.error.flatten() }, requestId: ctx.requestId },
         { status: 400 }
+      );
+    }
+
+    // Izin: gudang/PM via tsg.inventory.transfer (semua alur); operator HLP via
+    // hlp.pack TETAPI terbatas PEMAKAIAN/WASTE — input operasional dari tablet
+    // (docs/23 §3), bukan transfer/retur antar pabrik.
+    const isHlpInput =
+      parsed.data.outType === "PEMAKAIAN" || parsed.data.outType === "WASTE";
+    const allowed =
+      (ctx.user.permissions ?? []).includes("tsg.inventory.transfer") ||
+      ((ctx.user.permissions ?? []).includes("hlp.pack") && isHlpInput);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: { code: "FORBIDDEN", message: "Tidak punya izin untuk alur keluar ini." }, requestId: ctx.requestId },
+        { status: 403 }
       );
     }
 
@@ -113,4 +128,4 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
     }
     throw err;
   }
-}, { requiredPermission: "tsg.inventory.transfer" });
+});
