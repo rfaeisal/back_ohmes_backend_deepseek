@@ -51,6 +51,11 @@ Yang tersisa hanya verifikasi lapangan — tidak bisa dikerjakan dari laptop:
 ### 5. Field Path correction jadi dropdown (UX) — SELESAI (26 Agu 2026)
 - [x] Select preset field (waste 4 kategori, tsgTotalKg, outputKg, notes) + opsi "Lainnya" untuk path custom.
 
+### 6. Status HLP idle/aktif di Dashboard Pabrik — DISEPAKATI (1 Sep 2026), BELUM dikerjakan
+- **Keputusan diskusi**: opsi heuristik aktivitas, **window 30 menit**, **dashboard pabrik saja** (bukan area — ditunda).
+- HLP = AKTIF kalau ada catatan packing (`hlp_pack.packedAt`) dalam 30 menit terakhir; selain itu IDLE. Sekarang HLP selalu IDLE karena badge mesin hanya mengikuti `GET /shifts?status=RUNNING` (shift MAKER-only).
+- ⚠️ **SUPERSEDE**: desain sesi HLP (docs/23-hlp-session-design.md §6) menjadikan AKTIF = sesi HLP OPEN — lebih akurat daripada heuristik. Kalau sesi HLP dieksekusi, heuristik 30 menit tidak perlu dibangun.
+
 ---
 
 ## 🧪 Testing yang belum menyeluruh

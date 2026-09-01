@@ -56,6 +56,9 @@
 | 20 | [`20-api-error-catalog.md`](./20-api-error-catalog.md) | Registry terpusat semua error code + client handling pattern | All dev |
 | 21 | [`21-data-retention-classification.md`](./21-data-retention-classification.md) | Data classification (public/internal/confidential/restricted) + retention matrix 10 tahun | Backend + Compliance |
 | 22 | [`22-compliance-pdp.md`](./22-compliance-pdp.md) | UU PDP 27/2022 Indonesia compliance: prinsip, hak subjek, DPO, breach notification | Compliance + DPO |
+| 23 | [`23-hlp-session-design.md`](./23-hlp-session-design.md) | DRAFT: sesi HLP open-ended + ganti anggota, input tablet (material/downtime/sparepart/waste), reject pack, ledger rijekan | Backend + Mobile |
+| 24 | [`24-external-batangan.md`](./24-external-batangan.md) | DRAFT: makloon packing — terima batangan external (kg, approval), proses HLP, pack + rijekan dikembalikan ke customer (PDF serah terima) | Backend + Mobile |
+| 25 | [`25-production-chain.md`](./25-production-chain.md) | DRAFT: rantai HLP → WR → SLOP → BAL → karton manual — catatan per-stage, pemakaian/waste material per mesin, makloon multi-stage entry/exit | Backend + Mobile |
 
 ## Dokumen Pendukung
 
