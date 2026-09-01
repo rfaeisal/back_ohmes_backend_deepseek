@@ -224,6 +224,36 @@ export async function notifyHlpRejectHigh(input: {
   }
 }
 
+// Penerimaan batangan external (makloon) → PENDING: PM + supervisor
+export async function notifyExternalBatanganPending(input: {
+  receivingId: string;
+  plantId: string;
+  senderName: string;
+  batanganKg: number;
+}): Promise<void> {
+  try {
+    const [pmIds, supervisorIds] = await Promise.all([
+      getPlantManagerUserIds(input.plantId),
+      getSupervisorUserIds(input.plantId),
+    ]);
+    const userIds = [...new Set([...pmIds, ...supervisorIds])];
+    if (userIds.length === 0) return;
+
+    await sendPushToUsers(userIds, {
+      title: "Batangan external menunggu approval",
+      body: `${input.senderName} — ${input.batanganKg} kg siap diverifikasi.`,
+      data: {
+        external_receiving_id: input.receivingId,
+        plant_id: input.plantId,
+        sender_name: input.senderName,
+        batangan_kg: String(input.batanganKg),
+      },
+    });
+  } catch (err) {
+    console.error("[fcm] notifyExternalBatanganPending gagal:", err);
+  }
+}
+
 // Receiving status → PENDING (manual tanpa SJ): Plant Manager + Shift
 // Supervisor plant tsb (keduanya pemegang tsg.receiving.approve)
 export async function notifyReceivingPending(receiving: {

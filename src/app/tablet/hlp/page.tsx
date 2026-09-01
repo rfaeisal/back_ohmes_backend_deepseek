@@ -18,6 +18,7 @@ interface BatchItem {
   code: string;
   batanganKg: number;
   machineCode: string;
+  source?: string; // INTERNAL | EXTERNAL (makloon, docs/24)
   createdAt: string;
   packCount?: number;
   packedBatang?: number;
@@ -42,6 +43,7 @@ export default function HlpPage() {
           code: b.code,
           batanganKg: parseFloat(b.batanganKg ?? "0"),
           machineCode: b.machineCode ?? "-",
+          source: b.source ?? "INTERNAL",
           createdAt: b.createdAt,
           packCount: b.packCount ?? 0,
           packedBatang: b.packedBatang ?? 0,
@@ -378,9 +380,12 @@ export default function HlpPage() {
             {selectedBatch ? (
               <div className="flex items-center justify-between rounded-lg border-2 border-green-400 bg-green-50 px-4 py-3">
                 <div>
-                  <p className="font-bold font-mono text-lg">{selectedBatch.code}</p>
+                  <p className="font-bold font-mono text-lg">
+                    {selectedBatch.code}{" "}
+                    {selectedBatch.source === "EXTERNAL" && <Badge variant="warning">EXTERNAL</Badge>}
+                  </p>
                   <p className="text-sm text-gray-600">
-                    {selectedBatch.batanganKg.toFixed(2)} kg · dari {selectedBatch.machineCode}
+                    {selectedBatch.batanganKg.toFixed(2)} kg · dari {selectedBatch.machineCode ?? (selectedBatch.source === "EXTERNAL" ? "makloon" : "-")}
                     {(selectedBatch.packCount ?? 0) > 0 &&
                       ` · sudah packing ${selectedBatch.packCount}× (${selectedBatch.packedBatang ?? 0} batang)`}
                   </p>
@@ -679,9 +684,12 @@ export default function HlpPage() {
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-bold font-mono text-lg">{b.code}</p>
+                      <p className="font-bold font-mono text-lg">
+                        {b.code}{" "}
+                        {b.source === "EXTERNAL" && <Badge variant="warning">EXTERNAL</Badge>}
+                      </p>
                       <p className="text-sm text-gray-500">
-                        {b.batanganKg.toFixed(2)} kg · dari {b.machineCode}
+                        {b.batanganKg.toFixed(2)} kg · dari {b.machineCode ?? "makloon"}
                       </p>
                     </div>
                     {packed ? (

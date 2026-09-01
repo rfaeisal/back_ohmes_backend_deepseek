@@ -76,27 +76,33 @@ CREATE INDEX IF NOT EXISTS idx_rijekan_ledger_ref ON rijekan_ledger (ref_id);
 -- ---------------------------------------------------------------------------
 
 ALTER TABLE hlp_shift ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS p_hshift_select ON hlp_shift;
 CREATE POLICY p_hshift_select ON hlp_shift FOR SELECT
   USING (plant_id = ANY(current_setting('app.current_plant_ids')::uuid[])
          OR current_setting('app.bypass_rls', true) = 'true');
+DROP POLICY IF EXISTS p_hshift_insert ON hlp_shift;
 CREATE POLICY p_hshift_insert ON hlp_shift FOR INSERT
   WITH CHECK (plant_id = ANY(current_setting('app.current_plant_ids')::uuid[])
               OR current_setting('app.bypass_rls', true) = 'true');
+DROP POLICY IF EXISTS p_hshift_update ON hlp_shift;
 CREATE POLICY p_hshift_update ON hlp_shift FOR UPDATE
   USING (plant_id = ANY(current_setting('app.current_plant_ids')::uuid[])
          OR current_setting('app.bypass_rls', true) = 'true');
 
 ALTER TABLE hlp_shift_member ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS p_hsm_select ON hlp_shift_member;
 CREATE POLICY p_hsm_select ON hlp_shift_member FOR SELECT
   USING (EXISTS (SELECT 1 FROM hlp_shift hs
                  WHERE hs.id = hlp_shift_id
                    AND hs.plant_id = ANY(current_setting('app.current_plant_ids')::uuid[]))
          OR current_setting('app.bypass_rls', true) = 'true');
+DROP POLICY IF EXISTS p_hsm_insert ON hlp_shift_member;
 CREATE POLICY p_hsm_insert ON hlp_shift_member FOR INSERT
   WITH CHECK (EXISTS (SELECT 1 FROM hlp_shift hs
                       WHERE hs.id = hlp_shift_id
                         AND hs.plant_id = ANY(current_setting('app.current_plant_ids')::uuid[]))
               OR current_setting('app.bypass_rls', true) = 'true');
+DROP POLICY IF EXISTS p_hsm_update ON hlp_shift_member;
 CREATE POLICY p_hsm_update ON hlp_shift_member FOR UPDATE
   USING (EXISTS (SELECT 1 FROM hlp_shift hs
                  WHERE hs.id = hlp_shift_id
@@ -104,9 +110,11 @@ CREATE POLICY p_hsm_update ON hlp_shift_member FOR UPDATE
          OR current_setting('app.bypass_rls', true) = 'true');
 
 ALTER TABLE rijekan_ledger ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS p_rijekan_select ON rijekan_ledger;
 CREATE POLICY p_rijekan_select ON rijekan_ledger FOR SELECT
   USING (plant_id = ANY(current_setting('app.current_plant_ids')::uuid[])
          OR current_setting('app.bypass_rls', true) = 'true');
+DROP POLICY IF EXISTS p_rijekan_insert ON rijekan_ledger;
 CREATE POLICY p_rijekan_insert ON rijekan_ledger FOR INSERT
   WITH CHECK (plant_id = ANY(current_setting('app.current_plant_ids')::uuid[])
               OR current_setting('app.bypass_rls', true) = 'true');

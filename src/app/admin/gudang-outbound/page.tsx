@@ -31,6 +31,77 @@ export default function GudangOutboundPage() {
   const [addPackHlpId, setAddPackHlpId] = useState("");
   const [addPackQty, setAddPackQty] = useState("");
   const [addPackSaving, setAddPackSaving] = useState(false);
+  // Makloon: keluar pack ke customer (docs/24 §3.3)
+  const [extBatches, setExtBatches] = useState<any[]>([]);
+  const [extPackOuts, setExtPackOuts] = useState<any[]>([]);
+  const [showExtOut, setShowExtOut] = useState(false);
+  const [extOutBatchId, setExtOutBatchId] = useState("");
+  const [extOutDest, setExtOutDest] = useState("");
+  const [extOutDocRef, setExtOutDocRef] = useState("");
+  const [extOutPack, setExtOutPack] = useState("");
+  const [extOutRejectPack, setExtOutRejectPack] = useState("0");
+  const [extOutRejectBatang, setExtOutRejectBatang] = useState("0");
+  const [extOutSaving, setExtOutSaving] = useState(false);
+  const [extOutError, setExtOutError] = useState("");
+
+  const loadExtMakloon = useCallback(async () => {
+    try {
+      // Batch EXTERNAL yang sudah di-packing HLP (siap dikembalikan ke customer)
+      const [bRes, oRes] = await Promise.all([
+        apiFetch("/batches"),
+        apiFetch("/external-pack-outs"),
+      ]);
+      setExtBatches(
+        ((bRes.data ?? []) as any[])
+          .filter((b: any) => b.source === "EXTERNAL" && (b.packCount ?? 0) > 0)
+      );
+      setExtPackOuts(oRes.data ?? []);
+    } catch { setExtBatches([]); setExtPackOuts([]); }
+  }, []);
+
+  useEffect(() => { loadExtMakloon(); }, [loadExtMakloon]);
+
+  const handleSubmitExtOut = async () => {
+    if (!extOutBatchId) { setExtOutError("Pilih batch external dulu."); return; }
+    if (!extOutDest.trim()) { setExtOutError("Nama customer tujuan wajib diisi."); return; }
+    const pack = parseInt(extOutPack || "0", 10) || 0;
+    const rp = parseInt(extOutRejectPack || "0", 10) || 0;
+    const rb = parseInt(extOutRejectBatang || "0", 10) || 0;
+    if (pack + rp + rb === 0) { setExtOutError("Isi minimal satu jumlah."); return; }
+    setExtOutSaving(true);
+    setExtOutError("");
+    try {
+      await apiFetch("/external-pack-outs", {
+        method: "POST",
+        body: JSON.stringify({
+          batchId: extOutBatchId,
+          destinationName: extOutDest.trim(),
+          docRef: extOutDocRef || undefined,
+          packQty: pack,
+          rejectPackQty: rp,
+          rejectBatangQty: rb,
+        }),
+      });
+      setShowExtOut(false);
+      setExtOutBatchId(""); setExtOutDest(""); setExtOutDocRef("");
+      setExtOutPack(""); setExtOutRejectPack("0"); setExtOutRejectBatang("0");
+      loadExtMakloon();
+      setMsg("✅ Keluaran makloon dicatat");
+    } catch (e: any) { setExtOutError(e.message); }
+    finally { setExtOutSaving(false); }
+  };
+
+  const openExtDoc = async (id: string) => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch(`/api/v1/external-pack-outs/${id}/document`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) { alert("Gagal membuka dokumen."); return; }
+      const blob = await res.blob();
+      window.open(URL.createObjectURL(blob));
+    } catch { alert("Gagal membuka dokumen."); }
+  };
 
   const openAddPack = async (carton: any) => {
     setShowAddPack(carton);
@@ -130,6 +201,9 @@ export default function GudangOutboundPage() {
         <Button onClick={() => { setNewCartonProduct(products[0]?.id ?? ""); setNewCartonCapacity("50"); setShowNewCarton(true); }}>
           📦 Buat Karton Baru
         </Button>
+        <Button variant="outline" onClick={() => { setExtOutBatchId(""); setExtOutDest(""); setExtOutDocRef(""); setExtOutPack(""); setExtOutRejectPack("0"); setExtOutRejectBatang("0"); setExtOutError(""); setShowExtOut(true); }}>
+          📤 Keluar Pack Makloon
+        </Button>
       </div>
 
       {msg && (
@@ -144,6 +218,45 @@ export default function GudangOutboundPage() {
         <Card><p className="text-xs text-gray-500">Karton READY</p><p className="text-3xl font-bold text-green-700">{readyCartons.length}</p></Card>
         <Card><p className="text-xs text-gray-500">Shift Approved</p><p className="text-3xl font-bold text-gray-700">{shifts.length}</p></Card>
       </div>
+
+      {/* Makloon — keluaran pack ke customer */}
+      <Card className="mb-6">
+        <CardTitle>📤 Makloon — Keluaran ke Customer ({extPackOuts.length})</CardTitle>
+        <div className="mt-4 overflow-x-auto">
+          {extPackOuts.length === 0 ? (
+            <p className="py-4 text-center text-sm text-gray-400">
+              Belum ada keluaran makloon. Batch external yang sudah di-packing HLP bisa dikembalikan ke customer lewat tombol &quot;📤 Keluar Pack Makloon&quot;.
+            </p>
+          ) : (
+            <table className="w-full text-left">
+              <thead className="border-b border-gray-200">
+                <tr>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Batch</th>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Customer</th>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Pack</th>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Reject</th>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Tanggal</th>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Dok</th>
+                </tr>
+              </thead>
+              <tbody>
+                {extPackOuts.map((o) => (
+                  <tr key={o.id} className="border-b border-gray-100">
+                    <td className="py-3 font-mono text-sm">{o.batchCode}</td>
+                    <td className="py-3 font-medium">{o.destinationName}</td>
+                    <td className="py-3 text-sm">{o.packQty} pack</td>
+                    <td className="py-3 text-sm text-red-600">{o.rejectPackQty} pack · {o.rejectBatangQty} batang</td>
+                    <td className="py-3 text-sm">{o.outAt ? new Date(o.outAt).toLocaleDateString("id-ID") : "-"}</td>
+                    <td className="py-3">
+                      <Button size="sm" variant="outline" onClick={() => openExtDoc(o.id)}>🖨 Dokumen</Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </Card>
 
       {/* Finished goods — shift approved */}
       <Card className="mb-6">
@@ -284,6 +397,36 @@ export default function GudangOutboundPage() {
           )}
           <Button className="w-full" onClick={handleAddPack} disabled={addPackSaving || !addPackHlpId || !addPackQty}>
             {addPackSaving ? "Menyimpan..." : "Tambah ke Karton"}
+          </Button>
+        </div>
+      </Dialog>
+
+      {/* Dialog keluar pack makloon */}
+      <Dialog open={showExtOut} onClose={() => setShowExtOut(false)} title="📤 Keluar Pack Makloon">
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Batch External</label>
+            <select
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white"
+              value={extOutBatchId}
+              onChange={(e) => setExtOutBatchId(e.target.value)}
+            >
+              <option value="">Pilih batch (btx_)</option>
+              {extBatches.map((b: any) => (
+                <option key={b.id} value={b.id}>{b.code} — {Number(b.batanganKg)} kg</option>
+              ))}
+            </select>
+          </div>
+          <Input label="Nama Customer *" value={extOutDest} onChange={(e) => setExtOutDest(e.target.value)} placeholder="cth: PT Makloon Jaya" />
+          <Input label="Ref. Order (PO/DO)" value={extOutDocRef} onChange={(e) => setExtOutDocRef(e.target.value)} />
+          <div className="grid grid-cols-3 gap-3">
+            <Input label="Pack Keluar" type="number" inputMode="numeric" value={extOutPack} onChange={(e) => setExtOutPack(e.target.value)} placeholder="0" />
+            <Input label="Reject Pack" type="number" inputMode="numeric" value={extOutRejectPack} onChange={(e) => setExtOutRejectPack(e.target.value)} placeholder="0" />
+            <Input label="Reject Batang" type="number" inputMode="numeric" value={extOutRejectBatang} onChange={(e) => setExtOutRejectBatang(e.target.value)} placeholder="0" />
+          </div>
+          {extOutError && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{extOutError}</div>}
+          <Button size="operator" className="w-full" disabled={extOutSaving} onClick={handleSubmitExtOut}>
+            {extOutSaving ? "Menyimpan..." : "SIMPAN"}
           </Button>
         </div>
       </Dialog>

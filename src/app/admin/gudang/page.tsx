@@ -23,7 +23,7 @@ export default function GudangInboundPage() {
     } catch {}
   };
 
-  useEffect(() => { loadInventory(); loadTransfers(); loadReturns(); loadPendingReceivings(); }, []);
+  useEffect(() => { loadInventory(); loadTransfers(); loadReturns(); loadPendingReceivings(); loadExtReceivings(); }, []);
 
   // Receiving manual (tanpa SJ) → PENDING sampai di-approve
   const loadPendingReceivings = async () => {
@@ -186,6 +186,69 @@ export default function GudangInboundPage() {
     finally { setReturnSaving(false); }
   };
 
+  // Makloon: penerimaan batangan external (docs/24) — PENDING → approve/reject
+  const [extReceivings, setExtReceivings] = useState<any[]>([]);
+  const [showExtReceive, setShowExtReceive] = useState(false);
+  const [extSender, setExtSender] = useState("");
+  const [extDocRef, setExtDocRef] = useState("");
+  const [extKg, setExtKg] = useState("");
+  const [extNotes, setExtNotes] = useState("");
+  const [extSaving, setExtSaving] = useState(false);
+  const [extError, setExtError] = useState("");
+  const [rejectExtId, setRejectExtId] = useState<string | null>(null);
+  const [rejectExtReason, setRejectExtReason] = useState("");
+
+  const loadExtReceivings = async () => {
+    try {
+      const res = await apiFetch("/external-receivings?status=PENDING");
+      setExtReceivings(res.data ?? []);
+    } catch { setExtReceivings([]); }
+  };
+
+  const handleSubmitExtReceive = async () => {
+    if (!extSender.trim()) { setExtError("Nama pengirim wajib diisi."); return; }
+    const kg = parseFloat(extKg);
+    if (isNaN(kg) || kg <= 0) { setExtError("Berat batangan wajib diisi (kg)."); return; }
+    setExtSaving(true);
+    setExtError("");
+    try {
+      await apiFetch("/external-receivings", {
+        method: "POST",
+        body: JSON.stringify({
+          senderName: extSender.trim(),
+          docRef: extDocRef || undefined,
+          batanganKg: kg,
+          notes: extNotes || undefined,
+        }),
+      });
+      setShowExtReceive(false);
+      setExtSender(""); setExtDocRef(""); setExtKg(""); setExtNotes("");
+      loadExtReceivings();
+    } catch (e: any) { setExtError(e.message); }
+    finally { setExtSaving(false); }
+  };
+
+  const handleApproveExt = async (id: string) => {
+    try {
+      const res = await apiFetch(`/external-receivings/${id}/approve`, { method: "POST", body: JSON.stringify({}) });
+      alert(`✅ Disetujui — batch ${res.batchCode} siap diproses HLP.`);
+      loadExtReceivings();
+    } catch (e: any) { alert(e.message); }
+  };
+
+  const handleRejectExt = async () => {
+    if (!rejectExtId) return;
+    try {
+      await apiFetch(`/external-receivings/${rejectExtId}/reject`, {
+        method: "POST",
+        body: JSON.stringify({ reason: rejectExtReason }),
+      });
+      setRejectExtId(null);
+      setRejectExtReason("");
+      loadExtReceivings();
+    } catch (e: any) { alert(e.message); }
+  };
+
   // Material out (kirim pabrik lain / retur supplier)
   const [showMatOut, setShowMatOut] = useState(false);
   const [matOutType, setMatOutType] = useState<"CONSUMABLE" | "SPAREPART">("CONSUMABLE");
@@ -337,8 +400,32 @@ export default function GudangInboundPage() {
           <Button size="xl" variant="outline" onClick={() => { setMatOutFlow("TRANSFER"); setMatOutMachine(""); setMatOutCounterpart(""); setMatOutReason(""); setMatOutItems([{ itemId: "", qty: "" }]); setMatOutError(""); loadMaterialItems(matOutType); loadMachines(); setShowMatOut(true); }}>
             📤 Keluar Material & Sparepart
           </Button>
+          <Button size="xl" variant="outline" onClick={() => { setExtSender(""); setExtDocRef(""); setExtKg(""); setExtNotes(""); setExtError(""); setShowExtReceive(true); }}>
+            🏭 Terima Batangan External (Makloon)
+          </Button>
         </div>
       </div>
+
+      {/* Batangan external menunggu approval */}
+      {extReceivings.length > 0 && (
+        <div className="mb-6 rounded-lg border border-purple-300 bg-purple-50 p-4">
+          <p className="font-bold text-purple-800 mb-2">🏭 Batangan External Menunggu Approval ({extReceivings.length})</p>
+          {extReceivings.map((r) => (
+            <div key={r.id} className="flex items-center justify-between border-b border-purple-200 py-2 last:border-0">
+              <div>
+                <span className="font-semibold">{r.senderName}</span>
+                <span className="text-sm text-gray-600 ml-2">{Number(r.batanganKg)} kg</span>
+                {r.docRef && <span className="text-xs text-gray-400 ml-2">Ref: {r.docRef}</span>}
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => { setRejectExtId(r.id); setRejectExtReason(""); }}>Tolak</Button>
+                <Button size="sm" onClick={() => handleApproveExt(r.id)}>Approve → Batch</Button>
+              </div>
+            </div>
+          ))}
+          <p className="text-xs text-purple-700 mt-2">Approve membuat batch EXTERNAL (btx_) yang langsung bisa diproses mesin HLP.</p>
+        </div>
+      )}
 
       {/* Receiving menunggu approval (manual tanpa Surat Jalan) */}
       {pendingReceivings.length > 0 && (
@@ -889,6 +976,30 @@ export default function GudangInboundPage() {
           </div>
         </Card>
       )}
+      {/* Dialog terima batangan external (makloon) */}
+      <Dialog open={showExtReceive} onClose={() => setShowExtReceive(false)} title="🏭 Terima Batangan External (Makloon)">
+        <div className="space-y-3">
+          <Input label="Nama Pengirim *" value={extSender} onChange={(e) => setExtSender(e.target.value)} placeholder="cth: PT Makloon Jaya" />
+          <Input label="Nomor PO/DO" value={extDocRef} onChange={(e) => setExtDocRef(e.target.value)} placeholder="cth: PO-009" />
+          <Input label="Berat Batangan (kg) *" type="number" inputMode="decimal" value={extKg} onChange={(e) => setExtKg(e.target.value)} placeholder="0" />
+          <Input label="Catatan (opsional)" value={extNotes} onChange={(e) => setExtNotes(e.target.value)} />
+          {extError && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{extError}</div>}
+          <Button size="operator" className="w-full" disabled={extSaving} onClick={handleSubmitExtReceive}>
+            {extSaving ? "Menyimpan..." : "SIMPAN (PENDING APPROVAL)"}
+          </Button>
+        </div>
+      </Dialog>
+
+      {/* Dialog tolak batangan external */}
+      <Dialog open={rejectExtId != null} onClose={() => setRejectExtId(null)} title="Tolak Penerimaan External">
+        <div className="space-y-3">
+          <Input label="Catatan Penolakan *" value={rejectExtReason} onChange={(e) => setRejectExtReason(e.target.value)} placeholder="cth: Berat tidak sesuai PO" />
+          <div className="flex gap-3">
+            <Button variant="outline" className="flex-1" onClick={() => setRejectExtId(null)}>Batal</Button>
+            <Button className="flex-1" disabled={rejectExtReason.trim().length < 3} onClick={handleRejectExt}>Tolak</Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }

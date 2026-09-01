@@ -162,16 +162,16 @@ export const maintenanceEvent = pgTable("maintenance_event", {
 
 export const batch = pgTable("batch", {
   id: uuid("id").primaryKey().defaultRandom(),
-  shiftReportId: uuid("shift_report_id")
-    .notNull()
-    .references(() => shiftReport.id),
+  // NULL untuk batch EXTERNAL (makloon, docs/24) — bukan produksi MAKER
+  shiftReportId: uuid("shift_report_id").references(() => shiftReport.id),
   plantId: uuid("plant_id")
     .notNull()
     .references(() => plant.id),
-  machineId: uuid("machine_id")
-    .notNull()
-    .references(() => machine.id), // Maker asal
-  code: text("code").notNull().unique(), // 'btc_MKR01_20260810_03'
+  machineId: uuid("machine_id").references(() => machine.id), // Maker asal
+  // INTERNAL (dari MAKER) | EXTERNAL (makloon — docs/24)
+  source: text("source").notNull().default("INTERNAL"),
+  externalReceivingId: uuid("external_receiving_id"),
+  code: text("code").notNull().unique(), // 'btc_MKR01_20260810_03' | 'btx_...'
   batanganKg: decimal("batangan_kg", { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
