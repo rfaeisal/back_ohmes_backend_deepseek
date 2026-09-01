@@ -170,7 +170,8 @@ export async function sendPushToUsers(
 // Notifier per event bisnis — fire-and-forget, aman dipanggil tanpa await
 // =============================================================================
 
-// Shift status → COMPLETED: Plant Manager plant tsb (siap approve)
+// Shift status → COMPLETED: Plant Manager + Shift Supervisor plant tsb
+// (keduanya pemegang shift.approve — permintaan tim mobile 3d)
 export async function notifyShiftCompleted(shift: {
   shiftId: string;
   plantId: string;
@@ -178,7 +179,11 @@ export async function notifyShiftCompleted(shift: {
   reportDate: string;
 }): Promise<void> {
   try {
-    const userIds = await getPlantManagerUserIds(shift.plantId);
+    const [pmIds, supervisorIds] = await Promise.all([
+      getPlantManagerUserIds(shift.plantId),
+      getSupervisorUserIds(shift.plantId),
+    ]);
+    const userIds = [...new Set([...pmIds, ...supervisorIds])];
     if (userIds.length === 0) return;
 
     await sendPushToUsers(userIds, {
