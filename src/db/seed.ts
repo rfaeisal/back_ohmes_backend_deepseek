@@ -37,93 +37,37 @@ import {
 import { tsgSupplier, tsgReceiving, tsgReceivingBox, tsgInventory } from "@/db/schema/wms-inbound";
 import { hashPassword } from "@/lib/auth";
 
+
+// Sync role → permission (additive, idempotent). Dipanggil baik saat seed
+// penuh maupun saat DB sudah ter-seed (drift fix) — tidak menghapus grant
+// manual yang tidak ada di daftar ini.
+async function syncRolePermissions(
+  rolePerms: Record<string, string[]>,
+  roleMap: Map<string, string>,
+  permMap: Map<string, string>
+) {
+  for (const [roleCode, permCodes] of Object.entries(rolePerms)) {
+    const roleId = roleMap.get(roleCode);
+    if (!roleId) {
+      console.warn(`  ⚠ Role ${roleCode} not found, skipping`);
+      continue;
+    }
+    for (const permCode of permCodes) {
+      const permId = permMap.get(permCode);
+      if (!permId) {
+        console.warn(`  ⚠ Permission ${permCode} not found, skipping`);
+        continue;
+      }
+      await db.insert(rolePermission).values({ roleId, permissionId: permId }).onConflictDoNothing();
+    }
+  }
+}
+
 async function seed() {
   console.log("🌱 Seeding database...\n");
 
-  // Idempotent check — skip if already seeded
-  const [existingCompany] = await db.select({ id: company.id }).from(company).limit(1);
-  if (existingCompany) {
-    console.log("⏭ Database already seeded — skipping.\n");
-    return;
-  }
 
-  // ===========================================================================
-  // 1. TENANCY
-  // ===========================================================================
-  console.log("📦 Tenancy...");
-  const [comp] = await db
-    .insert(company)
-    .values({ code: "HMR", name: "Hummer Group" })
-    .returning();
-  console.log(`  ✓ Company: ${comp!.code}`);
 
-  const [reg] = await db
-    .insert(region)
-    .values({
-      companyId: comp!.id,
-      code: "AREA-JATIM",
-      name: "Area Jawa Timur",
-    })
-    .returning();
-  console.log(`  ✓ Region: ${reg!.code}`);
-
-  const [plt] = await db
-    .insert(plant)
-    .values({
-      regionId: reg!.id,
-      code: "PLT-PMK-01",
-      name: "Pabrik Kadur 1",
-      timezone: "Asia/Jakarta",
-      address: "Jl. Industri No. 1, Kadur",
-    })
-    .returning();
-  console.log(`  ✓ Plant: ${plt!.code}\n`);
-
-  const plantId = plt!.id;
-
-  // ===========================================================================
-  // 2. ROLES
-  // ===========================================================================
-  console.log("👤 Roles...");
-  const rolesData = [
-    { code: "SUPERADMIN", name: "Super Admin", scopeLevel: "GLOBAL", isPrivileged: true },
-    { code: "HQ_ADMIN", name: "HQ Admin", scopeLevel: "COMPANY", isPrivileged: false },
-    { code: "HQ_ANALYST", name: "HQ Analyst", scopeLevel: "COMPANY", isPrivileged: false },
-    { code: "HQ_AUDITOR", name: "HQ Auditor", scopeLevel: "COMPANY", isPrivileged: false },
-    { code: "AREA_COORDINATOR", name: "Koordinator Area", scopeLevel: "REGION", isPrivileged: false },
-    { code: "AREA_QA", name: "Area QA", scopeLevel: "REGION", isPrivileged: false },
-    { code: "AREA_SJ_OFFICER", name: "Petugas Label Area", scopeLevel: "REGION", isPrivileged: false },
-    { code: "PLANT_MANAGER", name: "Plant Manager", scopeLevel: "PLANT", isPrivileged: false },
-    { code: "SHIFT_SUPERVISOR", name: "Supervisor Pabrik", scopeLevel: "PLANT", isPrivileged: false },
-    { code: "OPERATOR_KECER", name: "Operator Kecer", scopeLevel: "PLANT", isPrivileged: false },
-    { code: "OPERATOR_MEMBER", name: "Anggota Tim", scopeLevel: "PLANT", isPrivileged: false },
-    { code: "GUDANG_INBOUND", name: "Gudang Inbound", scopeLevel: "PLANT", isPrivileged: false },
-    { code: "GUDANG_OUTBOUND", name: "Gudang Outbound", scopeLevel: "PLANT", isPrivileged: false },
-    { code: "EKSPEDISI", name: "Ekspedisi", scopeLevel: "PLANT", isPrivileged: false },
-  ] as const;
-
-  const roleMap = new Map<string, string>();
-  for (const r of rolesData) {
-    const [inserted] = await db.insert(role).values(r).returning();
-    roleMap.set(r.code, inserted!.id);
-  }
-  console.log(`  ✓ ${rolesData.length} roles created`);
-
-  // Auth policy untuk SUPERADMIN
-  const superadminRoleId = roleMap.get("SUPERADMIN")!;
-  await db.insert(authPolicy).values({
-    roleId: superadminRoleId,
-    accessTokenTtlMinutes: 5,
-    refreshTokenTtlDays: 7,
-    require2fa: true,
-    maxActiveAssignments: 3,
-  });
-  console.log(`  ✓ SUPERADMIN auth policy (5m JWT, 2FA)\n`);
-
-  // ===========================================================================
-  // 3. PERMISSIONS
-  // ===========================================================================
-  console.log("🔑 Permissions...");
   const permissionsData = [
     // Shift
     "shift.start", "shift.member.assign", "shift.box.open", "shift.box.weigh",
@@ -162,21 +106,6 @@ async function seed() {
     // User & Audit
     "user.create", "user.assign_scope", "user.revoke_scope", "audit.read",
   ];
-
-  const permMap = new Map<string, string>();
-  for (const code of permissionsData) {
-    const [inserted] = await db
-      .insert(permission)
-      .values({ code, description: null })
-      .returning();
-    permMap.set(code, inserted!.id);
-  }
-  console.log(`  ✓ ${permissionsData.length} permissions created\n`);
-
-  // ===========================================================================
-  // 4. ROLE ↔ PERMISSION ASSIGNMENTS
-  // ===========================================================================
-  console.log("🔗 Role-Permission assignments...");
 
   const rolePerms: Record<string, string[]> = {
     SUPERADMIN: permissionsData,
@@ -294,21 +223,117 @@ async function seed() {
     ],
   };
 
-  for (const [roleCode, permCodes] of Object.entries(rolePerms)) {
-    const roleId = roleMap.get(roleCode);
-    if (!roleId) {
-      console.warn(`  ⚠ Role ${roleCode} not found, skipping`);
-      continue;
-    }
-    for (const permCode of permCodes) {
-      const permId = permMap.get(permCode);
-      if (!permId) {
-        console.warn(`  ⚠ Permission ${permCode} not found, skipping`);
-        continue;
-      }
-      await db.insert(rolePermission).values({ roleId, permissionId: permId }).onConflictDoNothing();
-    }
+  // Idempotent check — skip jika sudah ter-seed, TAPI sync permission tetap
+  // jalan: seed lama tidak pernah menyampaikan grant permission baru ke DB
+  // yang sudah ter-seed (drift — dua kali kena di produksi). Sync additive
+  // (ON CONFLICT DO NOTHING), tidak menghapus grant manual.
+  const [existingCompany] = await db.select({ id: company.id }).from(company).limit(1);
+  if (existingCompany) {
+    console.log("⏭ Database already seeded — sync permission saja.\n");
+    const { role, permission } = await import("@/db/schema/identity");
+    const roleRows = await db.select({ id: role.id, code: role.code }).from(role);
+    const permRows = await db.select({ id: permission.id, code: permission.code }).from(permission);
+    const roleMap = new Map(roleRows.map((r) => [r.code, r.id]));
+    const permMap = new Map(permRows.map((p) => [p.code, p.id]));
+    await syncRolePermissions(rolePerms, roleMap, permMap);
+    return;
   }
+
+  // ===========================================================================
+  // 1. TENANCY
+  // ===========================================================================
+  console.log("📦 Tenancy...");
+  const [comp] = await db
+    .insert(company)
+    .values({ code: "HMR", name: "Hummer Group" })
+    .returning();
+  console.log(`  ✓ Company: ${comp!.code}`);
+
+  const [reg] = await db
+    .insert(region)
+    .values({
+      companyId: comp!.id,
+      code: "AREA-JATIM",
+      name: "Area Jawa Timur",
+    })
+    .returning();
+  console.log(`  ✓ Region: ${reg!.code}`);
+
+  const [plt] = await db
+    .insert(plant)
+    .values({
+      regionId: reg!.id,
+      code: "PLT-PMK-01",
+      name: "Pabrik Kadur 1",
+      timezone: "Asia/Jakarta",
+      address: "Jl. Industri No. 1, Kadur",
+    })
+    .returning();
+  console.log(`  ✓ Plant: ${plt!.code}\n`);
+
+  const plantId = plt!.id;
+
+  // ===========================================================================
+  // 2. ROLES
+  // ===========================================================================
+  console.log("👤 Roles...");
+  const rolesData = [
+    { code: "SUPERADMIN", name: "Super Admin", scopeLevel: "GLOBAL", isPrivileged: true },
+    { code: "HQ_ADMIN", name: "HQ Admin", scopeLevel: "COMPANY", isPrivileged: false },
+    { code: "HQ_ANALYST", name: "HQ Analyst", scopeLevel: "COMPANY", isPrivileged: false },
+    { code: "HQ_AUDITOR", name: "HQ Auditor", scopeLevel: "COMPANY", isPrivileged: false },
+    { code: "AREA_COORDINATOR", name: "Koordinator Area", scopeLevel: "REGION", isPrivileged: false },
+    { code: "AREA_QA", name: "Area QA", scopeLevel: "REGION", isPrivileged: false },
+    { code: "AREA_SJ_OFFICER", name: "Petugas Label Area", scopeLevel: "REGION", isPrivileged: false },
+    { code: "PLANT_MANAGER", name: "Plant Manager", scopeLevel: "PLANT", isPrivileged: false },
+    { code: "SHIFT_SUPERVISOR", name: "Supervisor Pabrik", scopeLevel: "PLANT", isPrivileged: false },
+    { code: "OPERATOR_KECER", name: "Operator Kecer", scopeLevel: "PLANT", isPrivileged: false },
+    { code: "OPERATOR_MEMBER", name: "Anggota Tim", scopeLevel: "PLANT", isPrivileged: false },
+    { code: "GUDANG_INBOUND", name: "Gudang Inbound", scopeLevel: "PLANT", isPrivileged: false },
+    { code: "GUDANG_OUTBOUND", name: "Gudang Outbound", scopeLevel: "PLANT", isPrivileged: false },
+    { code: "EKSPEDISI", name: "Ekspedisi", scopeLevel: "PLANT", isPrivileged: false },
+  ] as const;
+
+  const roleMap = new Map<string, string>();
+  for (const r of rolesData) {
+    const [inserted] = await db.insert(role).values(r).returning();
+    roleMap.set(r.code, inserted!.id);
+  }
+  console.log(`  ✓ ${rolesData.length} roles created`);
+
+  // Auth policy untuk SUPERADMIN
+  const superadminRoleId = roleMap.get("SUPERADMIN")!;
+  await db.insert(authPolicy).values({
+    roleId: superadminRoleId,
+    accessTokenTtlMinutes: 5,
+    refreshTokenTtlDays: 7,
+    require2fa: true,
+    maxActiveAssignments: 3,
+  });
+  console.log(`  ✓ SUPERADMIN auth policy (5m JWT, 2FA)\n`);
+
+  // ===========================================================================
+  // 3. PERMISSIONS
+  // ===========================================================================
+  console.log("🔑 Permissions...");
+
+  const permMap = new Map<string, string>();
+  for (const code of permissionsData) {
+    const [inserted] = await db
+      .insert(permission)
+      .values({ code, description: null })
+      .returning();
+    permMap.set(code, inserted!.id);
+  }
+  console.log(`  ✓ ${permissionsData.length} permissions created\n`);
+
+  // ===========================================================================
+  // 4. ROLE ↔ PERMISSION ASSIGNMENTS
+  // ===========================================================================
+  console.log("🔗 Role-Permission assignments...");
+
+
+  await syncRolePermissions(rolePerms, roleMap, permMap);
   console.log("  ✓ Role-permission assignments done\n");
 
   // ===========================================================================
