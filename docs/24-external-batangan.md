@@ -114,12 +114,13 @@ Batch EXTERNAL ikut seluruh mekanisme sesi HLP. Badge di picker batch memakai po
 yang sama dengan usulan "badge REPROSES" (ide #4 diskusi 23, belum dipilih — bisa
 diaktifkan sekalian di sini).
 
-## 6. Pertanyaan tertunda
+## 6. Pertanyaan tertunda — SEMUA TERJAWAB (1 Sep 2026)
 
-1. Estimasi berat pack di dokumen serah terima (berat/batang × isi pack) — perlu
-   dicantumkan atau cukup jumlah pack saja?
-2. Kalau batch external belum habis dipacking saat kontrak selesai (sisa pack belum
-   keluar) — cukup tampil di laporan sisa, atau ada status khusus?
+1. ~~Estimasi berat di dokumen serah terima.~~ **DIJAWAB: sertakan estimasi** —
+   baris "Estimasi Berat Pack = berat/batang × isi × jumlah pack (estimasi)" —
+   sudah diimplementasikan di PDF serah terima.
+2. ~~Batch belum habis saat kontrak selesai.~~ **DIJAWAB: cukup laporan sisa** —
+   summary batch (23 §2.4) menampilkan sisa; tanpa status khusus.
 
 ## 7. Urutan eksekusi yang disarankan
 

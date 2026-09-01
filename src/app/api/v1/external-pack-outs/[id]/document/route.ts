@@ -31,6 +31,11 @@ export const GET = withAuth(
       rejectBatangQty: d.rejectBatangQty,
       returnerName: d.outByName ?? "",
       plantLabel: `${d.plantName} (${d.plantCode})`,
+      // Estimasi berat = berat/batang × isi per pack × jumlah pack (docs/24 §6.1)
+      estimatedWeightKg:
+        d.beratPerBatangGram != null && d.isiPerPack != null
+          ? (Number(d.beratPerBatangGram) * d.isiPerPack * d.packQty) / 1000
+          : null,
     });
 
     return new NextResponse(pdf as unknown as BodyInit, {

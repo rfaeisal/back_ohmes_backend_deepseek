@@ -90,12 +90,13 @@ output stage terakhir yang dicatat).
   mencatat unit stage keluar (pack/slop/bal) + reject stage yang dikembalikan.
 - PDF serah terima makloon mencantumkan stage masuk/keluar.
 
-## 5. Pertanyaan tertunda
+## 5. Pertanyaan tertunda — SEMUA TERJAWAB (1 Sep 2026)
 
-1. Sisa batch (23 §2.4) saat rantai multi-stage: hitung sisa dari stage tertinggi
-   saja, atau tampilkan rincian sisa per stage? (Rekomendasi: stage tertinggi saja.)
-2. Apakah stage WR/SLOP/BAL punya nomor lot/kode fisik (mis. label slop) yang perlu
-   dicetak/direkam? (Rekomendasi awal: tidak — cukup batch code.)
+1. ~~Sisa batch saat multi-stage.~~ **DIJAWAB: rincian per stage** — summary batch
+   kini memuat `stageBreakdown` (in/out/reject + sisa per stage; sisa = output stage
+   − input stage berikutnya, BAL = outputnya) — diimplementasikan + tampil di
+   kartu Rantai tablet.
+2. ~~Nomor lot/kode fisik stage.~~ **DIJAWAB: tidak** — cukup batch code.
 
 ## 6. Urutan eksekusi yang disarankan
 

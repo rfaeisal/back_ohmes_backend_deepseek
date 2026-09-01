@@ -668,6 +668,17 @@ export default function HlpPage() {
                 + Catat Stage
               </Button>
             </div>
+            {batchSummary?.stageBreakdown?.length > 0 && (
+              <div className="rounded-lg bg-gray-50 p-3 text-sm space-y-1">
+                <p className="font-semibold text-gray-600">Sisa per stage:</p>
+                {batchSummary.stageBreakdown.map((s: any) => (
+                  <div key={s.stage} className="flex justify-between">
+                    <span className="text-gray-600">{s.stage}: out {s.outputQty} · reject {s.rejectQty}</span>
+                    <span className="font-bold">sisa {s.sisaQty}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             {stageEvents.length === 0 ? (
               <p className="text-sm text-gray-400 py-2">Belum ada catatan stage untuk batch ini.</p>
             ) : (

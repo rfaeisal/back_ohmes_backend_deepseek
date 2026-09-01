@@ -14,6 +14,7 @@ import {
   tsgInventory,
   batch,
   hlpPack,
+  batchStageEvent,
   tsgReceivingBox,
 } from "@/db/schema";
 import { hlpShift } from "@/db/schema/hlp";
@@ -835,6 +836,38 @@ export async function getBatchSisaSummary(batchId: string) {
     ? Math.max(0, Math.round((batanganKg - kgPakai!) * 100) / 100)
     : null;
 
+  // Rincian per stage (docs/25 §5.1 — dijawab: rincian per stage).
+  // Sisa stage = output stage tsb − input stage berikutnya
+  // (pack terwrap tersisa = out(WR) − in(SLOP), dst.); BAL = output BAL.
+  const stageRows = await db
+    .select({
+      stage: batchStageEvent.stage,
+      inputQty: sql<number>`COALESCE(SUM(${batchStageEvent.inputQty}::numeric), 0)`.mapWith(Number),
+      outputQty: sql<number>`COALESCE(SUM(${batchStageEvent.outputQty}::numeric), 0)`.mapWith(Number),
+      rejectQty: sql<number>`COALESCE(SUM(${batchStageEvent.rejectQty}::numeric), 0)`.mapWith(Number),
+    })
+    .from(batchStageEvent)
+    .where(eq(batchStageEvent.batchId, batchId))
+    .groupBy(batchStageEvent.stage);
+  const byStage = new Map(stageRows.map((r) => [r.stage, r]));
+  const total = (stage: string, field: "inputQty" | "outputQty" | "rejectQty") =>
+    byStage.get(stage)?.[field] ?? 0;
+  const stageBreakdown = (["WR", "SLOP", "BAL"] as const)
+    .filter((s) => byStage.has(s))
+    .map((s) => {
+      const next = s === "WR" ? "SLOP" : s === "SLOP" ? "BAL" : null;
+      const sisa = next != null
+        ? Math.max(0, total(s, "outputQty") - total(next, "inputQty"))
+        : total(s, "outputQty");
+      return {
+        stage: s,
+        inputQty: total(s, "inputQty"),
+        outputQty: total(s, "outputQty"),
+        rejectQty: total(s, "rejectQty"),
+        sisaQty: Math.round(sisa * 100) / 100,
+      };
+    });
+
   return {
     batchId,
     code: b.code,
@@ -847,5 +880,6 @@ export async function getBatchSisaSummary(batchId: string) {
     kgPakai,
     sisaBatangEst,
     sisaKgEst,
+    stageBreakdown,
   };
 }

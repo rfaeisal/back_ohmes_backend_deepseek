@@ -452,6 +452,9 @@ export async function getExternalPackOutDetail(id: string) {
       rejectBatangQty: externalPackOut.rejectBatangQty,
       exitStage: externalPackOut.exitStage,
       entryStage: sql<string>`(SELECT er.entry_stage FROM external_batangan_receiving er WHERE er.batch_id = ${externalPackOut.batchId})`.mapWith(String),
+      // Estimasi berat (docs/24 §6.1 — dijawab: sertakan estimasi)
+      isiPerPack: sql<number>`(SELECT hp.isi_per_pack::int FROM hlp_pack hp WHERE hp.batch_id = ${externalPackOut.batchId} LIMIT 1)`.mapWith(Number),
+      beratPerBatangGram: sql<number>`(SELECT hp.berat_per_batang_gram::numeric FROM hlp_pack hp WHERE hp.batch_id = ${externalPackOut.batchId} LIMIT 1)`.mapWith(Number),
       outAt: externalPackOut.outAt,
       outByName: sql<string>`(SELECT u.full_name FROM "user" u WHERE u.id = ${externalPackOut.outBy})`.mapWith(String),
       plantName: plant.name,

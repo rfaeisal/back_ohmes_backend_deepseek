@@ -208,12 +208,12 @@ TODO #6 disupersede oleh desain ini.
 
 ---
 
-## 7. Pertanyaan tertunda (dijawab sebelum eksekusi)
+## 7. Pertanyaan tertunda — SEMUA TERJAWAB (1 Sep 2026)
 
-1. Packing/input tanpa sesi OPEN — boleh standalone (rekomendasi saya) atau wajib buka sesi?
-2. ~~Angka idle untuk auto-tutup sesi (X jam).~~ **DIJAWAB: 6 jam** (env `HLP_SHIFT_IDLE_HOURS`, sudah diimplementasikan di instrumentation — tahap 2).
-3. Permission role operator HLP untuk input material/downtime/sparepart dari tablet.
-4. Koreksi data historis reject pack — wajib atau tidak.
+1. ~~Packing/input tanpa sesi OPEN.~~ **DIJAWAB: boleh standalone** — sesi hanya "menempel" kalau OPEN (sudah diimplementasikan: hlpShiftId auto-link).
+2. ~~Angka idle untuk auto-tutup sesi (X jam).~~ **DIJAWAB: 6 jam** (env `HLP_SHIFT_IDLE_HOURS`, diimplementasikan di instrumentation — tahap 2).
+3. ~~Permission operator HLP untuk input dari tablet.~~ **DIJAWAB**: material-out PEMAKAIAN/WASTE diizinkan untuk pemegang `hlp.pack` (ter-scope); downtime & maintenance lewat permission shift.downtime.log/shift.maintenance.log yang sudah dimiliki operator — tahap 3.
+4. ~~Koreksi historis reject pack.~~ **DIJAWAB**: tidak wajib — mulai bersih saat go-live (§4.2).
 
 ## 8. Urutan eksekusi yang disarankan
 

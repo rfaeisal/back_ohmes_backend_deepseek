@@ -22,6 +22,8 @@ export interface MakloonSerahTerimaInput {
   rejectBatangQty: number;
   returnerName: string;
   plantLabel: string;
+  /** Estimasi berat total pack (kg) — berat/batang × isi × jumlah pack; null kalau tidak ada packing */
+  estimatedWeightKg?: number | null;
 }
 
 export async function buildMakloonSerahTerimaPdf(input: MakloonSerahTerimaInput): Promise<Uint8Array> {
@@ -89,6 +91,9 @@ export async function buildMakloonSerahTerimaPdf(input: MakloonSerahTerimaInput)
     ["Pack Lolos Dikembalikan", `${input.packQty} pack`],
     ["Reject Pack Dikembalikan", `${input.rejectPackQty} pack`],
     ["Reject Batangan Dikembalikan", `${input.rejectBatangQty} batang`],
+    ...(input.estimatedWeightKg != null
+      ? [["Estimasi Berat Pack", `${input.estimatedWeightKg.toFixed(2)} kg (estimasi)`] as [string, string]]
+      : []),
   ];
   const rowH = 22;
   const tableTop = y;
