@@ -13,6 +13,7 @@ import {
   hashRefreshToken,
   getAccessTokenTtl,
   getRefreshTokenTtlDays,
+  hasFloorRole,
   type JwtPayload,
 } from "@/lib/auth/jwt";
 
@@ -161,6 +162,26 @@ describe("getAccessTokenTtl", () => {
 
   it("should return default (15) for regular user", () => {
     expect(getAccessTokenTtl(false)).toBe(15);
+  });
+
+  it("floor role (tablet produksi) mendapat TTL panjang 8 jam", () => {
+    expect(getAccessTokenTtl(false, true)).toBe(480);
+  });
+
+  it("superadmin tetap 5 menit walau role floor", () => {
+    expect(getAccessTokenTtl(true, true)).toBe(5);
+  });
+});
+
+describe("hasFloorRole", () => {
+  it("deteksi operator lantai produksi", () => {
+    expect(hasFloorRole([{ roleCode: "OPERATOR_KECER" }])).toBe(true);
+    expect(hasFloorRole([{ roleCode: "SHIFT_SUPERVISOR" }])).toBe(true);
+  });
+
+  it("role office/admin bukan floor", () => {
+    expect(hasFloorRole([{ roleCode: "HQ_ANALYST" }])).toBe(false);
+    expect(hasFloorRole([])).toBe(false);
   });
 });
 

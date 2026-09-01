@@ -52,6 +52,29 @@ const DEFAULT_REFRESH_TTL = parseInt(
 const SUPERADMIN_ACCESS_TTL = 5; // menit
 const SUPERADMIN_REFRESH_TTL = 7; // hari
 
+// Tablet lantai produksi dipakai sepanjang shift (mis. 8 jam) — access token
+// pendek bikin operator kena login ulang tiap 15 menit (UI tablet tidak
+// auto-refresh). Role lantai produksi dapat TTL panjang; sisanya tetap 15 menit.
+const DEFAULT_FLOOR_ACCESS_TTL = parseInt(
+  process.env.FLOOR_ACCESS_TOKEN_TTL_MINUTES || "480", // 8 jam
+  10
+);
+
+export const FLOOR_ROLE_CODES = [
+  "OPERATOR_KECER",
+  "OPERATOR_MEMBER",
+  "SHIFT_SUPERVISOR",
+  "GUDANG_INBOUND",
+  "GUDANG_OUTBOUND",
+  "EKSPEDISI",
+] as const;
+
+export function hasFloorRole(assignments: Array<{ roleCode: string }>): boolean {
+  return assignments.some((a) =>
+    (FLOOR_ROLE_CODES as readonly string[]).includes(a.roleCode)
+  );
+}
+
 // =============================================================================
 // Token Generation & Verification
 // =============================================================================
@@ -85,8 +108,10 @@ export function generateRefreshToken(): string {
   return `rft_${nanoid(48)}`;
 }
 
-export function getAccessTokenTtl(isSuperadmin: boolean): number {
-  return isSuperadmin ? SUPERADMIN_ACCESS_TTL : DEFAULT_ACCESS_TTL;
+export function getAccessTokenTtl(isSuperadmin: boolean, isFloorRole = false): number {
+  if (isSuperadmin) return SUPERADMIN_ACCESS_TTL;
+  if (isFloorRole) return DEFAULT_FLOOR_ACCESS_TTL;
+  return DEFAULT_ACCESS_TTL;
 }
 
 export function getRefreshTokenTtlDays(isSuperadmin: boolean): number {

@@ -11,6 +11,7 @@ import {
   extractToken,
   generateAccessToken,
   getAccessTokenTtl,
+  hasFloorRole,
   resolveScope,
   type JwtPayload,
 } from "@/lib/auth";
@@ -86,7 +87,10 @@ export async function POST(request: Request) {
     // 4. Generate access token baru dengan scope baru
     // -----------------------------------------------------------------------
     const isSuperadmin = resolvedScope.isPrivileged;
-    const accessTokenTtl = getAccessTokenTtl(isSuperadmin);
+    const accessTokenTtl = getAccessTokenTtl(
+      isSuperadmin,
+      hasFloorRole(resolvedScope.assignments)
+    );
 
     const jwtPayload: JwtPayload = {
       userId: currentPayload.userId,

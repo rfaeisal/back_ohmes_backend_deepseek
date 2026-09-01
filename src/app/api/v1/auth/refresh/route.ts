@@ -15,6 +15,7 @@ import {
   validateAndRotateSession,
   resolveScope,
   getAccessTokenTtl,
+  hasFloorRole,
   type JwtPayload,
 } from "@/lib/auth";
 
@@ -97,7 +98,10 @@ export async function POST(request: Request) {
     // 4. Generate access token baru
     // -----------------------------------------------------------------------
     const isSuperadmin = resolvedScope.isPrivileged;
-    const accessTokenTtl = getAccessTokenTtl(isSuperadmin);
+    const accessTokenTtl = getAccessTokenTtl(
+      isSuperadmin,
+      hasFloorRole(resolvedScope.assignments)
+    );
 
     const jwtPayload: JwtPayload = {
       userId: session.userId,

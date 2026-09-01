@@ -12,6 +12,8 @@ export {
   hashRefreshToken,
   getAccessTokenTtl,
   getRefreshTokenTtlDays,
+  hasFloorRole,
+  FLOOR_ROLE_CODES,
   type JwtPayload,
   type TokenPair,
 } from "./jwt";

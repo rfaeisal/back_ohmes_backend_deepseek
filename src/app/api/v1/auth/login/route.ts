@@ -17,6 +17,7 @@ import {
   hashRefreshToken,
   getAccessTokenTtl,
   getRefreshTokenTtlDays,
+  hasFloorRole,
   createSession,
   resolveScope,
   SessionExistsError,
@@ -207,7 +208,10 @@ export async function POST(request: Request) {
     // 6. Generate refresh token + session DULU — access token memuat sessionId
     //    supaya revoke sesi (force-logout) langsung mematikan access token.
     // -----------------------------------------------------------------------
-    const accessTokenTtl = getAccessTokenTtl(isSuperadmin);
+    const accessTokenTtl = getAccessTokenTtl(
+      isSuperadmin,
+      hasFloorRole(resolvedScope.assignments)
+    );
     const refreshTokenTtlDays = getRefreshTokenTtlDays(isSuperadmin);
 
     const refreshToken = generateRefreshToken();
