@@ -20,7 +20,7 @@ Yang tersisa hanya verifikasi lapangan — tidak bisa dikerjakan dari laptop:
    - [ ] Staff gudang inbound terima 20 boks TSG < 10 menit
    - [ ] SUPERADMIN revoke sesi mobile → user bisa login di device baru
 4. **Ditunda secara sadar** (bukan blocker):
-   - Coverage threshold vitest (80%) belum tercapai (~1% line; service layer 0%)
+   - Coverage threshold vitest (80%) belum tercapai (line 9,24% — naik dari ~1%; tranche pertama test service-layer 1 Sep 2026: rijekan, chain, hlp-session, makloon, supplier-sj via mock-db helper)
      — step CI non-blocking, angka tetap terlihat di log. Enforcement diaktifkan
      lagi setelah ada effort test service-layer.
    - 1 vulnerability moderate: `uuid` (transitif firebase-admin) — override ke v11
