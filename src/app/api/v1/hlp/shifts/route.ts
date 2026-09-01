@@ -22,7 +22,7 @@ export const GET = withAuth(async (request: Request, ctx: AuthContext) => {
     machineId: url.searchParams.get("machineId") ?? undefined,
   });
   return NextResponse.json({ data: result }, { status: 200 });
-}, { requiredPermission: "hlp.pack" });
+}, { requiredPermission: "shift.view" });
 
 export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
   try {

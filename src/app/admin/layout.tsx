@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { isSessionExpired, redirectToLogin } from "@/lib/utils/api-client";
 import { canAccessAdmin } from "@/lib/utils/admin-gate";
 import Link from "next/link";
-import { LayoutDashboard, ClipboardCheck, MapPin, TrendingUp, Wrench, Users, Settings, ScrollText, Shield, Printer, FileText, FileBarChart, Factory, LogOut, Smartphone, Calendar, Package, BarChart3, Menu, X } from "lucide-react";
+import { LayoutDashboard, ClipboardCheck, MapPin, TrendingUp, Wrench, Users, Settings, ScrollText, Shield, Printer, FileText, FileBarChart, Factory, LogOut, Smartphone, Calendar, Package, BarChart3, Menu, X, Recycle } from "lucide-react";
 
 type NavItem = { href: string; label: string; icon: any; permissions?: string[]; superadminOnly?: boolean };
 type NavSection = { title: string; items: NavItem[] };
@@ -38,6 +38,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/admin/reports/shifts", label: "Laporan Per Shift", icon: FileText, permissions: ["shift.view"] },
       { href: "/admin/reports/tsg-usage", label: "Penggunaan TSG", icon: BarChart3, permissions: ["shift.view"] },
       { href: "/admin/reports/tsg-stock", label: "Stok TSG", icon: Package, permissions: ["tsg.inventory.view"] },
+      { href: "/admin/reports/rijekan", label: "Laporan Rijekan", icon: Recycle, permissions: ["tsg.inventory.view"] },
       { href: "/admin/reports/tsg-receiving", label: "Laporan TSG Masuk", icon: FileBarChart, permissions: ["tsg.receiving.view"] },
       { href: "/admin/reports/tsg-out", label: "TSG Keluar", icon: FileText, permissions: ["tsg.inventory.view"] },
     ],

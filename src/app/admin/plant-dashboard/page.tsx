@@ -14,6 +14,8 @@ export default function PlantDashboardPage() {
   // Switcher pabrik — user area (REGION/GLOBAL) bisa pindah antar pabrik scope-nya
   const [plants, setPlants] = useState<any[]>([]);
   const [selectedPlantId, setSelectedPlantId] = useState<string>("");
+  // Mesin HLP dengan sesi OPEN (docs/23 §6)
+  const [openHlpMachineIds, setOpenHlpMachineIds] = useState<Set<string>>(new Set());
 
   // Muat KPI + shift untuk satu pabrik aktif
   const loadPlantData = useCallback(async (plantId: string) => {
@@ -49,6 +51,13 @@ export default function PlantDashboardPage() {
       );
       setPlants(scopePlants);
       setMachines(machinesData?.data ?? []);
+
+      // Status HLP via sesi OPEN (docs/23 §6) — mesin HLP AKTIF kalau ada
+      // sesi terbuka; sebelumnya selalu IDLE karena tidak punya shift MAKER.
+      try {
+        const openRes = await apiFetch("/hlp/shifts?status=OPEN");
+        setOpenHlpMachineIds(new Set((openRes.data ?? []).map((s: any) => s.hlpMachineId)));
+      } catch { setOpenHlpMachineIds(new Set()); }
 
       const activePlantId = scopePlants[0]?.id ?? "";
       setSelectedPlantId(activePlantId);
@@ -132,7 +141,10 @@ export default function PlantDashboardPage() {
         {plantMachines.length === 0 ? (
           <Card className="col-span-3"><p className="py-4 text-center text-sm text-gray-400">Belum ada mesin terdaftar di pabrik ini.</p></Card>
         ) : plantMachines.map((m) => {
-          const isRunning = runningIds.has(m.id);
+          // MAKER: AKTIF kalau ada shift RUNNING. HLP: AKTIF kalau ada sesi
+          // OPEN (docs/23 §6) — HLP tidak punya shift MAKER.
+          const isRunning =
+            m.type === "HLP" ? openHlpMachineIds.has(m.id) : runningIds.has(m.id);
           return (
             <Card key={m.id} highlight={isRunning ? "green" : "none"}>
               <div className="flex items-center justify-between">
@@ -140,7 +152,9 @@ export default function PlantDashboardPage() {
                   <p className="font-bold">{m.code}</p>
                   <p className="text-sm text-gray-500">{m.name} · {m.type}</p>
                 </div>
-                <Badge variant={isRunning ? "success" : "neutral"}>{isRunning ? "AKTIF" : "IDLE"}</Badge>
+                <Badge variant={isRunning ? "success" : "neutral"}>
+                  {isRunning ? (m.type === "HLP" ? "AKTIF (SESI)" : "AKTIF") : "IDLE"}
+                </Badge>
               </div>
             </Card>
           );
