@@ -118,7 +118,7 @@ export default function HlpPage() {
         }),
       });
       setLastResult(result);
-      setActionMsg(`✅ Packing dicatat — berat per batang ${result.beratPerBatangGram} g/batang`);
+      setActionMsg(`✅ Packing dicatat — berat per batang ${Number(result.beratPerBatangGram).toFixed(2)} g/batang`);
       setPacksLolos("");
       setRejectBatangan("0");
       setSelectedBatch(null);
@@ -235,7 +235,7 @@ export default function HlpPage() {
               </div>
               <div className="flex justify-between py-1">
                 <span className="text-gray-500">Berat per batang</span>
-                <span className="font-bold text-primary-700">{beratPerBatangPreview != null ? `${beratPerBatangPreview} g` : "-"}</span>
+                <span className="font-bold text-primary-700">{beratPerBatangPreview != null ? `${Number(beratPerBatangPreview).toFixed(2)} g` : "-"}</span>
               </div>
             </div>
           )}
@@ -264,7 +264,7 @@ export default function HlpPage() {
           <div className="mt-3 grid grid-cols-3 gap-3 text-center">
             {[
               { label: "Total Batang", value: lastResult.totalBatang },
-              { label: "Berat per Batang", value: `${lastResult.beratPerBatangGram} g` },
+              { label: "Berat per Batang", value: `${Number(lastResult.beratPerBatangGram).toFixed(2)} g` },
               { label: "Pack Lolos", value: lastResult.packsLolos },
             ].map((s) => (
               <div key={s.label}>
@@ -329,7 +329,7 @@ export default function HlpPage() {
                 </div>
                 <div className="flex items-center gap-3 text-sm">
                   <span className="text-gray-600">{h.packsLolos} pack · {h.rejectBatangan} reject</span>
-                  <Badge variant="info">{h.beratPerBatangGram != null ? `${h.beratPerBatangGram} g/btg` : "-"}</Badge>
+                  <Badge variant="info">{h.beratPerBatangGram != null ? `${Number(h.beratPerBatangGram).toFixed(2)} g/btg` : "-"}</Badge>
                 </div>
               </div>
             </Card>
