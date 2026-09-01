@@ -173,7 +173,7 @@ jobs:
       # Tanpa script test:e2e penuh — reset DB sudah dijalankan di atas
       - run: pnpm test:e2e:iterate
       - name: Upload laporan Playwright (kalau gagal)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report
