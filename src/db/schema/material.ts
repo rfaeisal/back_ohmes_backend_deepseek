@@ -118,7 +118,7 @@ export const sparepartReceivingItem = pgTable(
 // Material Out — keluar consumable/sparepart (kirim pabrik lain / retur supplier)
 // =============================================================================
 
-export const materialOutTypeEnum = pgEnum("material_out_type", ["TRANSFER", "RETUR", "PEMAKAIAN", "RUSAK"]);
+export const materialOutTypeEnum = pgEnum("material_out_type", ["TRANSFER", "RETUR", "PEMAKAIAN", "RUSAK", "WASTE"]);
 
 export const materialOut = pgTable(
   "material_out",

@@ -67,16 +67,19 @@ export function calculateShiftYield(input: ShiftYieldInput): number {
 // =============================================================================
 
 /**
- * totalBatang = packsLolos × isiPerPack + rejectBatangan
+ * totalBatang = (packsLolos + rejectPacks) × isiPerPack + rejectBatangan
+ * Reject pack dihitung sebagai batangan (docs/23 §4.1) — batangan dalam
+ * pack yang ditolak ikut mengkonsumsi batch.
  * beratPerBatang = (batanganKgBatch × 1000) / totalBatang
  */
 export function calculateBeratPerBatangGram(
   batanganKgBatch: number,
   packsLolos: number,
   isiPerPack: number,
-  rejectBatangan: number
+  rejectBatangan: number,
+  rejectPacks = 0
 ): number {
-  const totalBatang = packsLolos * isiPerPack + rejectBatangan;
+  const totalBatang = calculateTotalBatang(packsLolos, isiPerPack, rejectBatangan, rejectPacks);
 
   if (totalBatang <= 0) {
     throw new Error("DIVIDE_BY_ZERO: totalBatang must be > 0");
@@ -89,9 +92,10 @@ export function calculateBeratPerBatangGram(
 export function calculateTotalBatang(
   packsLolos: number,
   isiPerPack: number,
-  rejectBatangan: number
+  rejectBatangan: number,
+  rejectPacks = 0
 ): number {
-  return packsLolos * isiPerPack + rejectBatangan;
+  return (packsLolos + rejectPacks) * isiPerPack + rejectBatangan;
 }
 
 // =============================================================================

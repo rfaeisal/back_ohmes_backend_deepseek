@@ -20,6 +20,7 @@ import {
 } from "./master-product";
 import { shiftReport, shiftHandoff } from "./shift";
 import { tsgInventory } from "./wms-inbound";
+import { hlpShift } from "./hlp";
 
 // =============================================================================
 // TSG Box Session — sesi buka 1–6 boks sekaligus + timbang batangan kolektif
@@ -190,9 +191,14 @@ export const hlpPack = pgTable("hlp_pack", {
   hlpMachineId: uuid("hlp_machine_id")
     .notNull()
     .references(() => machine.id),
+  // Sesi HLP yang sedang terbuka saat packing dicatat (docs/23 §2.2) — nullable
+  hlpShiftId: uuid("hlp_shift_id").references(() => hlpShift.id),
   packsLolos: integer("packs_lolos").notNull(),
   isiPerPack: integer("isi_per_pack").notNull().default(20),
   rejectBatangan: integer("reject_batangan").notNull().default(0),
+  // Reject pack = pack utuh ditolak, dihitung sebagai batangan (docs/23 §4)
+  rejectPacks: integer("reject_packs").notNull().default(0),
+  rejectReason: text("reject_reason"),
   totalBatang: integer("total_batang").notNull(), // dihitung server
   beratPerBatangGram: decimal("berat_per_batang_gram", {
     precision: 5,

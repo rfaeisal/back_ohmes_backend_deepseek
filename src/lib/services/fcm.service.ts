@@ -196,6 +196,34 @@ export async function notifyShiftCompleted(shift: {
   }
 }
 
+// Reject HLP di atas ambang (docs/23 §4.4) → PM + supervisor plant tsb
+export async function notifyHlpRejectHigh(input: {
+  plantId: string;
+  batchCode: string;
+  ratioPct: number;
+}): Promise<void> {
+  try {
+    const [pmIds, supervisorIds] = await Promise.all([
+      getPlantManagerUserIds(input.plantId),
+      getSupervisorUserIds(input.plantId),
+    ]);
+    const userIds = [...new Set([...pmIds, ...supervisorIds])];
+    if (userIds.length === 0) return;
+
+    await sendPushToUsers(userIds, {
+      title: "Reject HLP di atas ambang",
+      body: `Batch ${input.batchCode} reject ${input.ratioPct}% (> 5%).`,
+      data: {
+        batch_code: input.batchCode,
+        ratio_pct: String(input.ratioPct),
+        plant_id: input.plantId,
+      },
+    });
+  } catch (err) {
+    console.error("[fcm] notifyHlpRejectHigh gagal:", err);
+  }
+}
+
 // Receiving status → PENDING (manual tanpa SJ): Plant Manager + Shift
 // Supervisor plant tsb (keduanya pemegang tsg.receiving.approve)
 export async function notifyReceivingPending(receiving: {

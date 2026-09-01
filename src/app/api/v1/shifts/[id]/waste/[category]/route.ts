@@ -6,6 +6,7 @@ import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import db from "@/db";
 import { shiftWaste, shiftReport } from "@/db/schema";
 import { ServiceError } from "@/lib/services/shift.service";
+import { addRijekanEntry } from "@/lib/services/rijekan.service";
 
 const schema = z.object({ settledAt: z.string().datetime().optional() });
 
@@ -25,7 +26,7 @@ export const PATCH = withAuth(
       const parsed = schema.safeParse(body);
 
       const [shift] = await db
-        .select({ status: shiftReport.status })
+        .select({ status: shiftReport.status, plantId: shiftReport.plantId })
         .from(shiftReport)
         .where(eq(shiftReport.id, shiftId))
         .limit(1);
@@ -36,6 +37,17 @@ export const PATCH = withAuth(
           { status: 409 }
         );
       }
+
+      const [waste] = await db
+        .select({ id: shiftWaste.id, kg: shiftWaste.kg, settlementStatus: shiftWaste.settlementStatus })
+        .from(shiftWaste)
+        .where(
+          and(
+            eq(shiftWaste.shiftReportId, shiftId),
+            eq(shiftWaste.category, category as "MENIR" | "RIJEKAN" | "DEBU_KASAR" | "DEBU_HALUS")
+          )
+        )
+        .limit(1);
 
       await db
         .update(shiftWaste)
@@ -50,6 +62,19 @@ export const PATCH = withAuth(
             eq(shiftWaste.category, category as "MENIR" | "RIJEKAN" | "DEBU_KASAR" | "DEBU_HALUS")
           )
         );
+
+      // Sink ledger rijekan (docs/23 §5.2): RIJEKAN yang di-settle = masuk
+      // pembukuan (kg). Fire-and-forget — gagal tidak menggagalkan settle.
+      if (category === "RIJEKAN" && waste && waste.settlementStatus !== "LUNAS") {
+        void addRijekanEntry({
+          plantId: shift.plantId,
+          entryType: "IN_MAKER_WASTE",
+          quantity: Number(waste.kg),
+          unit: "KG",
+          refId: waste.id,
+          note: `Settle waste shift ${shiftId.substring(0, 8)}...`,
+        });
+      }
 
       return NextResponse.json({ shiftId, category, settlementStatus: "LUNAS" }, { status: 200 });
     } catch (err) {

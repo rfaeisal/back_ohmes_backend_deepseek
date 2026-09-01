@@ -16,11 +16,19 @@ import {
   hlpPack,
   tsgReceivingBox,
 } from "@/db/schema";
+import { hlpShift } from "@/db/schema/hlp";
 import { machineTemplate, machine } from "@/db/schema/master-product";
 import { calculateYieldPct, getYieldIndicator, calculateBeratPerBatangGram, calculateTotalBatang, splitBatanganProportional } from "@/lib/calc";
 import { writeAudit } from "@/lib/audit";
+import { addRijekanEntry } from "./rijekan.service";
+import { notifyHlpRejectHigh } from "./fcm.service";
 import { ServiceError } from "./shift.service";
 export { ServiceError } from "./shift.service";
+
+// Ambang rasio reject (docs/23 §4.4) — reject batangan total / total batang.
+// Default 5%; override via env REJECT_THRESHOLD_PCT kalau lapangan beda.
+const HLP_REJECT_THRESHOLD_PCT =
+  Number(process.env.HLP_REJECT_THRESHOLD_PCT ?? 5) / 100;
 
 // =============================================================================
 // Types
@@ -76,6 +84,11 @@ export interface HlpPackInput {
   packsLolos: number;
   isiPerPack: number;
   rejectBatangan: number;
+  // Reject pack = pack utuh ditolak, dihitung sebagai batangan (docs/23 §4)
+  rejectPacks?: number;
+  rejectReason?: string;
+  // Diisi otomatis dari sesi HLP OPEN mesin tsb — jangan di-set client
+  hlpShiftId?: string | null;
 }
 
 export interface OpenBoxSessionInput {
@@ -684,10 +697,15 @@ export async function hlpPackInput(input: HlpPackInput) {
     );
   }
 
+  const rejectPacks = input.rejectPacks ?? 0;
+  const rejectReason = input.rejectReason?.trim() || null;
+
+  // Reject pack dihitung sebagai batangan (docs/23 §4.1)
   const totalBatang = calculateTotalBatang(
     input.packsLolos,
     input.isiPerPack,
-    input.rejectBatangan
+    input.rejectBatangan,
+    rejectPacks
   );
 
   // Ambil batch untuk dapatkan batanganKg
@@ -704,8 +722,29 @@ export async function hlpPackInput(input: HlpPackInput) {
       Number(b.batanganKg),
       input.packsLolos,
       input.isiPerPack,
-      input.rejectBatangan
+      input.rejectBatangan,
+      rejectPacks
     );
+  }
+
+  // Sesi HLP OPEN untuk mesin ini → packing otomatis menempel (docs/23 §2.2).
+  // Kalau tidak ada sesi terbuka, packing tetap boleh standalone (open question §7.1).
+  let hlpShiftId: string | null = null;
+  if (input.hlpShiftId !== undefined) {
+    hlpShiftId = input.hlpShiftId;
+  } else {
+    const [openShift] = await db
+      .select({ id: hlpShift.id })
+      .from(hlpShift)
+      .where(
+        and(
+          eq(hlpShift.hlpMachineId, input.hlpMachineId),
+          eq(hlpShift.status, "OPEN"),
+          isNull(hlpShift.deletedAt)
+        )
+      )
+      .limit(1);
+    hlpShiftId = openShift?.id ?? null;
   }
 
   const [pack] = await db
@@ -714,13 +753,40 @@ export async function hlpPackInput(input: HlpPackInput) {
       batchId: input.batchId,
       plantId: input.plantId,
       hlpMachineId: input.hlpMachineId,
+      hlpShiftId,
       packsLolos: input.packsLolos,
       isiPerPack: input.isiPerPack,
       rejectBatangan: input.rejectBatangan,
+      rejectPacks,
+      rejectReason,
       totalBatang,
       beratPerBatangGram: beratPerBatangGram ? String(beratPerBatangGram) : null,
     })
     .returning();
+
+  // Sink ledger rijekan: reject HLP masuk pembukuan (docs/23 §5.2) —
+  // reject batangan langsung + batangan dalam pack reject.
+  const rejectBatangTotal = rejectPacks * input.isiPerPack + input.rejectBatangan;
+  if (rejectBatangTotal > 0) {
+    void addRijekanEntry({
+      plantId: input.plantId,
+      entryType: "IN_HLP_REJECT",
+      quantity: rejectBatangTotal,
+      unit: "BATANG",
+      refId: pack!.id,
+      note: rejectReason ?? undefined,
+    });
+  }
+
+  // Ambang reject → push FCM PM + supervisor (docs/23 §4.4, default 5%)
+  const rejectRatio = totalBatang > 0 ? rejectBatangTotal / totalBatang : 0;
+  if (rejectRatio > HLP_REJECT_THRESHOLD_PCT) {
+    void notifyHlpRejectHigh({
+      plantId: input.plantId,
+      batchCode: b?.code ?? pack!.batchId.substring(0, 8),
+      ratioPct: Math.round(rejectRatio * 1000) / 10,
+    });
+  }
 
   return { ...pack, beratPerBatangGram };
 }

@@ -11,6 +11,9 @@ const hlpPackSchema = z.object({
   packsLolos: z.number().int().min(0),
   isiPerPack: z.number().int().min(1).default(20),
   rejectBatangan: z.number().int().min(0).default(0),
+  // Reject pack = pack utuh ditolak, dihitung sebagai batangan (docs/23 §4)
+  rejectPacks: z.number().int().min(0).default(0),
+  rejectReason: z.string().max(50).optional(),
 });
 
 export const POST = withAuth(async (request: Request, ctx: AuthContext) => {

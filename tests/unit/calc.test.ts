@@ -143,6 +143,13 @@ describe("calculateBeratPerBatangGram", () => {
     // 16500 / 10300 = 1.602
     expect(result).toBeCloseTo(1.602, 3);
   });
+
+  it("reject pack ikut konsumsi batch (docs/23 §4.1)", () => {
+    // (500 + 10 pack reject) × 20 + 300 = 10500 batang
+    // 16500 / 10500 = 1.571
+    const result = calculateBeratPerBatangGram(16.5, 500, 20, 300, 10);
+    expect(result).toBeCloseTo(1.571, 3);
+  });
 });
 
 // =============================================================================
@@ -156,6 +163,15 @@ describe("calculateTotalBatang", () => {
 
   it("should handle zero values", () => {
     expect(calculateTotalBatang(0, 20, 0)).toBe(0);
+  });
+
+  it("reject pack dihitung sebagai batangan (docs/23 §4.1)", () => {
+    // (100 lolos + 5 pack reject) × 20 + 30 batangan reject = 2130
+    expect(calculateTotalBatang(100, 20, 30, 5)).toBe(2130);
+  });
+
+  it("rejectPacks default 0 — backward compatible", () => {
+    expect(calculateTotalBatang(100, 20, 30)).toBe(2030);
   });
 });
 
