@@ -29,6 +29,9 @@ export const externalBatanganReceiving = pgTable(
     senderName: text("sender_name").notNull(), // pengirim FREE TEXT
     docRef: text("doc_ref"), // nomor PO/DO
     batanganKg: numeric("batangan_kg").notNull(),
+    // Entry stage (docs/25 §4): BATANGAN | PACK | PACK_WRAPPED | SLOP | BAL
+    entryStage: text("entry_stage").notNull().default("BATANGAN"),
+    entryUnit: text("entry_unit").notNull().default("KG"), // KG | PACK | SLOP | BAL
     receivedAt: timestamp("received_at").notNull().defaultNow(),
     receivedBy: uuid("received_by")
       .notNull()
@@ -64,6 +67,8 @@ export const externalPackOut = pgTable(
     packQty: integer("pack_qty").notNull(),
     rejectPackQty: integer("reject_pack_qty").notNull().default(0),
     rejectBatangQty: integer("reject_batang_qty").notNull().default(0),
+    // Stage saat keluar (docs/25 §4): PACK | PACK_WRAPPED | SLOP | BAL
+    exitStage: text("exit_stage").notNull().default("PACK"),
     outAt: timestamp("out_at").notNull().defaultNow(),
     outBy: uuid("out_by")
       .notNull()

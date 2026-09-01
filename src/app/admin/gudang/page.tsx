@@ -192,6 +192,7 @@ export default function GudangInboundPage() {
   const [extSender, setExtSender] = useState("");
   const [extDocRef, setExtDocRef] = useState("");
   const [extKg, setExtKg] = useState("");
+  const [extEntryStage, setExtEntryStage] = useState<"BATANGAN" | "PACK" | "PACK_WRAPPED" | "SLOP" | "BAL">("BATANGAN");
   const [extNotes, setExtNotes] = useState("");
   const [extSaving, setExtSaving] = useState(false);
   const [extError, setExtError] = useState("");
@@ -218,6 +219,7 @@ export default function GudangInboundPage() {
           senderName: extSender.trim(),
           docRef: extDocRef || undefined,
           batanganKg: kg,
+          entryStage: extEntryStage,
           notes: extNotes || undefined,
         }),
       });
@@ -400,7 +402,7 @@ export default function GudangInboundPage() {
           <Button size="xl" variant="outline" onClick={() => { setMatOutFlow("TRANSFER"); setMatOutMachine(""); setMatOutCounterpart(""); setMatOutReason(""); setMatOutItems([{ itemId: "", qty: "" }]); setMatOutError(""); loadMaterialItems(matOutType); loadMachines(); setShowMatOut(true); }}>
             📤 Keluar Material & Sparepart
           </Button>
-          <Button size="xl" variant="outline" onClick={() => { setExtSender(""); setExtDocRef(""); setExtKg(""); setExtNotes(""); setExtError(""); setShowExtReceive(true); }}>
+          <Button size="xl" variant="outline" onClick={() => { setExtSender(""); setExtDocRef(""); setExtKg(""); setExtEntryStage("BATANGAN"); setExtNotes(""); setExtError(""); setShowExtReceive(true); }}>
             🏭 Terima Batangan External (Makloon)
           </Button>
         </div>
@@ -414,7 +416,8 @@ export default function GudangInboundPage() {
             <div key={r.id} className="flex items-center justify-between border-b border-purple-200 py-2 last:border-0">
               <div>
                 <span className="font-semibold">{r.senderName}</span>
-                <span className="text-sm text-gray-600 ml-2">{Number(r.batanganKg)} kg</span>
+                <span className="text-sm text-gray-600 ml-2">{Number(r.batanganKg)} {r.entryUnit ?? "kg"}</span>
+                <span className="text-xs text-gray-400 ml-2">stage: {r.entryStage ?? "BATANGAN"}</span>
                 {r.docRef && <span className="text-xs text-gray-400 ml-2">Ref: {r.docRef}</span>}
               </div>
               <div className="flex gap-2">
@@ -981,7 +984,28 @@ export default function GudangInboundPage() {
         <div className="space-y-3">
           <Input label="Nama Pengirim *" value={extSender} onChange={(e) => setExtSender(e.target.value)} placeholder="cth: PT Makloon Jaya" />
           <Input label="Nomor PO/DO" value={extDocRef} onChange={(e) => setExtDocRef(e.target.value)} placeholder="cth: PO-009" />
-          <Input label="Berat Batangan (kg) *" type="number" inputMode="decimal" value={extKg} onChange={(e) => setExtKg(e.target.value)} placeholder="0" />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Stage Masuk</label>
+            <select
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white"
+              value={extEntryStage}
+              onChange={(e) => setExtEntryStage(e.target.value as any)}
+            >
+              <option value="BATANGAN">BATANGAN (masuk HLP)</option>
+              <option value="PACK">PACK</option>
+              <option value="PACK_WRAPPED">PACK TERWRAP (masuk SLOP)</option>
+              <option value="SLOP">SLOP</option>
+              <option value="BAL">BAL</option>
+            </select>
+          </div>
+          <Input
+            label={extEntryStage === "BATANGAN" ? "Berat Batangan (kg) *" : `Jumlah ${extEntryStage === "PACK" || extEntryStage === "PACK_WRAPPED" ? "pack" : extEntryStage.toLowerCase()} *`}
+            type="number"
+            inputMode="decimal"
+            value={extKg}
+            onChange={(e) => setExtKg(e.target.value)}
+            placeholder="0"
+          />
           <Input label="Catatan (opsional)" value={extNotes} onChange={(e) => setExtNotes(e.target.value)} />
           {extError && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{extError}</div>}
           <Button size="operator" className="w-full" disabled={extSaving} onClick={handleSubmitExtReceive}>

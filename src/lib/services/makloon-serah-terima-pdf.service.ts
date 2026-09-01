@@ -13,6 +13,8 @@ export interface MakloonSerahTerimaInput {
   tanggal: Date;
   batchCode: string;
   batanganKg: number;
+  entryStage: string; // stage masuk order (docs/25 §4)
+  exitStage: string; // stage saat dikembalikan
   customerName: string;
   docRef: string | null;
   packQty: number;
@@ -81,7 +83,9 @@ export async function buildMakloonSerahTerimaPdf(input: MakloonSerahTerimaInput)
 
   const rows: Array<[string, string]> = [
     ["Kode Batch", input.batchCode],
-    ["Berat Batangan Diterima", `${input.batanganKg} kg`],
+    ["Stage Masuk", input.entryStage],
+    ["Stage Keluar", input.exitStage],
+    ["Jumlah Diterima", `${input.batanganKg} ${input.entryStage === "BATANGAN" ? "kg" : "unit"}`],
     ["Pack Lolos Dikembalikan", `${input.packQty} pack`],
     ["Reject Pack Dikembalikan", `${input.rejectPackQty} pack`],
     ["Reject Batangan Dikembalikan", `${input.rejectBatangQty} batang`],

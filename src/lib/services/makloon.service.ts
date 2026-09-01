@@ -23,11 +23,32 @@ import { ServiceError } from "./shift.service";
 // Penerimaan
 // =============================================================================
 
+export const ENTRY_STAGES = ["BATANGAN", "PACK", "PACK_WRAPPED", "SLOP", "BAL"] as const;
+export type EntryStage = (typeof ENTRY_STAGES)[number];
+
+export const ENTRY_UNIT: Record<EntryStage, string> = {
+  BATANGAN: "KG",
+  PACK: "PACK",
+  PACK_WRAPPED: "PACK",
+  SLOP: "SLOP",
+  BAL: "BAL",
+};
+
+// Stage batch saat approve sesuai entry (docs/25 §4)
+export const ENTRY_BATCH_STAGE: Record<EntryStage, string> = {
+  BATANGAN: "PACKED",
+  PACK: "PACKED",
+  PACK_WRAPPED: "WRAPPED",
+  SLOP: "SLOPPED",
+  BAL: "BALED",
+};
+
 export interface CreateExternalReceivingInput {
   plantId: string;
   senderName: string;
   docRef?: string;
-  batanganKg: number;
+  batanganKg: number; // kg untuk BATANGAN; jumlah satuan stage untuk entry lain
+  entryStage?: EntryStage;
   receivedBy: string;
   notes?: string;
 }
@@ -37,8 +58,10 @@ export async function createExternalReceiving(input: CreateExternalReceivingInpu
     throw new ServiceError("SENDER_REQUIRED", "Nama pengirim wajib diisi.");
   }
   if (input.batanganKg <= 0 || input.batanganKg > 10000) {
-    throw new ServiceError("INVALID_KG", "Berat batangan harus 0-10000 kg.");
+    throw new ServiceError("INVALID_KG", "Berat/jumlah harus 0-10000.");
   }
+
+  const entryStage: EntryStage = input.entryStage ?? "BATANGAN";
 
   const [r] = await db
     .insert(externalBatanganReceiving)
@@ -47,6 +70,8 @@ export async function createExternalReceiving(input: CreateExternalReceivingInpu
       senderName: input.senderName.trim(),
       docRef: input.docRef?.trim() || null,
       batanganKg: String(input.batanganKg),
+      entryStage,
+      entryUnit: ENTRY_UNIT[entryStage],
       receivedBy: input.receivedBy,
       notes: input.notes?.trim() || null,
     })
@@ -58,7 +83,7 @@ export async function createExternalReceiving(input: CreateExternalReceivingInpu
     action: "external_batangan.create",
     entityTable: "external_batangan_receiving",
     entityId: r.id,
-    after: { senderName: input.senderName, batanganKg: input.batanganKg, approvalStatus: "PENDING" },
+    after: { senderName: input.senderName, batanganKg: input.batanganKg, entryStage, approvalStatus: "PENDING" },
   });
 
   // Push ke PM + supervisor (fire-and-forget)
@@ -79,6 +104,8 @@ export async function listExternalReceivings(plantId: string, status?: string) {
       senderName: externalBatanganReceiving.senderName,
       docRef: externalBatanganReceiving.docRef,
       batanganKg: externalBatanganReceiving.batanganKg,
+      entryStage: externalBatanganReceiving.entryStage,
+      entryUnit: externalBatanganReceiving.entryUnit,
       receivedAt: externalBatanganReceiving.receivedAt,
       receivedByName: sql<string>`(SELECT u.full_name FROM "user" u WHERE u.id = ${externalBatanganReceiving.receivedBy})`.mapWith(String),
       approvalStatus: externalBatanganReceiving.approvalStatus,
@@ -106,6 +133,8 @@ export async function getExternalReceivingDetail(id: string) {
       senderName: externalBatanganReceiving.senderName,
       docRef: externalBatanganReceiving.docRef,
       batanganKg: externalBatanganReceiving.batanganKg,
+      entryStage: externalBatanganReceiving.entryStage,
+      entryUnit: externalBatanganReceiving.entryUnit,
       receivedAt: externalBatanganReceiving.receivedAt,
       receivedByName: sql<string>`(SELECT u.full_name FROM "user" u WHERE u.id = ${externalBatanganReceiving.receivedBy})`.mapWith(String),
       approvalStatus: externalBatanganReceiving.approvalStatus,
@@ -163,6 +192,10 @@ export async function approveExternalReceiving(
 
   const code = await nextExternalBatchCode(db);
 
+  // Entry stage menentukan progress awal batch (docs/25 §4): pack terwrap
+  // masuk = batch lahir di stage WRAPPED, dst. batanganKg hanya bermakna
+  // untuk entry BATANGAN (kg) — entry lain pakai satuan stage.
+  const entryStage = (r.entryStage as EntryStage) || "BATANGAN";
   const [b] = await db
     .insert(batch)
     .values({
@@ -171,8 +204,9 @@ export async function approveExternalReceiving(
       machineId: null,
       source: "EXTERNAL",
       externalReceivingId: r.id,
+      stage: ENTRY_BATCH_STAGE[entryStage],
       code,
-      batanganKg: r.batanganKg,
+      batanganKg: entryStage === "BATANGAN" ? r.batanganKg : "0",
     })
     .returning();
   if (!b) throw new ServiceError("BATCH_CREATE_FAILED", "Gagal membuat batch external.");
@@ -247,12 +281,13 @@ export interface CreateExternalPackOutInput {
   packQty: number;
   rejectPackQty: number;
   rejectBatangQty: number;
+  exitStage?: EntryStage;
   outBy: string;
 }
 
 export async function createExternalPackOut(input: CreateExternalPackOutInput) {
   const [b] = await db
-    .select({ id: batch.id, code: batch.code, source: batch.source })
+    .select({ id: batch.id, code: batch.code, source: batch.source, externalReceivingId: batch.externalReceivingId })
     .from(batch)
     .where(eq(batch.id, input.batchId))
     .limit(1);
@@ -270,21 +305,19 @@ export async function createExternalPackOut(input: CreateExternalPackOutInput) {
     throw new ServiceError("EMPTY_OUT", "Isi minimal satu jumlah (pack / reject).");
   }
 
-  // Packing batch ini wajib sudah dicatat HLP
-  const [pack] = await db
-    .select({
-      packsLolos: hlpPack.packsLolos,
-      rejectPacks: hlpPack.rejectPacks,
-      rejectBatangan: hlpPack.rejectBatangan,
-    })
-    .from(hlpPack)
-    .where(eq(hlpPack.batchId, input.batchId))
+  // Entry stage batch menentukan aturan validasi (docs/25 §4):
+  // - BATANGAN: wajib sudah di-packing HLP; keluar divalidasi vs packsLolos/reject.
+  // - PACK/PACK_WRAPPED/SLOP/BAL: tanpa packing HLP; keluar (pack + reject stage)
+  //   divalidasi vs jumlah entry (satuan stage); reject batangan harus 0.
+  const [recv] = await db
+    .select({ entryStage: externalBatanganReceiving.entryStage, batanganKg: externalBatanganReceiving.batanganKg })
+    .from(externalBatanganReceiving)
+    .where(eq(externalBatanganReceiving.id, b.externalReceivingId!))
     .limit(1);
-  if (!pack) {
-    throw new ServiceError("NOT_PACKED_YET", "Batch ini belum dicatat packingnya di HLP.");
-  }
+  const entryStage: EntryStage = (recv?.entryStage as EntryStage) || "BATANGAN";
+  const exitStage: EntryStage = input.exitStage ?? (entryStage === "BATANGAN" ? "PACK" : entryStage);
 
-  // Validasi jumlah keluar ≤ yang tercatat (akumulasi keluar sebelumnya)
+  // Akumulasi keluar sebelumnya
   const [agg] = await db
     .select({
       packQty: sql<number>`COALESCE(SUM(${externalPackOut.packQty}), 0)::int`.mapWith(Number),
@@ -295,26 +328,58 @@ export async function createExternalPackOut(input: CreateExternalPackOutInput) {
     .where(and(eq(externalPackOut.batchId, input.batchId), isNull(externalPackOut.deletedAt)));
   const prev = agg ?? { packQty: 0, rejectPackQty: 0, rejectBatangQty: 0 };
 
-  if (prev.packQty + input.packQty > pack.packsLolos) {
-    throw new ServiceError(
-      "PACK_EXCEEDS",
-      `Pack keluar melebihi pack lolos tercatat (${pack.packsLolos}; sudah keluar ${prev.packQty}).`,
-      { packsLolos: pack.packsLolos, sudahKeluar: prev.packQty }
-    );
-  }
-  if (prev.rejectPackQty + input.rejectPackQty > pack.rejectPacks) {
-    throw new ServiceError(
-      "REJECT_PACK_EXCEEDS",
-      `Reject pack melebihi yang tercatat (${pack.rejectPacks}).`,
-      { rejectPacks: pack.rejectPacks }
-    );
-  }
-  if (prev.rejectBatangQty + input.rejectBatangQty > pack.rejectBatangan) {
-    throw new ServiceError(
-      "REJECT_BATANG_EXCEEDS",
-      `Reject batangan melebihi yang tercatat (${pack.rejectBatangan}).`,
-      { rejectBatangan: pack.rejectBatangan }
-    );
+  if (entryStage === "BATANGAN") {
+    // Packing batch ini wajib sudah dicatat HLP
+    const [pack] = await db
+      .select({
+        packsLolos: hlpPack.packsLolos,
+        rejectPacks: hlpPack.rejectPacks,
+        rejectBatangan: hlpPack.rejectBatangan,
+      })
+      .from(hlpPack)
+      .where(eq(hlpPack.batchId, input.batchId))
+      .limit(1);
+    if (!pack) {
+      throw new ServiceError("NOT_PACKED_YET", "Batch ini belum dicatat packingnya di HLP.");
+    }
+
+    if (prev.packQty + input.packQty > pack.packsLolos) {
+      throw new ServiceError(
+        "PACK_EXCEEDS",
+        `Pack keluar melebihi pack lolos tercatat (${pack.packsLolos}; sudah keluar ${prev.packQty}).`,
+        { packsLolos: pack.packsLolos, sudahKeluar: prev.packQty }
+      );
+    }
+    if (prev.rejectPackQty + input.rejectPackQty > pack.rejectPacks) {
+      throw new ServiceError(
+        "REJECT_PACK_EXCEEDS",
+        `Reject pack melebihi yang tercatat (${pack.rejectPacks}).`,
+        { rejectPacks: pack.rejectPacks }
+      );
+    }
+    if (prev.rejectBatangQty + input.rejectBatangQty > pack.rejectBatangan) {
+      throw new ServiceError(
+        "REJECT_BATANG_EXCEEDS",
+        `Reject batangan melebihi yang tercatat (${pack.rejectBatangan}).`,
+        { rejectBatangan: pack.rejectBatangan }
+      );
+    }
+  } else {
+    // Entry non-batangan: validasi vs jumlah entry dalam satuan stage
+    if (input.rejectBatangQty > 0) {
+      throw new ServiceError(
+        "REJECT_BATANG_NOT_APPLICABLE",
+        "Reject batangan hanya untuk order masuk BATANGAN."
+      );
+    }
+    const entryQty = Number(recv?.batanganKg ?? 0);
+    if (prev.packQty + prev.rejectPackQty + input.packQty + input.rejectPackQty > entryQty) {
+      throw new ServiceError(
+        "OUT_EXCEEDS_ENTRY",
+        `Keluaran melebihi jumlah entry ${entryStage} (${entryQty}; sudah keluar ${prev.packQty + prev.rejectPackQty}).`,
+        { entryQty, sudahKeluar: prev.packQty + prev.rejectPackQty }
+      );
+    }
   }
 
   const [out] = await db
@@ -327,6 +392,7 @@ export async function createExternalPackOut(input: CreateExternalPackOutInput) {
       packQty: input.packQty,
       rejectPackQty: input.rejectPackQty,
       rejectBatangQty: input.rejectBatangQty,
+      exitStage,
       outBy: input.outBy,
     })
     .returning();
@@ -343,6 +409,7 @@ export async function createExternalPackOut(input: CreateExternalPackOutInput) {
       packQty: input.packQty,
       rejectPackQty: input.rejectPackQty,
       rejectBatangQty: input.rejectBatangQty,
+      exitStage,
     },
   });
 
@@ -360,6 +427,7 @@ export async function listExternalPackOuts(plantId: string) {
       packQty: externalPackOut.packQty,
       rejectPackQty: externalPackOut.rejectPackQty,
       rejectBatangQty: externalPackOut.rejectBatangQty,
+      exitStage: externalPackOut.exitStage,
       outAt: externalPackOut.outAt,
       outByName: sql<string>`(SELECT u.full_name FROM "user" u WHERE u.id = ${externalPackOut.outBy})`.mapWith(String),
     })
@@ -382,6 +450,8 @@ export async function getExternalPackOutDetail(id: string) {
       packQty: externalPackOut.packQty,
       rejectPackQty: externalPackOut.rejectPackQty,
       rejectBatangQty: externalPackOut.rejectBatangQty,
+      exitStage: externalPackOut.exitStage,
+      entryStage: sql<string>`(SELECT er.entry_stage FROM external_batangan_receiving er WHERE er.batch_id = ${externalPackOut.batchId})`.mapWith(String),
       outAt: externalPackOut.outAt,
       outByName: sql<string>`(SELECT u.full_name FROM "user" u WHERE u.id = ${externalPackOut.outBy})`.mapWith(String),
       plantName: plant.name,

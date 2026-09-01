@@ -17,6 +17,8 @@ const createSchema = z.object({
   packQty: z.number().int().min(0).default(0),
   rejectPackQty: z.number().int().min(0).default(0),
   rejectBatangQty: z.number().int().min(0).default(0),
+  // Stage saat keluar (docs/25 §4) — default ikut entry stage batch
+  exitStage: z.enum(["PACK", "PACK_WRAPPED", "SLOP", "BAL"]).optional(),
 });
 
 export const GET = withAuth(async (_request: Request, ctx: AuthContext) => {
@@ -56,6 +58,7 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
       packQty: parsed.data.packQty,
       rejectPackQty: parsed.data.rejectPackQty,
       rejectBatangQty: parsed.data.rejectBatangQty,
+      exitStage: parsed.data.exitStage,
       outBy: ctx.user.userId,
     });
     return NextResponse.json(result, { status: 201 });

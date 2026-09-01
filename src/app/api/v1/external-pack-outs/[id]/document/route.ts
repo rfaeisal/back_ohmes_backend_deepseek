@@ -22,6 +22,8 @@ export const GET = withAuth(
       tanggal: new Date(d.outAt),
       batchCode: d.batchCode,
       batanganKg: Number(d.batanganKg ?? 0),
+      entryStage: d.entryStage ?? "BATANGAN",
+      exitStage: d.exitStage ?? "PACK",
       customerName: d.destinationName,
       docRef: d.docRef,
       packQty: d.packQty,

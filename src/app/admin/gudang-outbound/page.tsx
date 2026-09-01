@@ -38,6 +38,7 @@ export default function GudangOutboundPage() {
   const [extOutBatchId, setExtOutBatchId] = useState("");
   const [extOutDest, setExtOutDest] = useState("");
   const [extOutDocRef, setExtOutDocRef] = useState("");
+  const [extOutExitStage, setExtOutExitStage] = useState<"PACK" | "PACK_WRAPPED" | "SLOP" | "BAL">("PACK");
   const [extOutPack, setExtOutPack] = useState("");
   const [extOutRejectPack, setExtOutRejectPack] = useState("0");
   const [extOutRejectBatang, setExtOutRejectBatang] = useState("0");
@@ -51,9 +52,11 @@ export default function GudangOutboundPage() {
         apiFetch("/batches"),
         apiFetch("/external-pack-outs"),
       ]);
+      // Semua batch EXTERNAL — entry non-batangan (pack terwrap/slop/bal)
+      // tidak punya packCount; batch batangan yang belum dipacking akan
+      // ditolak server dengan NOT_PACKED_YET saat submit.
       setExtBatches(
-        ((bRes.data ?? []) as any[])
-          .filter((b: any) => b.source === "EXTERNAL" && (b.packCount ?? 0) > 0)
+        ((bRes.data ?? []) as any[]).filter((b: any) => b.source === "EXTERNAL")
       );
       setExtPackOuts(oRes.data ?? []);
     } catch { setExtBatches([]); setExtPackOuts([]); }
@@ -80,6 +83,7 @@ export default function GudangOutboundPage() {
           packQty: pack,
           rejectPackQty: rp,
           rejectBatangQty: rb,
+          exitStage: extOutExitStage,
         }),
       });
       setShowExtOut(false);
@@ -201,7 +205,7 @@ export default function GudangOutboundPage() {
         <Button onClick={() => { setNewCartonProduct(products[0]?.id ?? ""); setNewCartonCapacity("50"); setShowNewCarton(true); }}>
           📦 Buat Karton Baru
         </Button>
-        <Button variant="outline" onClick={() => { setExtOutBatchId(""); setExtOutDest(""); setExtOutDocRef(""); setExtOutPack(""); setExtOutRejectPack("0"); setExtOutRejectBatang("0"); setExtOutError(""); setShowExtOut(true); }}>
+        <Button variant="outline" onClick={() => { setExtOutBatchId(""); setExtOutDest(""); setExtOutDocRef(""); setExtOutExitStage("PACK"); setExtOutPack(""); setExtOutRejectPack("0"); setExtOutRejectBatang("0"); setExtOutError(""); setShowExtOut(true); }}>
           📤 Keluar Pack Makloon
         </Button>
       </div>
@@ -419,6 +423,19 @@ export default function GudangOutboundPage() {
           </div>
           <Input label="Nama Customer *" value={extOutDest} onChange={(e) => setExtOutDest(e.target.value)} placeholder="cth: PT Makloon Jaya" />
           <Input label="Ref. Order (PO/DO)" value={extOutDocRef} onChange={(e) => setExtOutDocRef(e.target.value)} />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Stage Keluar</label>
+            <select
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white"
+              value={extOutExitStage}
+              onChange={(e) => setExtOutExitStage(e.target.value as any)}
+            >
+              <option value="PACK">PACK</option>
+              <option value="PACK_WRAPPED">PACK TERWRAP</option>
+              <option value="SLOP">SLOP</option>
+              <option value="BAL">BAL</option>
+            </select>
+          </div>
           <div className="grid grid-cols-3 gap-3">
             <Input label="Pack Keluar" type="number" inputMode="numeric" value={extOutPack} onChange={(e) => setExtOutPack(e.target.value)} placeholder="0" />
             <Input label="Reject Pack" type="number" inputMode="numeric" value={extOutRejectPack} onChange={(e) => setExtOutRejectPack(e.target.value)} placeholder="0" />
