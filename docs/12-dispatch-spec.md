@@ -45,8 +45,8 @@ Dokumen operasional untuk **modul Distribusi Basic** — dieksekusi di Fase 6, s
   - Live counter: "12 karton dipilih".
 
 #### Step 3: Preview & Simpan Draft
-- Preview: header order (customer, driver, kendaraan) + list karton (kode + product + jumlah pack).
-- Total karton, total pack, total batang.
+- Preview: header order (customer, driver, kendaraan) + list karton (kode + product + jumlah dalam satuan unit karton).
+- Total karton + total per satuan (pack / slop / bal — 0029).
 - Tap "Simpan Draft" → POST `/dispatch/orders` → status `DRAFT`.
 - Response `orderId` + `orderCode`.
 
@@ -59,8 +59,8 @@ Dokumen operasional untuk **modul Distribusi Basic** — dieksekusi di Fase 6, s
   - Header: logo pabrik, alamat pabrik.
   - Nomor SJ: `SJ-MLG-20260810-001`.
   - Customer info.
-  - Table: no · kode karton · produk · jumlah pack · berat estimasi.
-  - Total di bawah tabel.
+  - Table: no · kode karton · produk · JUMLAH (qty + satuan, mis. "3 SLOP") · berat estimasi.
+  - Total di bawah tabel: total karton + rincian per satuan non-nol.
   - Ttd digital (kalau ada) atau spot ttd manual.
 - PDF disimpan di storage (Vercel Blob / S3), URL di `dispatch_document.pdfUrl`.
 - Response: URL untuk download / preview.

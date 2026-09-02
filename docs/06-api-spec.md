@@ -598,7 +598,16 @@ Riwayat packing HLP (50 terakhir, desc): `batchCode`, `batanganKg`, `hlpMachineC
 
 ### `GET /batches`
 **Permission**: `hlp.pack`.
-Daftar boks batangan dari Maker untuk dipilih operator HLP (100 terakhir, desc): `id`, `code` (`btc_<mesin>_<YYYYMMDD>_<seq>`), `batanganKg`, `machineCode`, `createdAt`.
+Daftar boks batangan dari Maker untuk dipilih operator HLP (100 terakhir, desc): `id`, `code` (`btc_<mesin>_<YYYYMMDD>_<seq>`), `batanganKg`, `machineCode`, `source`, `stage`, `targetUnit`, `createdAt`.
+
+### `PATCH /batches/:id/target`
+**Permission**: `hlp.pack`. Tentukan produk jadi target (0030) — diputuskan operator HLP sebelum stage dimulai.
+**Body**:
+```json
+{ "targetUnit": "BAL", "reason": "opsional — wajib bila batch sudah punya event stage" }
+```
+`targetUnit`: `PACK | PACK_WRAP | SLOP | BAL`. Rantai wajib: PACK=[] · PACK_WRAP=[WR] · SLOP=[WR,SLOP] · BAL=[WR,SLOP,BAL].
+Error: `TARGET_CHANGE_REASON_REQUIRED` (ada event, tanpa alasan), `TARGET_CONFLICTS_EVENTS` (target baru tidak mencakup stage yang sudah dicatat). Stage event di luar target ditolak `STAGE_NOT_IN_TARGET`; loncat urutan ditolak `STAGE_SEQUENCE_REQUIRED`.
 
 ### 4.5A. Surat Jalan Supplier (pool label & pre-weigh)
 
@@ -685,13 +694,16 @@ Server otomatis buat `tsg_inventory` untuk setiap boks dengan status `AVAILABLE`
 
 ## 4B. WMS Outbound Endpoints (Fase 5)
 
+### `GET /finished-goods/:shiftId`
+**Permission**: `finishedgoods.view`. Daftar ekspektasi per unit (0029): `[{ id, unit: "PACK"|"SLOP"|"BAL", packsExpectedCount, packsActualCount, status }]`.
+
 ### `POST /finished-goods/:shiftId/confirm`
-**Permission**: `finishedgoods.receive`. Untuk shift status APPROVED — sistem sudah auto-create `finished_goods_receiving` dengan `packsExpectedCount`.
+**Permission**: `finishedgoods.receive`. Untuk shift status APPROVED — sistem sudah auto-create `finished_goods_receiving` **per unit** dengan `packsExpectedCount` (PACK = Σ packsLolos; SLOP = max(0, Σout(SLOP) − Σin(BAL)); BAL = Σout(BAL)).
 **Body**:
 ```json
-{ "packsActualCount": 820 }
+{ "unit": "PACK", "packsActualCount": 820 }
 ```
-**Response 200**: kalau match → `status: "CONFIRMED"`. Kalau beda → `status: "DISPUTED"` dan trigger correction task.
+`unit` default `"PACK"`. **Response 200**: kalau match → `status: "CONFIRMED"`. Kalau beda → `status: "DISPUTED"`. Shift terkonfirmasi bila SEMUA unit terminal.
 
 ### `POST /finished-goods/:shiftId/dispute`
 **Permission**: `finishedgoods.dispute`.
@@ -704,17 +716,23 @@ Server otomatis buat `tsg_inventory` untuk setiap boks dengan status `AVAILABLE`
 **Permission**: `cartoning.create`.
 **Body**:
 ```json
-{ "productId": "prd_hmr_std", "capacityPack": 50 }
+{ "productId": "prd_hmr_std", "capacityPack": 50, "unit": "PACK" }
 ```
-**Response 201**: `{ cartonId, code: "CTN-MLG-20260810-001", status: "OPEN" }`.
+`unit`: `PACK | SLOP | BAL` (default PACK) — satu karton satu satuan.
+**Response 201**: `{ cartonId, code: "CTN-MLG-20260810-001", status: "OPEN", unit }`.
+
+### `GET /cartons/stage-availability?stage=WR|SLOP|BAL`
+**Permission**: `cartoning.view`. Sisa output stage per batch yang bisa dikartonkan: `[{ batchId, batchCode, stage, unit, outputTotal, nextInput, allocated, available }]` — `available = max(0, Σout(stage) − Σin(stage berikutnya) − dialokasikan ke karton)`.
 
 ### `POST /cartons/:id/add-pack`
-**Permission**: `cartoning.add_pack`.
-**Body**:
+**Permission**: `cartoning.add_pack`. Discriminated union (0029):
 ```json
-{ "hlpPackId": "pack_shf_2b9f1a_042" }
+{ "sourceType": "HLP_PACK", "hlpPackId": "pack_shf_2b9f1a_042", "packQty": 10 }
 ```
-Validasi: pack punya produk sama dengan carton; belum di-carton lain (unique).
+```json
+{ "sourceType": "STAGE", "batchId": "btc_...", "stage": "SLOP", "packQty": 3 }
+```
+Validasi: `CARTON_FULL`, `PACK_INSUFFICIENT` (sisa pack HLP), `STAGE_OUTPUT_INSUFFICIENT` (sisa output stage), `UNIT_MISMATCH` (unit karton ≠ unit sumber), `NOT_INTERNAL_BATCH` (makloon via alur makloon).
 
 ### `POST /cartons/:id/close`
 **Permission**: `cartoning.close`. Tutup karton (OPEN → READY). Validasi: `actualPackCount > 0`.

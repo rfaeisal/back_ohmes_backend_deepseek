@@ -59,16 +59,20 @@ Dokumen operasional untuk **modul WMS Outbound** — dieksekusi di Fase 5, setel
 #### Step 1: Buka Karton Baru
 - Halaman "Cartoning" → tombol "+ Buka Karton Baru".
 - Modal:
-  - Dropdown Produk (mis. Hummer STD) — semua pack dalam karton harus produk sama.
-  - Input Kapasitas (default 50 pack).
+  - Dropdown Produk (mis. Hummer STD) — semua isi dalam karton harus produk sama.
+  - **Unit Karton (0029)**: PACK | SLOP | BAL — satu karton satu satuan; isi wajib se-unit (server `UNIT_MISMATCH`).
+  - Input Kapasitas (default 50, dalam satuan unit karton).
 - Tap "Buka" → POST `/cartons` → status OPEN.
 - Karton dapat kode auto `CTN-{plant}-{YYYYMMDD}-{seq}`.
 
-#### Step 2: Tambah Pack ke Karton
-- Kalau ada pack scanner (barcode/QR Fase 3): scan → POST `/cartons/:id/add-pack`.
-- Kalau tidak: pilih dari list pack yang belum ter-carton (`hlp_pack WHERE NOT IN cartonContent`) — bulk-select.
-- Sistem validasi: pack produk sama dengan karton; unique per karton.
-- Live counter: "23/50 pack".
+#### Step 2: Tambah Isi ke Karton
+- Sumber isi (per unit karton):
+  - PACK: "Pack dari HLP" (`hlp_pack`, sisa = packsLolos − dialokasikan) atau "Hasil WR (pack terwrap)" (sisa output stage WR).
+  - SLOP: "Hasil SLOP" — sisa = Σout(SLOP) − Σin(BAL) − dialokasikan ke karton.
+  - BAL: "Hasil BAL" — sisa = Σout(BAL) − dialokasikan ke karton.
+- POST `/cartons/:id/add-pack` (body discriminated: `sourceType` HLP_PACK | STAGE).
+- Validasi server: `CARTON_FULL` (kapasitas), `PACK_INSUFFICIENT` (sisa pack HLP), `STAGE_OUTPUT_INSUFFICIENT` (sisa output stage), `UNIT_MISMATCH`, `NOT_INTERNAL_BATCH` (makloon lewat alur makloon).
+- Live counter: "23/50" dalam satuan unit karton.
 
 #### Step 3: Tutup Karton
 - Saat karton penuh (atau tim outbound decide "cukup"): tap "Tutup Karton".
@@ -124,8 +128,10 @@ Halaman "Cari Karton":
 ### 4.1. FinishedGoodsReceiving
 | Rule | Enforcement |
 |---|---|
-| `finished_goods_receiving.status = 'PENDING'` unique per shift | DB unique (satu shift satu record) |
+| `finished_goods_receiving.status = 'PENDING'` unique per (shift, unit) | DB unique (satu shift satu baris per satuan PACK/SLOP/BAL — 0029) |
+| Ekspektasi per unit dibuat saat approve | PACK = Σ packsLolos; SLOP = max(0, Σout(SLOP) − Σin(BAL)); BAL = Σout(BAL) |
 | Confirm harus dari user role `GUDANG_OUTBOUND` di plant sama | RLS + permission |
+| Confirm per unit (`unit` di body) | CONFIRMED/DISPUTED per baris; shift terkonfirmasi bila SEMUA unit terminal |
 | Dispute → trigger notif ke supervisor + optional CORRECTION | Service transaction |
 
 ### 4.2. Cartoning

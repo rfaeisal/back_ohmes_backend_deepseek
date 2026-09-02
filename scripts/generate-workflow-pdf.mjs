@@ -66,21 +66,22 @@ const CONTENT = [
     ],
   },
   {
-    title: "Fase 6 — HLP: Packing Batangan -> Pack (tablet /tablet/hlp)",
+    title: "Fase 6 — HLP: Packing Batangan + Produk Jadi Target (tablet /tablet/hlp)",
     items: [
       "Pilih batch batangan (btc_…, stage PACKED). Batch yang belum dicatat packing tampil di atas; batch yang sudah packing ditandai dan diblokir (HLP_BATCH_ALREADY_PACKED — satu batch hanya boleh dicatat sekali).",
+      "Tentukan PRODUK JADI TARGET (diputuskan di sini, default PACK): PACK (tanpa wrap) / PACK_WRAP (WR) / SLOP (WR -> SLOP) / BAL (WR -> SLOP -> BAL). Stage di luar target ditolak (STAGE_NOT_IN_TARGET); loncat urutan ditolak (STAGE_SEQUENCE_REQUIRED); ubah target setelah ada event wajib alasan + audit.",
       "Catat hasil packing: packsLolos, isiPerPack (default 20), rejectBatangan, rejectPacks + alasan -> POST /api/v1/hlp/packs (permission hlp.pack).",
       "Server menghitung totalBatang dan beratPerBatangGram -> menyimpan hlp_pack. Jika ada sesi HLP OPEN di mesin itu, packing otomatis menempel ke sesi; tanpa sesi, packing standalone tetap boleh.",
       "Ada reject -> masuk ledger rijekan (IN_HLP_REJECT, unit BATANG). Rasio reject > 5% -> FCM HLP_REJECT_HIGH ke PM + supervisor.",
-      "Rantai lanjutan opsional: batch_stage_event WR (wrap) -> SLOP -> BAL; batch.stage maju PACKED -> WRAPPED -> SLOPPED -> BALED.",
+      "Rantai sesuai target: batch_stage_event WR (wrap) -> SLOP -> BAL; batch.stage maju PACKED -> WRAPPED -> SLOPPED -> BALED. Sisa tiap stage (output - input stage berikutnya - isi karton) bisa dikartonkan.",
     ],
   },
   {
-    title: "Fase 7 — Gudang Outbound: Karton (admin gudang, /admin/gudang)",
+    title: "Fase 7 — Gudang Outbound: Karton Multi-Satuan (admin gudang, /admin/gudang)",
     items: [
-      "Buat karton: POST /cartons (permission cartoning.create) — kode karton, produk, kapasitas pack (capacityPack).",
-      "\"Isi Pack\": POST /cartons/:id/packs — pilih batch + packQty (jumlah pack fisik dari batch itu) -> baris carton_content.",
-      "Validasi server: CARTON_FULL (total isi + packQty melebihi kapasitas karton -> ditolak) dan PACK_INSUFFICIENT (packQty melebihi sisa packsLolos batch yang belum dialokasikan ke karton lain -> ditolak). Satu batch boleh dipecah ke beberapa karton, tidak boleh dicatat dua kali.",
+      "Buat karton: POST /cartons (permission cartoning.create) — kode karton, produk, UNIT (PACK/SLOP/BAL, satu karton satu satuan), kapasitas.",
+      "\"Isi Karton\": POST /cartons/:id/add-pack — sumber PACK: \"Pack dari HLP\" atau \"Hasil WR (pack terwrap)\"; SLOP: \"Hasil SLOP\"; BAL: \"Hasil BAL\" -> baris carton_content.",
+      "Validasi server: CARTON_FULL (kapasitas), PACK_INSUFFICIENT (sisa packsLolos), STAGE_OUTPUT_INSUFFICIENT (sisa output stage), UNIT_MISMATCH (isi beda satuan dengan karton), NOT_INTERNAL_BATCH (makloon lewat alur makloon).",
       "closeCarton -> karton siap kirim.",
     ],
   },

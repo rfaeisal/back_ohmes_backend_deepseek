@@ -80,14 +80,17 @@ const SECTIONS = [
     ],
   },
   {
-    title: "TS-HLP-07 — Rantai Produksi WR -> SLOP -> BAL",
+    title: "TS-HLP-07 — Produk Jadi Target + Rantai WR -> SLOP -> BAL",
     items: [
-      "[ ] Kartu \"Rantai Produksi\" -> tombol WR: Input = 25 (pack), Output = 24, Reject = 1, mesin KOSONGKAN (manual), notes opsional -> simpan. HARAPAN: progress batch -> WRAPPED.",
+      "[ ] Di kartu \"Catat Hasil Packing\": setelah pilih batch, tentukan PRODUK JADI TARGET: PACK (tanpa wrap) / PACK_WRAP / SLOP / BAL. HARAPAN: badge \"Target: ...\" tampil di kartu batch.",
+      "[ ] Catat WR: Input = 25 (pack), Output = 24, Reject = 1, mesin KOSONGKAN (manual) -> simpan. HARAPAN: progress batch -> WRAPPED.",
       "[ ] Catat SLOP: Input = 24, Output = 23, Reject = 1. HARAPAN: progress -> SLOPPED.",
       "[ ] Catat BAL: Input = 23, Output = 22, Reject = 1. HARAPAN: progress -> BALED.",
-      "[ ] Urutan bebas: coba catat SLOP dulu sebelum WR di batch lain. HARAPAN: stage batch selalu ke tahap TERTINGGI yang sudah dicatat.",
+      "[ ] NEGATIF rantai target: target PACK tapi catat WR -> ditolak STAGE_NOT_IN_TARGET. Target SLOP tapi langsung catat SLOP tanpa WR -> ditolak STAGE_SEQUENCE_REQUIRED.",
+      "[ ] Ubah target: sebelum ada event bebas; sesudahnya wajib alasan (prompt) -> tersimpan + audit.",
       "[ ] Negatif: Input/Output/Reject semua 0 -> HARAPAN: ditolak (EMPTY_EVENT).",
       "[ ] Catatan: mesin opsional — kegiatan manual boleh tanpa mesin; reject stage BUKAN waste material (waste dicatat di TS-HLP-05).",
+      "[ ] Sisa per stage = output stage - input stage berikutnya - isi karton; sisa parsial bisa dikartonkan dalam satuan stage-nya (lihat TS-HLP-08).",
     ],
   },
   {

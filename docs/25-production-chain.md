@@ -37,10 +37,19 @@ keluar ke customer di stage mana pun sesuai kontrak — generalisasi docs/24.
    (rasio konversi bervariasi, tidak disimpan sistem).
 3. **Reject per stage dicatat eksplisit** — pola yang sama dengan reject pack HLP
    (23 §4): input − output − reject = selisih (kalau ada) jadi peringatan.
-4. **Karton manual** = PEMAKAIAN material (consumable karton, outType PEMAKAIAN)
-   tanpa waste; jumlah aktual dicatat per kegiatan (rasio bal:karton bervariasi).
-5. **Urutan stage bebas** — sistem tidak memvalidasi stage sebelumnya selesai.
-   Progress batch tetap terlihat dari stage tertinggi yang sudah dicatat.
+4. **Karton kini multi-satuan (0029)** — karton punya `unit` (PACK/SLOP/BAL,
+   satu unit per karton); isi bisa dari pack HLP atau output stage
+   (WR→PACK, SLOP, BAL). Karton manual untuk bal tetap dicatat sebagai
+   PEMAKAIAN material bila tidak lewat karton multi-satuan.
+5. **Produk jadi target per batch (0030)** — diputuskan operator HLP sebelum
+   stage dimulai: `PACK` (tanpa stage) | `PACK_WRAP` (WR) | `SLOP` (WR→SLOP) |
+   `BAL` (WR→SLOP→BAL). Stage di luar target ditolak (`STAGE_NOT_IN_TARGET`),
+   loncat urutan ditolak (`STAGE_SEQUENCE_REQUIRED`). Target boleh diubah
+   sebelum ada event stage; sesudahnya wajib alasan + audit.
+6. **Sisa per stage bisa dikartonkan** — `sisa(stage) = Σoutput(stage) −
+   Σinput(stage berikutnya) − dialokasikan ke karton`. Sisa parsial yang
+   "tidak memenuhi" untuk diproses ke stage berikutnya otomatis menjadi stok
+   karton dalam satuan stage-nya (tidak ada minimum jumlah).
 
 ## 3. Skema
 
@@ -54,6 +63,8 @@ batch + kolom:
   stage          text NULL default 'PACKED'   -- PACKED | WRAPPED | SLOPPED | BALED
                                               -- (progres tertinggi; CARTONED tidak
                                               --  disimpan — karton = pemakaian material)
+  target_unit    text NOT NULL default 'PACK' -- produk jadi target (0030):
+                                              -- PACK | PACK_WRAP | SLOP | BAL
 
 batch_stage_event — catatan per-stage (1 baris = 1 kegiatan selesai):
   id             uuid PK

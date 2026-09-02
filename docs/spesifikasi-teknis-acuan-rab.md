@@ -119,6 +119,7 @@ Tablet Produksi (web responsive)          Mobile App (Flutter)
 ### HLP (tablet)
 - Sesi HLP (auto-tutup idle 6 jam)
 - Catat packing per batch (1 batch 1 kali; total batang & berat/batang server-side)
+- **Produk jadi target per batch** (PACK / PACK_WRAP / SLOP / BAL) — rantai stage wajib, validasi urutan, perubahan target ber-alasan + audit
 - Reject pack = batangan + alasan; ambang reject 5% → push FCM
 - Ledger rijekan 2 satuan + laporan web
 - Input operasional: material PEMAKAIAN/WASTE, downtime, maintenance mesin
@@ -131,9 +132,9 @@ Tablet Produksi (web responsive)          Mobile App (Flutter)
 - Inventory FIFO per plant
 
 ### WMS Outbound
-- Karton dengan kapasitas pack — validasi `CARTON_FULL` & `PACK_INSUFFICIENT`
-- Isi pack dari batch, closeCarton
-- Finished goods receiving (ekspektasi vs aktual dari approve)
+- Karton **multi-satuan** (PACK/SLOP/BAL, satu unit per karton) — isi dari pack HLP atau output stage (WR/SLOP/BAL) dengan sisa per stage
+- Validasi `CARTON_FULL`, `PACK_INSUFFICIENT`, `STAGE_OUTPUT_INSUFFICIENT`, `UNIT_MISMATCH`
+- Finished goods receiving **per unit** (ekspektasi vs aktual dari approve)
 
 ### Dispatch & Dokumen
 - Surat jalan dispatch PDF resmi (kop + tabel + 3 tanda tangan)
