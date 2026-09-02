@@ -24,6 +24,7 @@ interface BoxData {
   outputWeightKg?: number;
   yieldPct?: number;
   indicator?: "NORMAL" | "WARNING";
+  tsgType?: string | null;
 }
 
 interface SessionData {
@@ -69,7 +70,7 @@ export default function ShiftActivePage() {
         const completed = detail.boxes.filter((b: any) => b.completedAt).map((b: any) => ({
           id: b.id, boxNumber: b.boxNumber, boxCode: b.boxCode,
           tsgWeightKg: parseFloat(b.tsgWeightKg), outputWeightKg: parseFloat(b.outputWeightKg || "0"),
-          yieldPct: parseFloat(b.yieldPct || "0"), isPartial: b.isPartial,
+          yieldPct: parseFloat(b.yieldPct || "0"), isPartial: b.isPartial, tsgType: b.tsgType ?? null,
           openedAt: new Date(b.openedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
           completedAt: b.completedAt ? new Date(b.completedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : undefined,
           indicator: b.yieldPct ? (parseFloat(b.yieldPct) >= 110 && parseFloat(b.yieldPct) <= 114 ? "NORMAL" as const : "WARNING" as const) : undefined,
@@ -78,7 +79,7 @@ export default function ShiftActivePage() {
         // Semua boks aktif (bisa >1 dalam satu sesi)
         const active = detail.boxes.filter((b: any) => !b.completedAt).map((b: any) => ({
           id: b.id, boxNumber: b.boxNumber, boxCode: b.boxCode,
-          tsgWeightKg: parseFloat(b.tsgWeightKg), isPartial: b.isPartial,
+          tsgWeightKg: parseFloat(b.tsgWeightKg), isPartial: b.isPartial, tsgType: b.tsgType ?? null,
           openedAt: new Date(b.openedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
         }));
         setActiveBoxes(active);
@@ -573,6 +574,9 @@ export default function ShiftActivePage() {
                   <div>
                     <span className="font-bold">#{box.boxNumber}</span>
                     <span className="text-gray-500 ml-2">{box.boxCode}</span>
+                    {box.tsgType && (
+                      <Badge variant="warning" className="ml-2">{box.tsgType}</Badge>
+                    )}
                     <span className="text-gray-400 ml-2 text-sm">
                       {box.openedAt} → {box.completedAt}
                     </span>

@@ -5,7 +5,7 @@
 // Dipanggil dari API route handlers (Next.js Route Handlers).
 // =============================================================================
 
-import { eq, and, isNull, sql, inArray } from "drizzle-orm";
+import { eq, and, isNull, sql, inArray, getTableColumns } from "drizzle-orm";
 import db from "@/db";
 import {
   shiftReport,
@@ -17,6 +17,7 @@ import {
   downtimeLog,
   shiftConsumption,
   finishedGoodsReceiving,
+  tsgInventory,
 } from "@/db/schema";
 import { machine, shiftTemplate, product } from "@/db/schema/master-product";
 import { calculateShiftYield } from "@/lib/calc";
@@ -534,7 +535,13 @@ export async function getShiftDetail(shiftId: string) {
   const [productInfo] = await db.select({ brand: product.brand, code: product.code }).from(product).where(eq(product.id, shift.productId)).limit(1);
 
   const wastes = await db.select().from(shiftWaste).where(eq(shiftWaste.shiftReportId, shiftId));
-  const boxes = await db.select().from(tsgBoxProcess).where(eq(tsgBoxProcess.shiftReportId, shiftId)).orderBy(tsgBoxProcess.boxNumber);
+  // Boxes + jenis TSG dari inventory (boks lama tanpa link inventory → tsgType null)
+  const boxes = await db
+    .select({ ...getTableColumns(tsgBoxProcess), tsgType: tsgInventory.tsgType })
+    .from(tsgBoxProcess)
+    .leftJoin(tsgInventory, eq(tsgBoxProcess.inventoryBoxId, tsgInventory.id))
+    .where(eq(tsgBoxProcess.shiftReportId, shiftId))
+    .orderBy(tsgBoxProcess.boxNumber);
   const handoffs = await db.select().from(shiftHandoff).where(eq(shiftHandoff.fromShiftId, shiftId));
 
   // Consumption, downtime, maintenance (pakai raw SQL — kolom snake_case)
