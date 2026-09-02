@@ -1,7 +1,7 @@
 "use client";
 import { apiFetch } from "@/lib/utils/api-client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
@@ -53,6 +53,14 @@ export default function GudangInboundPage() {
   const [tsgIsMakloon, setTsgIsMakloon] = useState(false);
   const [tsgMakloonCustomer, setTsgMakloonCustomer] = useState("");
   const [tsgMakloonTarget, setTsgMakloonTarget] = useState("");
+  // Finalisasi SJ supplier (receive → receiving + inventory)
+  const [sjShipped, setSjShipped] = useState<any[]>([]);
+  const [sjRecvSj, setSjRecvSj] = useState<any>(null);
+  const [sjRecvIsMakloon, setSjRecvIsMakloon] = useState(false);
+  const [sjRecvCustomer, setSjRecvCustomer] = useState("");
+  const [sjRecvTarget, setSjRecvTarget] = useState("");
+  const [sjRecvSaving, setSjRecvSaving] = useState(false);
+  const [sjRecvError, setSjRecvError] = useState("");
   const [editLocId, setEditLocId] = useState<string | null>(null);
   const [editLocValue, setEditLocValue] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("AVAILABLE");
@@ -358,6 +366,38 @@ export default function GudangInboundPage() {
       loadPendingReceivings();
     } catch (e: any) { setReceivingError(e.message); }
     finally { setSaving(false); }
+  };
+
+  const loadSjShipped = useCallback(async () => {
+    try {
+      const res = await apiFetch("/supplier-sj?status=SHIPPED");
+      setSjShipped(res.data ?? []);
+    } catch { setSjShipped([]); }
+  }, []);
+
+  useEffect(() => { loadSjShipped(); }, [loadSjShipped]);
+
+  const handleSjReceive = async () => {
+    if (!sjRecvSj) return;
+    setSjRecvSaving(true); setSjRecvError("");
+    try {
+      await apiFetch("/tsg-receiving/from-sj", {
+        method: "POST",
+        body: JSON.stringify({
+          supplierSjId: sjRecvSj.id,
+          isMakloon: sjRecvIsMakloon,
+          makloonCustomer: sjRecvCustomer || undefined,
+          makloonTarget: sjRecvTarget || undefined,
+        }),
+      });
+      setSjRecvSj(null);
+      setSjRecvIsMakloon(false); setSjRecvCustomer(""); setSjRecvTarget("");
+      loadSjShipped();
+      loadInventory();
+      setReceivingError("");
+      alert("SJ diterima — receiving + inventory dibuat.");
+    } catch (e: any) { setSjRecvError(e.message); }
+    finally { setSjRecvSaving(false); }
   };
 
   const filtered = inventory.filter((i) => filterStatus === "ALL" || i.status === filterStatus);
@@ -823,6 +863,41 @@ export default function GudangInboundPage() {
         </div>
       </Dialog>
 
+      {/* Surat Jalan Supplier — menunggu diterima di pabrik */}
+      {sjShipped.length > 0 && (
+        <Card className="mt-6">
+          <CardTitle>Surat Jalan Supplier — Menunggu Diterima ({sjShipped.length})</CardTitle>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="border-b border-gray-200">
+                <tr>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">No SJ</th>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Supplier</th>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Pabrik</th>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Dikirim</th>
+                  <th className="pb-3 text-sm font-semibold text-gray-600">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sjShipped.map((s) => (
+                  <tr key={s.id} className="border-b border-gray-100">
+                    <td className="py-3 font-mono text-sm">{s.sjNumber}</td>
+                    <td className="py-3 text-sm">{s.supplierName}</td>
+                    <td className="py-3 text-sm">{s.plantCode}</td>
+                    <td className="py-3 text-sm">{s.shippedAt ? new Date(s.shippedAt).toLocaleString("id-ID") : "-"}</td>
+                    <td className="py-3">
+                      <Button size="sm" variant="primary" onClick={() => { setSjRecvSj(s); setSjRecvIsMakloon(false); setSjRecvCustomer(""); setSjRecvTarget(""); setSjRecvError(""); }}>
+                        📥 Terima di Pabrik
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
       {/* Riwayat Retur TSG */}
       {returnHistory.length > 0 && (
         <Card className="mt-6">
@@ -1053,6 +1128,44 @@ export default function GudangInboundPage() {
             <Button variant="outline" className="flex-1" onClick={() => setRejectExtId(null)}>Batal</Button>
             <Button className="flex-1" disabled={rejectExtReason.trim().length < 3} onClick={handleRejectExt}>Tolak</Button>
           </div>
+        </div>
+      </Dialog>
+
+      {/* Dialog terima SJ supplier (finalisasi → receiving + inventory) */}
+      <Dialog open={sjRecvSj != null} onClose={() => setSjRecvSj(null)} title={`Terima SJ ${sjRecvSj?.sjNumber ?? ""}`}>
+        <div className="space-y-3">
+          <p className="text-sm text-gray-500">
+            Finalisasi: membuat receiving TSG + inventory dari label SJ ini (status → RECEIVED).
+          </p>
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 py-1">
+            <input
+              type="checkbox"
+              checked={sjRecvIsMakloon}
+              onChange={(e) => setSjRecvIsMakloon(e.target.checked)}
+              className="size-4"
+            />
+            TSG milik makloon (jejak sampai produk akhir)
+          </label>
+          {sjRecvIsMakloon && (
+            <>
+              <Input label="Pemesan Makloon" placeholder="cth: PT Makloon Jaya" value={sjRecvCustomer} onChange={(e) => setSjRecvCustomer(e.target.value)} />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Produk Jadi Pesanan</label>
+                <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white" value={sjRecvTarget} onChange={(e) => setSjRecvTarget(e.target.value)}>
+                  <option value="">Pilih produk jadi</option>
+                  <option value="PACK">PACK</option>
+                  <option value="PACK_WRAP">PACK TERWRAP</option>
+                  <option value="SLOP">SLOP</option>
+                  <option value="BAL">BAL</option>
+                  <option value="KARTON">KARTON</option>
+                </select>
+              </div>
+            </>
+          )}
+          {sjRecvError && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{sjRecvError}</div>}
+          <Button size="operator" className="w-full" disabled={sjRecvSaving} onClick={handleSjReceive}>
+            {sjRecvSaving ? "Menyimpan..." : "TERIMA SJ"}
+          </Button>
         </div>
       </Dialog>
     </div>

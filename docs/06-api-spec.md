@@ -620,12 +620,12 @@ Error: `TARGET_CHANGE_REASON_REQUIRED` (ada event, tanpa alasan), `TARGET_CONFLI
 | GET | `/supplier-sj/:id` | `supplier.sj.view` | Detail + daftar label/boks |
 | GET | `/supplier-sj/options` | `supplier.sj.create` | Supplier aktif + pabrik dalam scope (untuk form) |
 | POST | `/supplier-sj/pool` | `supplier.sj.pool` (web) | `{ count }` — cetak pool label generik `TSG-YYYYMMDD-NNN` (format kode boks existing, AVAILABLE) |
+| POST | `/tsg-receiving/from-sj` | `tsg.receiving.create` | `{ supplierSjId, verifiedBoxCodes?, isMakloon?, makloonCustomer?, makloonTarget? }` — finalisasi SJ di pabrik → receiving + inventory + SJ RECEIVED; field makloon (0031) diteruskan ke inventory & batch |
 | GET | `/supplier-sj/pool` | `supplier.sj.pool` (web) | Sisa pool: available / assigned / voided |
 | GET | `/supplier-sj/labels/:boxCode` | `supplier.sj.view` | Resolve hasil scan QR label (+ `labelStatus` AVAILABLE/ASSIGNED/VOID) |
 | POST | `/supplier-sj/:id/boxes/weigh` | `supplier.sj.label` | `{ boxCode, tsgType, supplierWeightKg }` — assign label ke SJ + jenis + timbangan gudang supplier (satu langkah) |
 | POST | `/supplier-sj/labels/:boxCode/void` | `supplier.sj.label` | VOID label AVAILABLE (hilang/rusak) |
 | PATCH | `/supplier-sj/:id` | `supplier.sj.create` | `{ status: "SHIPPED" }` — wajib semua label tertimbang (`SJ_EMPTY` kalau belum ada boks) |
-| POST | `/tsg-receiving/from-sj` | `tsg.receiving.create` | `{ supplierSjId, verifiedBoxCodes? }` — validasi JUMLAH di pabrik → receiving + inventory + SJ RECEIVED (validasi berat & per jenis = TODO) |
 | POST | `/tsg-receiving/:id/approve` | `tsg.receiving.approve` | Approve receiving manual tanpa SJ → buat inventory |
 
 ### 4.5. Waste Settlement (setelah shift COMPLETED)

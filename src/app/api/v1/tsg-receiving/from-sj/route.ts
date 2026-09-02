@@ -10,6 +10,10 @@ const schema = z.object({
   supplierSjId: z.string().uuid(),
   // Label yang discan saat validasi jumlah di pabrik (opsional — default semua boks SJ)
   verifiedBoxCodes: z.array(z.string().min(1).max(50)).min(1).max(500).optional(),
+  // Penanda makloon (0031) — diteruskan ke inventory & batch
+  isMakloon: z.boolean().optional().default(false),
+  makloonCustomer: z.string().max(120).optional(),
+  makloonTarget: z.enum(["PACK", "PACK_WRAP", "SLOP", "BAL", "KARTON"]).optional(),
 });
 
 export const POST = withAuth(
@@ -32,6 +36,9 @@ export const POST = withAuth(
         plantId,
         actorUserId: ctx.user.userId,
         verifiedBoxCodes: parsed.data.verifiedBoxCodes,
+        isMakloon: parsed.data.isMakloon,
+        makloonCustomer: parsed.data.makloonCustomer,
+        makloonTarget: parsed.data.makloonTarget,
       });
 
       return NextResponse.json(result, { status: 201 });

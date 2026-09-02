@@ -114,11 +114,11 @@ export default function TsgStockReport() {
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left">
             <thead className="border-b border-gray-200">
-              <tr><th className="pb-3 text-sm font-semibold text-gray-600">Kode Boks</th><th className="pb-3 text-sm font-semibold text-gray-600">Pabrik</th><th className="pb-3 text-sm font-semibold text-gray-600">Jenis</th><th className="pb-3 text-sm font-semibold text-gray-600">Berat</th><th className="pb-3 text-sm font-semibold text-gray-600">Umur</th><th className="pb-3 text-sm font-semibold text-gray-600">Lokasi</th></tr>
+              <tr><th className="pb-3 text-sm font-semibold text-gray-600">Kode Boks</th><th className="pb-3 text-sm font-semibold text-gray-600">Pabrik</th><th className="pb-3 text-sm font-semibold text-gray-600">Jenis</th><th className="pb-3 text-sm font-semibold text-gray-600">Berat</th><th className="pb-3 text-sm font-semibold text-gray-600">Umur</th><th className="pb-3 text-sm font-semibold text-gray-600">Lokasi</th><th className="pb-3 text-sm font-semibold text-gray-600">Makloon</th></tr>
             </thead>
             <tbody>
               {inventory.length === 0 ? (
-                <tr><td colSpan={6} className="py-8 text-center text-gray-400">Stok kosong. Terima TSG dulu di halaman Gudang.</td></tr>
+                <tr><td colSpan={7} className="py-8 text-center text-gray-400">Stok kosong. Terima TSG dulu di halaman Gudang.</td></tr>
               ) : inventory.map((item, i) => (
                 <tr key={i} className="border-b border-gray-100">
                   <td className="py-2 font-mono text-sm">{item.boxCode}</td>
@@ -127,6 +127,7 @@ export default function TsgStockReport() {
                   <td className="py-2">{item.weightKg} kg</td>
                   <td className="py-2"><Badge variant={(item.ageInDays ?? 0) > 30 ? "error" : (item.ageInDays ?? 0) > 14 ? "warning" : "success"}>{item.ageInDays ?? "?"} hari</Badge></td>
                   <td className="py-2 text-sm text-gray-500">{item.locationCode ?? "-"}</td>
+                  <td className="py-2">{item.isMakloon ? <Badge variant="warning">MAKLOON</Badge> : <span className="text-gray-300">—</span>}</td>
                 </tr>
               ))}
             </tbody>

@@ -26,6 +26,15 @@ const SECTIONS = [
     ],
   },
   {
+    title: "TS-PROD-00 — Penerimaan TSG (Prasyarat Stok)",
+    items: [
+      "[ ] Gudang inbound: form receiving manual -> isi supplier + boks (kode/berat/jenis). HARAPAN: receiving PENDING muncul di daftar.",
+      "[ ] (Opsional makloon) centang \"TSG milik makloon\" + Pemesan + Produk Jadi Pesanan (PACK/PACK_WRAP/SLOP/BAL/KARTON). HARAPAN: tersimpan; badge MAKLOON muncul di laporan stok.",
+      "[ ] Approve receiving -> inventory AVAILABLE.",
+      "[ ] (Opsional SJ) Surat Jalan Supplier SHIPPED -> tombol \"Terima di Pabrik\" -> receiving + inventory dibuat otomatis.",
+    ],
+  },
+  {
     title: "TS-PROD-01 — Start Shift (MAKER)",
     items: [
       "[ ] /tablet/start-shift -> pilih mesin MAKER dan produk. HARAPAN: anggota roster auto-pick muncul (role + nama).",
@@ -38,6 +47,7 @@ const SECTIONS = [
     title: "TS-PROD-02 — Buka Boks TSG (sesi 1-6 boks)",
     items: [
       "[ ] Halaman shift aktif -> BUKA BOKS BARU -> pilih 2-3 boks dari daftar inventory. HARAPAN: setiap boks menampilkan jenis TSG (REGULER/MILD/PUTIHAN), boxCode, berat TSG.",
+      "[ ] Boks TSG milik makloon menampilkan badge MAKLOON di daftar FIFO (pemesan + produk pesanan tercatat di receiving, 0031).",
       "[ ] HARAPAN: boks aktif muncul dengan #nomor + kode + jenis.",
       "[ ] Cek stok: /admin/reports/tsg-stock -> boks tadi berubah menjadi USED.",
       "[ ] NEGATIF: boks yang sudah USED tidak muncul lagi di daftar AVAILABLE.",

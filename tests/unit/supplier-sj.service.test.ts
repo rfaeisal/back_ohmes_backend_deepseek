@@ -12,6 +12,7 @@ vi.mock("@/lib/audit", () => ({ writeAudit: vi.fn().mockResolvedValue(undefined)
 import {
   weighSupplierSjBox,
   voidSupplierSjLabel,
+  receiveFromSupplierSj,
 } from "@/lib/services/supplier-sj.service";
 
 beforeEach(() => {
@@ -100,5 +101,40 @@ describe("voidSupplierSjLabel", () => {
     const res = await voidSupplierSjLabel({ ...base, reason: "rusak" });
     expect(res.labelStatus).toBe("VOID");
     expect(res.voidReason).toBe("rusak");
+  });
+});
+
+describe("receiveFromSupplierSj (finalisasi SJ → receiving + inventory, 0031)", () => {
+  it("sukses + propagasi makloon ke receiving & inventory", async () => {
+    h.db._selectResults.push(
+      [{ id: "sj1", plantId: "p1", status: "SHIPPED", sjNumber: "SJ-1", supplierId: "sup1" }], // sj
+      [{ id: "b1", supplierSjId: "sj1", boxCode: "TSG-20260901-001", supplierWeightKg: "25", tsgType: "MILD", labelStatus: "ASSIGNED" }], // boxes
+      [{ count: 0 }] // existing receiving count
+    );
+    h.db._returningResults.push({ id: "r1", receivingCode: "RCV-1" }); // header insert
+    h.db._returningResults.push({ id: "rb1" }); // receiving box insert
+    h.db._returningResults.push(undefined); // inventory insert
+    h.db._returningResults.push(undefined); // sj update
+
+    const res = await receiveFromSupplierSj({
+      supplierSjId: "sj1",
+      plantId: "p1",
+      actorUserId: "u1",
+      isMakloon: true,
+      makloonCustomer: "PT Makloon Jaya",
+      makloonTarget: "BAL",
+    });
+    expect(res.sjStatus).toBe("RECEIVED");
+    const invIns = h.db.calls.find((c: any) => c.kind === "insert" && c.values?.status === "AVAILABLE");
+    expect(invIns.values).toMatchObject({ isMakloon: true, makloonCustomer: "PT Makloon Jaya", makloonTarget: "BAL" });
+    const hdrIns = h.db.calls.find((c: any) => c.kind === "insert" && c.values?.source === "SJ");
+    expect(hdrIns.values).toMatchObject({ isMakloon: true, makloonCustomer: "PT Makloon Jaya", makloonTarget: "BAL" });
+  });
+
+  it("SJ bukan SHIPPED ditolak", async () => {
+    h.db._selectResults.push([{ id: "sj1", plantId: "p1", status: "DRAFT" }]);
+    await expect(
+      receiveFromSupplierSj({ supplierSjId: "sj1", plantId: "p1", actorUserId: "u1" })
+    ).rejects.toMatchObject({ code: "SJ_NOT_SHIPPED" });
   });
 });

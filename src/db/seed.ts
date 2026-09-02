@@ -204,7 +204,7 @@ async function seed() {
     GUDANG_INBOUND: [
       "tsg.receiving.create", "tsg.receiving.view", "tsg.inventory.view",
       "tsg.inventory.allocate", "tsg.inventory.writeoff", "tsg.inventory.transfer",
-      "supplier.sj.view",
+      "supplier.sj.view", "supplier.sj.label",
       "shift.waste.settle", "shift.view", "batch.view",
       "dashboard.plant.view",
     ],
@@ -235,6 +235,22 @@ async function seed() {
     const permRows = await db.select({ id: permission.id, code: permission.code }).from(permission);
     const roleMap = new Map(roleRows.map((r) => [r.code, r.id]));
     const permMap = new Map(permRows.map((p) => [p.code, p.id]));
+
+    // Insert permission code BARU yang belum ada di DB (aditif & idempotent)
+    // — tanpa ini, grant permission baru tidak pernah sampai ke DB ter-seed.
+    const missingCodes = permissionsData.filter((c) => !permMap.has(c));
+    if (missingCodes.length > 0) {
+      for (const code of missingCodes) {
+        await db
+          .insert(permission)
+          .values({ code, description: code })
+          .onConflictDoNothing({ target: permission.code });
+      }
+      const refreshed = await db.select({ id: permission.id, code: permission.code }).from(permission);
+      for (const p of refreshed) permMap.set(p.code, p.id);
+      console.log(`  ✓ ${missingCodes.length} permission baru ditambahkan: ${missingCodes.join(", ")}`);
+    }
+
     await syncRolePermissions(rolePerms, roleMap, permMap);
     return;
   }

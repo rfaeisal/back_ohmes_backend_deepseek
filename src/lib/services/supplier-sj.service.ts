@@ -18,6 +18,7 @@ import {
 } from "@/db/schema";
 import { writeAudit } from "@/lib/audit";
 import { ServiceError } from "./shift.service";
+export { ServiceError } from "./shift.service";
 
 // =============================================================================
 // Types
@@ -62,6 +63,8 @@ export interface ReceiveFromSjInput {
   verifiedBoxCodes?: string[];
   /** TSG milik makloon (0031) — diteruskan ke inventory & batch */
   isMakloon?: boolean;
+  makloonCustomer?: string;
+  makloonTarget?: "PACK" | "PACK_WRAP" | "SLOP" | "BAL" | "KARTON";
 }
 
 // =============================================================================
@@ -500,6 +503,8 @@ export async function receiveFromSupplierSj(input: ReceiveFromSjInput) {
         source: "SJ",
         approvalStatus: "APPROVED", // SJ = sudah terverifikasi label & jumlah di gudang supplier
         isMakloon: input.isMakloon ?? false,
+        makloonCustomer: input.makloonCustomer?.trim() || null,
+        makloonTarget: input.makloonTarget ?? null,
         notes: `Dari Surat Jalan Supplier ${sj.sjNumber}`,
       })
       .returning();
@@ -526,6 +531,8 @@ export async function receiveFromSupplierSj(input: ReceiveFromSjInput) {
         boxId: rb.id,
         tsgType: b.tsgType ?? "REGULER",
         isMakloon: input.isMakloon ?? false,
+        makloonCustomer: input.makloonCustomer?.trim() || null,
+        makloonTarget: input.makloonTarget ?? null,
         status: "AVAILABLE",
       });
     }
