@@ -2,9 +2,9 @@
 // GET  /shifts/:id/box-sessions — Daftar sesi boks shift (untuk reload tablet)
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, getTableColumns } from "drizzle-orm";
 import db from "@/db";
-import { tsgBoxSession, tsgBoxProcess, batch } from "@/db/schema";
+import { tsgBoxSession, tsgBoxProcess, batch, tsgInventory } from "@/db/schema";
 import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import { openBoxSession } from "@/lib/services/box.service";
 import { ServiceError } from "@/lib/services/shift.service";
@@ -71,9 +71,11 @@ export const GET = withAuth(
         .select()
         .from(tsgBoxSession)
         .where(eq(tsgBoxSession.shiftReportId, shiftReportId));
+      // Left join inventory supaya tiap boks membawa jenis TSG (boks legacy → null)
       const boxes = await db
-        .select()
+        .select({ ...getTableColumns(tsgBoxProcess), tsgType: tsgInventory.tsgType })
         .from(tsgBoxProcess)
+        .leftJoin(tsgInventory, eq(tsgBoxProcess.inventoryBoxId, tsgInventory.id))
         .where(eq(tsgBoxProcess.shiftReportId, shiftReportId));
 
       const batchIds = sessions.map((s) => s.batchId).filter((id): id is string => !!id);
@@ -102,6 +104,7 @@ export const GET = withAuth(
             outputWeightKg: b.outputWeightKg,
             yieldPct: b.yieldPct,
             isPartial: b.isPartial,
+            tsgType: b.tsgType ?? null,
             openedAt: b.openedAt,
             completedAt: b.completedAt,
           })),
