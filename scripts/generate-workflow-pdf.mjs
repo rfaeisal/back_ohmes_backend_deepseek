@@ -41,7 +41,7 @@ const CONTENT = [
     title: "Fase 3 — Timbang Batangan Kolektif -> Batch btc_…",
     items: [
       "Timbang total batangan sekali untuk seluruh boks sesi: POST /box-sessions/:id/weigh (permission shift.box.weigh).",
-      "Kalkulasi server-side: total dibagi proporsional bobot TSG tiap boks; yield per boks = output/input x 100, dibandingkan range MachineTemplate produk (NORMAL default 110–114%; bisa di atas 100% karena kadar air adonan). Di luar range: WARNING + pertanyaan alasan wajib.",
+      "Kalkulasi server-side: total dibagi proporsional bobot TSG tiap boks; yield per boks = output/input x 100, dibandingkan range MachineTemplate produk (default NORMAL 110–114%). Di luar range: WARNING + pertanyaan alasan wajib.",
       "Semua boks diberi completedAt; sesi -> WEIGHED.",
       "Terbentuk batch batangan: kode btc_<kodeMesin>_<YYYYMMDD>_<seq> (urutan per hari per mesin), batanganKg = total timbangan, source INTERNAL, stage PACKED.",
       "Mulai titik ini, boks TSG berubah wujud menjadi batch batangan yang siap ke HLP.",

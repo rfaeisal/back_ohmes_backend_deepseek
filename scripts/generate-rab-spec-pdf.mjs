@@ -19,7 +19,7 @@ const SECTIONS = [
   {
     title: "1. Ringkasan Eksekutif",
     items: [
-      "Aplikasi MES + WMS \"Hummer\" untuk manufaktur genteng/keramik: mencatat produksi dari start shift mesin MAKER, proses TSG (tanah sisa giling), HLP (packing batangan), rantai WR-SLOP-BAL, karton, dispatch, hingga laporan manajemen multi-plant.",
+      "Aplikasi MES + WMS \"Hummer\" untuk manufaktur rokok: mencatat produksi dari start shift mesin MAKER, proses TSG (tembakau siap giling), HLP (packing batangan), rantai WR-SLOP-BAL, karton, dispatch, hingga laporan manajemen multi-plant.",
       "Skala saat ini: 66 tabel PostgreSQL, 133 file route API (REST /api/v1), 43 halaman UI, 14 role dengan 72 permission, 25 modul service, 34 migrasi DB, 10 spec E2E, CI/CD GitHub Actions 5 job.",
       "Dua aplikasi klien: (1) Web + Tablet (Next.js 15), (2) Mobile Android/iOS (Flutter, repo terpisah) dengan FCM push dan deep-link.",
       "Status: Fase 0-6 selesai, live di produksi (Vercel + Neon PostgreSQL + Coolify Docker). Sisa: checklist go-live lapangan dan pengembangan aspirasional.",
