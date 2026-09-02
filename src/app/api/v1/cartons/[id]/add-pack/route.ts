@@ -4,7 +4,9 @@ import { z } from "zod";
 import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import { addContentToCarton, ServiceError } from "@/lib/services/wms-outbound.service";
 
-const schema = z.discriminatedUnion("sourceType", [
+// Legacy body { hlpPackId, packQty } TANPA sourceType tetap diterima
+// (backward compatible — kontrak mobile/web lama tidak patah).
+const schema = z.union([
   z.object({
     sourceType: z.literal("HLP_PACK"),
     hlpPackId: z.string().uuid(),
@@ -15,6 +17,10 @@ const schema = z.discriminatedUnion("sourceType", [
     batchId: z.string().uuid(),
     stage: z.enum(["WR", "SLOP", "BAL"]),
     packQty: z.number().int().min(1),
+  }),
+  z.object({
+    hlpPackId: z.string().uuid(),
+    packQty: z.number().int().min(1).default(1),
   }),
 ]);
 
@@ -32,13 +38,17 @@ export const POST = withAuth(
       }
 
       const plantId = ctx.user.plantIds[0]!;
+      const data =
+        "sourceType" in parsed.data
+          ? parsed.data
+          : { sourceType: "HLP_PACK" as const, ...parsed.data };
       const result = await addContentToCarton({
         cartonId,
         plantId,
-        packQty: parsed.data.packQty,
-        ...(parsed.data.sourceType === "HLP_PACK"
-          ? { sourceType: "HLP_PACK" as const, hlpPackId: parsed.data.hlpPackId }
-          : { sourceType: "STAGE" as const, batchId: parsed.data.batchId, stage: parsed.data.stage }),
+        packQty: data.packQty,
+        ...(data.sourceType === "HLP_PACK"
+          ? { sourceType: "HLP_PACK" as const, hlpPackId: data.hlpPackId }
+          : { sourceType: "STAGE" as const, batchId: data.batchId, stage: data.stage }),
         addedBy: ctx.user.userId,
       });
       return NextResponse.json(result, { status: 200 });
