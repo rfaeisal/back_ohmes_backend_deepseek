@@ -15,7 +15,8 @@ import {
   confirmReceiving,
   getStageAvailability,
 } from "@/lib/services/wms-outbound.service";
-import { getBatchSisaSummary } from "@/lib/services/box.service";
+import { getBatchSisaSummary, weighBoxSession } from "@/lib/services/box.service";
+import { approveReceiving } from "@/lib/services/wms-inbound.service";
 
 beforeEach(() => {
   h.db.calls.length = 0;
@@ -280,5 +281,38 @@ describe("getBatchSisaSummary — sisa per stage dikurangi alokasi karton", () =
     expect(wr.allocatedToCarton).toBe(4);
     const slop = res.stageBreakdown.find((s) => s.stage === "SLOP")!;
     expect(slop.sisaQty).toBe(16); // 16 − 0 − 0
+  });
+});
+
+describe("makloon (0031) — propagasi isMakloon", () => {
+  it("approveReceiving meneruskan isMakloon ke inventory", async () => {
+    h.db._selectResults.push(
+      [{ id: "r1", plantId: "p1", approvalStatus: "PENDING", isMakloon: true }], // receiving
+      [{ id: "rb1" }] // boxes
+    );
+    const res = await approveReceiving("r1", "p1", "u1");
+    expect(res.inventoryCreated).toBe(1);
+    const ins = h.db.calls.find((c: any) => c.kind === "insert" && c.values?.status === "AVAILABLE");
+    expect(ins.values).toMatchObject({ isMakloon: true, status: "AVAILABLE" });
+  });
+
+  it("weighBoxSession menandai batch isMakloonTsg bila ada boks makloon", async () => {
+    h.db._selectResults.push(
+      [{ id: "s1", shiftReportId: "sh1", plantId: "p1", status: "OPEN", batchId: null, totalBatanganKg: null, weighedAt: null }], // session
+      [{ id: "b1", tsgWeightKg: "30", inventoryBoxId: "inv1", completedAt: null, outputWeightKg: null, yieldPct: null }, { id: "b2", tsgWeightKg: "20", inventoryBoxId: "inv2", completedAt: null, outputWeightKg: null, yieldPct: null }], // boxes
+      [{ id: "sh1", machineId: "m1" }], // shift
+      [{ code: "MKR01" }], // machine
+      [{ isMakloon: true }], // inventory makloon check
+      [{ productId: "prd1" }], // yield template shift
+      [{ yieldMinPct: "110", yieldMaxPct: "114" }], // yield template
+      [] // existing kode batch
+    );
+    h.db._returningResults.push({ id: "btc1", code: "btc_x" }); // insert batch
+    h.db._returningResults.push(undefined, undefined); // update 2 boks
+    h.db._returningResults.push(undefined); // update session
+    const res = await weighBoxSession({ sessionId: "s1", totalBatanganKg: 55, actorUserId: "u1" });
+    expect(res.batchCode).toMatch(/^btc_MKR01_\d{8}_\d{2}$/);
+    const ins = h.db.calls.find((c: any) => c.kind === "insert" && c.values?.isMakloonTsg === true);
+    expect(ins.values.isMakloonTsg).toBe(true);
   });
 });

@@ -512,6 +512,30 @@ export async function weighBoxSession(input: WeighBoxSessionInput) {
 
   const { yieldMin, yieldMax } = await getYieldTemplateForShift(session.shiftReportId);
 
+  // Jejak makloon (0031): kalau SATU boks sesi berasal dari TSG makloon,
+  // batch batangan ikut ditandai isMakloonTsg + pemesan + produk pesanan —
+  // terwariskan ke produk akhir.
+  const inventoryIds = boxes.map((b) => b.inventoryBoxId).filter((id): id is string => !!id);
+  let isMakloonTsg = false;
+  let makloonCustomer: string | null = null;
+  let makloonTarget: string | null = null;
+  if (inventoryIds.length > 0) {
+    const makloonRows = await db
+      .select({
+        isMakloon: tsgInventory.isMakloon,
+        makloonCustomer: tsgInventory.makloonCustomer,
+        makloonTarget: tsgInventory.makloonTarget,
+      })
+      .from(tsgInventory)
+      .where(and(inArray(tsgInventory.id, inventoryIds), eq(tsgInventory.isMakloon, true)))
+      .limit(1);
+    if (makloonRows.length > 0) {
+      isMakloonTsg = true;
+      makloonCustomer = makloonRows[0]!.makloonCustomer ?? null;
+      makloonTarget = makloonRows[0]!.makloonTarget ?? null;
+    }
+  }
+
   // Kode batch: btc_MKR01_20260814_03 (urutan per hari per mesin)
   const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const prefix = `btc_${machineCode}_${datePart}_`;
@@ -531,6 +555,9 @@ export async function weighBoxSession(input: WeighBoxSessionInput) {
         machineId: shift.machineId,
         code: batchCode,
         batanganKg: String(input.totalBatanganKg),
+        isMakloonTsg,
+        makloonCustomer,
+        makloonTarget,
       })
       .returning();
 

@@ -60,6 +60,8 @@ export interface ReceiveFromSjInput {
   actorUserId: string;
   /** Label yang discan petugas gudang inbound saat validasi jumlah (opsional — default semua boks SJ) */
   verifiedBoxCodes?: string[];
+  /** TSG milik makloon (0031) — diteruskan ke inventory & batch */
+  isMakloon?: boolean;
 }
 
 // =============================================================================
@@ -497,6 +499,7 @@ export async function receiveFromSupplierSj(input: ReceiveFromSjInput) {
         supplierDocRef: sj.sjNumber,
         source: "SJ",
         approvalStatus: "APPROVED", // SJ = sudah terverifikasi label & jumlah di gudang supplier
+        isMakloon: input.isMakloon ?? false,
         notes: `Dari Surat Jalan Supplier ${sj.sjNumber}`,
       })
       .returning();
@@ -522,6 +525,7 @@ export async function receiveFromSupplierSj(input: ReceiveFromSjInput) {
         plantId: input.plantId,
         boxId: rb.id,
         tsgType: b.tsgType ?? "REGULER",
+        isMakloon: input.isMakloon ?? false,
         status: "AVAILABLE",
       });
     }

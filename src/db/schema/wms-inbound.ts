@@ -6,6 +6,7 @@ import {
   timestamp,
   integer,
   decimal,
+  boolean,
   unique,
   index,
 } from "drizzle-orm/pg-core";
@@ -66,6 +67,11 @@ export const tsgReceiving = pgTable(
     rejectionReason: text("rejection_reason"),
     rejectedBy: uuid("rejected_by").references(() => user.id),
     rejectedAt: timestamp("rejected_at"),
+    // TSG milik makloon (0031) — diteruskan ke inventory saat approve dan ke
+    // batch saat timbang sesi, supaya jejak makloon sampai produk akhir.
+    isMakloon: boolean("is_makloon").notNull().default(false),
+    makloonCustomer: text("makloon_customer"), // pemesan makloon
+    makloonTarget: text("makloon_target"), // produk jadi pesanan: PACK|PACK_WRAP|SLOP|BAL|KARTON
     notes: text("notes"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     deletedAt: timestamp("deleted_at"),
@@ -118,6 +124,9 @@ export const tsgInventory = pgTable(
       .unique(),
     locationCode: text("location_code"), // 'RAK-A-01-03'
     tsgType: tsgTypeEnum("tsg_type").notNull().default("REGULER"), // denormalized dari receiving
+    isMakloon: boolean("is_makloon").notNull().default(false), // dari receiving (0031)
+    makloonCustomer: text("makloon_customer"), // pemesan makloon (0031)
+    makloonTarget: text("makloon_target"), // produk jadi pesanan (0031)
     status: tsgInventoryStatusEnum("status").notNull().default("AVAILABLE"),
     allocatedToShiftId: uuid("allocated_to_shift_id").references(
       () => shiftReport.id

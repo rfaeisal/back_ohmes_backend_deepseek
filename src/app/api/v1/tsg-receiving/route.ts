@@ -22,6 +22,9 @@ const receivingSchema = z.object({
       })
     )
     .min(1, "Minimal 1 boks"),
+  isMakloon: z.boolean().optional().default(false),
+  makloonCustomer: z.string().max(120).optional(),
+  makloonTarget: z.enum(["PACK", "PACK_WRAP", "SLOP", "BAL", "KARTON"]).optional(),
   notes: z.string().optional(),
 });
 

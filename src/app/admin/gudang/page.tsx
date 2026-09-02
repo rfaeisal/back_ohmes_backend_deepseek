@@ -50,6 +50,9 @@ export default function GudangInboundPage() {
   const [locationCode, setLocationCode] = useState("");
   const [tsgDocRef, setTsgDocRef] = useState("");
   const [tsgNotes, setTsgNotes] = useState("");
+  const [tsgIsMakloon, setTsgIsMakloon] = useState(false);
+  const [tsgMakloonCustomer, setTsgMakloonCustomer] = useState("");
+  const [tsgMakloonTarget, setTsgMakloonTarget] = useState("");
   const [editLocId, setEditLocId] = useState<string | null>(null);
   const [editLocValue, setEditLocValue] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("AVAILABLE");
@@ -343,6 +346,9 @@ export default function GudangInboundPage() {
           locationCode: locationCode || undefined,
           supplierDocRef: tsgDocRef || undefined,
           notes: tsgNotes || undefined,
+          isMakloon: tsgIsMakloon,
+          makloonCustomer: tsgMakloonCustomer || undefined,
+          makloonTarget: tsgMakloonTarget || undefined,
           boxes: validBoxes.map(b => ({ boxCode: b.code, weightKg: parseFloat(b.weight), tsgType: b.type })),
         }),
       });
@@ -387,7 +393,7 @@ export default function GudangInboundPage() {
               <Printer className="size-5 mr-2" /> Cetak Label
             </Button>
           </Link>
-          <Button size="xl" onClick={() => { loadSuppliers(); setLocationCode(""); setTsgDocRef(""); setTsgNotes(""); setReceivingBoxes([{ code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }]); setReceivingError(""); setShowReceiving(true); }}>
+          <Button size="xl" onClick={() => { loadSuppliers(); setLocationCode(""); setTsgDocRef(""); setTsgNotes(""); setTsgIsMakloon(false); setTsgMakloonCustomer(""); setTsgMakloonTarget(""); setReceivingBoxes([{ code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }, { code: "", weight: "", type: "REGULER" }]); setReceivingError(""); setShowReceiving(true); }}>
             🚛 Terima TSG Baru
           </Button>
           <Button size="xl" variant="outline" onClick={() => { loadSuppliers(); setMatType("CONSUMABLE"); setMatItems([{ itemId: "", qty: "", price: "" }]); setMatDocRef(""); setMatNotes(""); setMatError(""); setShowMaterialReceiving(true); }}>
@@ -539,6 +545,31 @@ export default function GudangInboundPage() {
               </select>
             </div>
             <Input label="No Surat Jalan Supplier" placeholder="Opsional" value={tsgDocRef} onChange={e => setTsgDocRef(e.target.value)} />
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 py-1">
+              <input
+                type="checkbox"
+                checked={tsgIsMakloon}
+                onChange={(e) => setTsgIsMakloon(e.target.checked)}
+                className="size-4"
+              />
+              TSG milik makloon (jejak sampai produk akhir)
+            </label>
+            {tsgIsMakloon && (
+              <>
+                <Input label="Pemesan Makloon" placeholder="cth: PT Makloon Jaya" value={tsgMakloonCustomer} onChange={e => setTsgMakloonCustomer(e.target.value)} />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Produk Jadi Pesanan</label>
+                  <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white" value={tsgMakloonTarget} onChange={(e) => setTsgMakloonTarget(e.target.value)}>
+                    <option value="">Pilih produk jadi</option>
+                    <option value="PACK">PACK</option>
+                    <option value="PACK_WRAP">PACK TERWRAP</option>
+                    <option value="SLOP">SLOP</option>
+                    <option value="BAL">BAL</option>
+                    <option value="KARTON">KARTON</option>
+                  </select>
+                </div>
+              </>
+            )}
             <Input label="Lokasi Rak" placeholder="RAK-A-01" value={locationCode} onChange={e => setLocationCode(e.target.value)} />
           </div>
 

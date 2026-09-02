@@ -21,6 +21,9 @@ interface BatchItem {
   source?: string; // INTERNAL | EXTERNAL (makloon, docs/24)
   stage?: string; // PACKED | WRAPPED | SLOPPED | BALED (docs/25)
   targetUnit?: string; // PACK | PACK_WRAP | SLOP | BAL (0030 — diputuskan di HLP)
+  isMakloonTsg?: boolean; // batangan dari TSG milik makloon (0031)
+  makloonCustomer?: string | null; // pemesan makloon (0031)
+  makloonTarget?: string | null; // produk jadi pesanan (0031)
   createdAt: string;
   packCount?: number;
   packedBatang?: number;
@@ -467,6 +470,12 @@ export default function HlpPage() {
                   <p className="font-bold font-mono text-lg">
                     {selectedBatch.code}{" "}
                     {selectedBatch.source === "EXTERNAL" && <Badge variant="warning">EXTERNAL</Badge>}
+                    {selectedBatch.isMakloonTsg && (
+                      <Badge variant="warning">
+                        TSG MAKLOON{selectedBatch.makloonCustomer ? ` · ${selectedBatch.makloonCustomer}` : ""}
+                        {selectedBatch.makloonTarget ? ` · pesanan ${selectedBatch.makloonTarget}` : ""}
+                      </Badge>
+                    )}
                     <Badge variant="neutral">{stageLabel(selectedBatch.stage ?? "PACKED")}</Badge>
                     {selectedBatch.targetUnit && (
                       <Badge variant="info">Target: {selectedBatch.targetUnit}</Badge>

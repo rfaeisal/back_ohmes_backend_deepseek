@@ -27,6 +27,10 @@ export interface CreateReceivingInput {
   plantId: string;
   supplierId: string;
   supplierDocRef?: string;
+  // TSG milik makloon (0031) — diteruskan ke inventory & batch
+  isMakloon?: boolean;
+  makloonCustomer?: string;
+  makloonTarget?: "PACK" | "PACK_WRAP" | "SLOP" | "BAL" | "KARTON";
   receivedAt: Date;
   receivedBy: string;
   locationCode?: string;
@@ -98,6 +102,9 @@ export async function createReceiving(input: CreateReceivingInput) {
         supplierDocRef: input.supplierDocRef ?? null,
         source: "MANUAL",
         approvalStatus: "PENDING",
+        isMakloon: input.isMakloon ?? false,
+        makloonCustomer: input.makloonCustomer?.trim() || null,
+        makloonTarget: input.makloonTarget ?? null,
         notes: input.notes ?? null,
       })
       .returning();
@@ -191,6 +198,9 @@ export async function approveReceiving(
         plantId: receiving.plantId,
         boxId: b.id,
         tsgType: b.tsgType,
+        isMakloon: receiving.isMakloon,
+        makloonCustomer: receiving.makloonCustomer,
+        makloonTarget: receiving.makloonTarget,
         status: "AVAILABLE",
       });
     }
@@ -291,6 +301,7 @@ export async function getAvailableInventory(
       tsgType: tsgReceivingBox.tsgType,
       locationCode: tsgInventory.locationCode,
       fifoOverrideAt: tsgInventory.fifoOverrideAt,
+      isMakloon: tsgInventory.isMakloon,
       createdAt: tsgInventory.createdAt,
       // Pabrik pemilik boks — untuk filter/kolom di laporan lintas pabrik
       plantId: tsgInventory.plantId,

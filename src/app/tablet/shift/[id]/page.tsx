@@ -775,7 +775,10 @@ export default function ShiftActivePage() {
                       selected ? "border-primary-500 bg-primary-500 text-white" : "border-gray-300 text-transparent"
                     }`}>✓</span>
                     <div>
-                      <p className="font-bold text-lg">{item.boxCode}</p>
+                      <p className="font-bold text-lg">
+                        {item.boxCode}{" "}
+                        {item.isMakloon && <Badge variant="warning" className="ml-1">MAKLOON</Badge>}
+                      </p>
                       <p className="text-sm text-gray-500">
                         {item.weightKg} kg · Umur {item.ageInDays} hari · {item.location}
                       </p>
