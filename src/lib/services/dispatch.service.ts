@@ -41,10 +41,11 @@ export interface SuratJalanData {
   cartons: Array<{
     code: string;
     productName: string;
-    packCount: number;
+    qty: number;
+    unit: string; // PACK | SLOP | BAL (0029)
   }>;
   totalCartons: number;
-  totalPacks: number;
+  totals: { byUnit: Record<string, number> };
 }
 
 // =============================================================================
@@ -194,13 +195,19 @@ export async function buildSuratJalanData(orderId: string): Promise<SuratJalanDa
   const items = await db
     .select({
       cartonCode: carton.code,
-      packCount: carton.actualPackCount,
+      qty: carton.actualPackCount,
+      unit: carton.unit,
       productName: sql<string>`COALESCE(${product.brand} || ' ' || ${product.variant}, ${product.brand})`,
     })
     .from(dispatchItem)
     .innerJoin(carton, eq(dispatchItem.cartonId, carton.id))
     .innerJoin(product, eq(carton.productId, product.id))
     .where(eq(dispatchItem.orderId, orderId));
+
+  const byUnit: Record<string, number> = {};
+  for (const i of items) {
+    byUnit[i.unit] = (byUnit[i.unit] ?? 0) + i.qty;
+  }
 
   return {
     orderCode: order.orderCode,
@@ -216,10 +223,11 @@ export async function buildSuratJalanData(orderId: string): Promise<SuratJalanDa
     cartons: items.map((i) => ({
       code: i.cartonCode,
       productName: i.productName ?? "-",
-      packCount: i.packCount,
+      qty: i.qty,
+      unit: i.unit,
     })),
     totalCartons: items.length,
-    totalPacks: items.reduce((s, i) => s + i.packCount, 0),
+    totals: { byUnit },
   };
 }
 

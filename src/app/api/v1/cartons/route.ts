@@ -10,6 +10,7 @@ import { carton } from "@/db/schema/wms-outbound";
 const schema = z.object({
   productId: z.string().uuid(),
   capacityPack: z.number().int().min(1).max(200).default(50),
+  unit: z.enum(["PACK", "SLOP", "BAL"]).default("PACK"),
 });
 
 export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
@@ -57,6 +58,7 @@ export const GET = withAuth(async (_request: Request, ctx: AuthContext) => {
       code: carton.code,
       status: carton.status,
       capacityPack: carton.capacityPack,
+      unit: carton.unit,
       openedAt: carton.openedAt,
       closedAt: carton.closedAt,
       openedBy: carton.openedBy,

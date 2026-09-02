@@ -174,6 +174,9 @@ export const batch = pgTable("batch", {
   externalReceivingId: uuid("external_receiving_id"),
   // Progress rantai produksi (docs/25): PACKED | WRAPPED | SLOPPED | BALED
   stage: text("stage").notNull().default("PACKED"),
+  // Produk jadi target (diputuskan di HLP, 0030): PACK | PACK_WRAP | SLOP | BAL
+  // — menentukan rantai stage wajib; PACK = tanpa stage lanjutan.
+  targetUnit: text("target_unit").notNull().default("PACK"),
   code: text("code").notNull().unique(), // 'btc_MKR01_20260810_03' | 'btx_...'
   batanganKg: decimal("batangan_kg", { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),

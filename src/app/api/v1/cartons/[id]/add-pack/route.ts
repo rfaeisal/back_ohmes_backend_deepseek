@@ -1,13 +1,22 @@
-// POST /cartons/:id/add-pack — Tambah pack ke karton
+// POST /cartons/:id/add-pack — Isi karton (pack HLP atau hasil stage WR/SLOP/BAL)
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withAuth, type AuthContext } from "@/lib/auth/middleware";
-import { addPackToCarton, ServiceError } from "@/lib/services/wms-outbound.service";
+import { addContentToCarton, ServiceError } from "@/lib/services/wms-outbound.service";
 
-const schema = z.object({
-  hlpPackId: z.string().uuid(),
-  packQty: z.number().int().min(1).default(1), // jumlah pack fisik (migrasi 0019)
-});
+const schema = z.discriminatedUnion("sourceType", [
+  z.object({
+    sourceType: z.literal("HLP_PACK"),
+    hlpPackId: z.string().uuid(),
+    packQty: z.number().int().min(1).default(1),
+  }),
+  z.object({
+    sourceType: z.literal("STAGE"),
+    batchId: z.string().uuid(),
+    stage: z.enum(["WR", "SLOP", "BAL"]),
+    packQty: z.number().int().min(1),
+  }),
+]);
 
 export const POST = withAuth(
   async (request: Request, ctx: AuthContext, { params }: { params: Promise<{ id: string }> }) => {
@@ -23,12 +32,20 @@ export const POST = withAuth(
       }
 
       const plantId = ctx.user.plantIds[0]!;
-      const result = await addPackToCarton({ cartonId, plantId, ...parsed.data, addedBy: ctx.user.userId });
+      const result = await addContentToCarton({
+        cartonId,
+        plantId,
+        packQty: parsed.data.packQty,
+        ...(parsed.data.sourceType === "HLP_PACK"
+          ? { sourceType: "HLP_PACK" as const, hlpPackId: parsed.data.hlpPackId }
+          : { sourceType: "STAGE" as const, batchId: parsed.data.batchId, stage: parsed.data.stage }),
+        addedBy: ctx.user.userId,
+      });
       return NextResponse.json(result, { status: 200 });
     } catch (err) {
       if (err instanceof ServiceError) {
         return NextResponse.json(
-          { error: { code: (err as ServiceError).code, message: (err as ServiceError).message }, requestId: ctx.requestId },
+          { error: { code: (err as ServiceError).code, message: (err as ServiceError).message, details: (err as ServiceError).details }, requestId: ctx.requestId },
           { status: 409 }
         );
       }

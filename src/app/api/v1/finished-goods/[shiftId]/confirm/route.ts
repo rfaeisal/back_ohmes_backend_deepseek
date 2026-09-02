@@ -1,10 +1,13 @@
-// POST /finished-goods/:shiftId/confirm — Confirm receiving pack dari HLP
+// POST /finished-goods/:shiftId/confirm — Confirm receiving per unit (PACK/SLOP/BAL)
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import { confirmReceiving, ServiceError } from "@/lib/services/wms-outbound.service";
 
-const schema = z.object({ packsActualCount: z.number().int().min(0) });
+const schema = z.object({
+  unit: z.enum(["PACK", "SLOP", "BAL"]).default("PACK"),
+  packsActualCount: z.number().int().min(0),
+});
 
 export const POST = withAuth(
   async (request: Request, ctx: AuthContext, { params }: { params: Promise<{ shiftId: string }> }) => {
@@ -19,7 +22,12 @@ export const POST = withAuth(
         );
       }
 
-      const result = await confirmReceiving(shiftId, parsed.data.packsActualCount, ctx.user.userId);
+      const result = await confirmReceiving(
+        shiftId,
+        parsed.data.unit,
+        parsed.data.packsActualCount,
+        ctx.user.userId
+      );
       return NextResponse.json(result, { status: 200 });
     } catch (err) {
       if (err instanceof ServiceError) {

@@ -694,11 +694,18 @@ export async function listShifts(params: {
       })
       .from(finishedGoodsReceiving)
       .where(inArray(finishedGoodsReceiving.shiftReportId, shiftIds));
-    const fgSet = new Set(
-      fgRows.filter((r) => r.status !== "PENDING").map((r) => r.shiftReportId)
-    );
+    // fgConfirmed = SEMUA baris receiving unit shift sudah terminal (0029 —
+    // ekspektasi per unit: PACK/SLOP/BAL; satu unit PENDING berarti belum)
+    const fgByShift = new Map<string, string[]>();
+    for (const r of fgRows) {
+      const list = fgByShift.get(r.shiftReportId) ?? [];
+      list.push(r.status);
+      fgByShift.set(r.shiftReportId, list);
+    }
     for (const s of shifts) {
-      (s as any).fgConfirmed = fgSet.has(s.id);
+      const statuses = fgByShift.get(s.id);
+      (s as any).fgConfirmed =
+        (statuses?.length ?? 0) > 0 && statuses!.every((st) => st !== "PENDING");
     }
   }
 

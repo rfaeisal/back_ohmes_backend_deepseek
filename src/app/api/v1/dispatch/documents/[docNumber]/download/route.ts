@@ -123,7 +123,7 @@ async function buildSuratJalanPdf(
   page.drawText("No", { x: colNo + 8, y: headY, size: 9, font: bold, color: gray });
   page.drawText("KODE KARTON", { x: colCode + 6, y: headY, size: 9, font: bold, color: gray });
   page.drawText("PRODUK", { x: colProd + 6, y: headY, size: 9, font: bold, color: gray });
-  page.drawText("PACK", { x: colPack + colPackW - 8 - bold.widthOfTextAtSize("PACK", 9), y: headY, size: 9, font: bold, color: gray });
+  page.drawText("JUMLAH", { x: colPack + colPackW - 8 - bold.widthOfTextAtSize("JUMLAH", 9), y: headY, size: 9, font: bold, color: gray });
   page.drawLine({ start: { x: M, y: y - headerH + 4 }, end: { x: W - M, y: y - headerH + 4 }, thickness: 1, color: ink });
   // Garis vertikal kolom
   for (const cx of [colCode, colProd, colPack]) {
@@ -136,16 +136,21 @@ async function buildSuratJalanPdf(
     page.drawText(String(i + 1), { x: colNo + 9, y: rowY, size: 10, font: regular });
     page.drawText(c.code, { x: colCode + 6, y: rowY, size: 9, font: mono });
     page.drawText(c.productName, { x: colProd + 6, y: rowY, size: 10, font: regular });
-    page.drawText(String(c.packCount), { x: colPack + colPackW - 8 - regular.widthOfTextAtSize(String(c.packCount), 10), y: rowY, size: 10, font: regular });
+    const qtyLabel = `${c.qty} ${c.unit}`;
+    page.drawText(qtyLabel, { x: colPack + colPackW - 8 - regular.widthOfTextAtSize(qtyLabel, 10), y: rowY, size: 10, font: regular });
     if (i < d.cartons.length - 1) {
       page.drawLine({ start: { x: M, y: rowY - 6 }, end: { x: W - M, y: rowY - 6 }, thickness: 0.5, color: gray });
     }
     rowY -= rowH;
   });
 
-  // Total
+  // Total — per unit non-nol (0029: karton bisa PACK/SLOP/BAL)
   y = tableBottom - 24;
-  page.drawText(`Total: ${d.totalCartons} karton · ${d.totalPacks} pack`, {
+  const unitParts = Object.entries(d.totals.byUnit)
+    .filter(([, v]) => v > 0)
+    .map(([u, v]) => `${v} ${u.toLowerCase()}`);
+  const totalText = `Total: ${d.totalCartons} karton${unitParts.length > 0 ? ` · ${unitParts.join(" · ")}` : ""}`;
+  page.drawText(totalText, {
     x: M, y, size: 11, font: bold,
   });
 

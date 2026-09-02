@@ -39,7 +39,7 @@ export function createMockDb(opts: MockDbOptions = {}) {
 
   function makeChainable(result: unknown, call: MockDbCall): any {
     const promise: any = new Promise((resolve) => resolve(result));
-    for (const m of ["select", "from", "innerJoin", "leftJoin", "where", "orderBy", "limit", "groupBy", "offset", "values", "set", "returning"]) {
+    for (const m of ["select", "from", "innerJoin", "leftJoin", "where", "orderBy", "limit", "groupBy", "offset", "values", "set", "returning", "onConflictDoUpdate", "onConflictDoNothing", "targetWhere"]) {
       promise[m] = (...args: unknown[]) => {
         if (m === "values") call.values = args[0];
         if (m === "set") call.set = args[0];

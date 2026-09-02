@@ -2,7 +2,7 @@
 // Box Service — Business Logic Boks TSG & Production Events
 // =============================================================================
 
-import { eq, and, isNull, sql, inArray, desc } from "drizzle-orm";
+import { eq, and, isNull, isNotNull, sql, inArray, desc } from "drizzle-orm";
 import db from "@/db";
 import {
   shiftReport,
@@ -17,6 +17,7 @@ import {
   batchStageEvent,
   tsgReceivingBox,
 } from "@/db/schema";
+import { cartonContent } from "@/db/schema/wms-outbound";
 import { hlpShift } from "@/db/schema/hlp";
 import { machineTemplate, machine } from "@/db/schema/master-product";
 import { calculateYieldPct, getYieldIndicator, calculateBeratPerBatangGram, calculateTotalBatang, splitBatanganProportional } from "@/lib/calc";
@@ -852,18 +853,32 @@ export async function getBatchSisaSummary(batchId: string) {
   const byStage = new Map(stageRows.map((r) => [r.stage, r]));
   const total = (stage: string, field: "inputQty" | "outputQty" | "rejectQty") =>
     byStage.get(stage)?.[field] ?? 0;
+
+  // Sudah dialokasikan ke karton (source STAGE) per stage — 0029
+  const allocRows = await db
+    .select({
+      stage: cartonContent.stage,
+      total: sql<number>`COALESCE(SUM(${cartonContent.packQty}), 0)`.mapWith(Number),
+    })
+    .from(cartonContent)
+    .where(and(eq(cartonContent.batchId, batchId), isNotNull(cartonContent.stage)))
+    .groupBy(cartonContent.stage);
+  const allocatedByStage = new Map(allocRows.map((r) => [r.stage!, r.total]));
+
   const stageBreakdown = (["WR", "SLOP", "BAL"] as const)
     .filter((s) => byStage.has(s))
     .map((s) => {
       const next = s === "WR" ? "SLOP" : s === "SLOP" ? "BAL" : null;
+      const allocated = allocatedByStage.get(s) ?? 0;
       const sisa = next != null
-        ? Math.max(0, total(s, "outputQty") - total(next, "inputQty"))
-        : total(s, "outputQty");
+        ? Math.max(0, total(s, "outputQty") - total(next, "inputQty") - allocated)
+        : Math.max(0, total(s, "outputQty") - allocated);
       return {
         stage: s,
         inputQty: total(s, "inputQty"),
         outputQty: total(s, "outputQty"),
         rejectQty: total(s, "rejectQty"),
+        allocatedToCarton: allocated,
         sisaQty: Math.round(sisa * 100) / 100,
       };
     });
