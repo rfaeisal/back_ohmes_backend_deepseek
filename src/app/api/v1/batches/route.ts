@@ -16,6 +16,7 @@ export const GET = withAuth(
         machineCode: machine.code,
         source: batch.source,
         stage: batch.stage,
+        targetUnit: batch.targetUnit,
         createdAt: batch.createdAt,
         // Ringkasan packing — supaya UI bisa tandai batch yang sudah dicatat
         packCount: sql<number>`(SELECT COUNT(*) FROM hlp_pack hp WHERE hp.batch_id = ${batch.id})`.mapWith(Number),

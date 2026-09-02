@@ -125,9 +125,11 @@ describe("approveExternalReceiving", () => {
       batanganKg: "200", entryStage: "PACK_WRAPPED", entryUnit: "PACK",
     }]);
     h.db._selectResults.push([]); // kode btx_ existing
-    h.db._returningResults.push({ id: "b9", code: "btx_20260901_01" });
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const expectedCode = `btx_${today}_01`;
+    h.db._returningResults.push({ id: "b9", code: expectedCode });
     const res = await approveExternalReceiving("r2", "p1", "u1");
-    expect(res.batchCode).toBe("btx_20260901_01");
+    expect(res.batchCode).toBe(expectedCode);
     const ins = h.db.calls.find((c: any) => c.kind === "insert");
     expect(ins.values.source).toBe("EXTERNAL");
     expect(ins.values.stage).toBe("WRAPPED");

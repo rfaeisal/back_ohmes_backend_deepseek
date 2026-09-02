@@ -13,6 +13,7 @@ import { batchStageEvent, batch } from "@/db/schema/box";
 import { machine } from "@/db/schema/master-product";
 import { writeAudit } from "@/lib/audit";
 import { ServiceError } from "./shift.service";
+export { ServiceError } from "./shift.service";
 
 export const CHAIN_STAGES = ["WR", "SLOP", "BAL"] as const;
 export type ChainStage = (typeof CHAIN_STAGES)[number];
@@ -31,6 +32,16 @@ export const STAGE_UNIT: Record<ChainStage, string> = {
   BAL: "BAL",
 };
 
+// Produk jadi target per batch (0030) — menentukan rantai stage wajib.
+export type BatchTargetUnit = "PACK" | "PACK_WRAP" | "SLOP" | "BAL";
+export const BATCH_TARGETS: BatchTargetUnit[] = ["PACK", "PACK_WRAP", "SLOP", "BAL"];
+export const TARGET_STAGES: Record<BatchTargetUnit, ChainStage[]> = {
+  PACK: [],
+  PACK_WRAP: ["WR"],
+  SLOP: ["WR", "SLOP"],
+  BAL: ["WR", "SLOP", "BAL"],
+};
+
 export interface CreateStageEventInput {
   plantId: string;
   batchId: string;
@@ -45,7 +56,7 @@ export interface CreateStageEventInput {
 
 export async function createBatchStageEvent(input: CreateStageEventInput) {
   const [b] = await db
-    .select({ id: batch.id, code: batch.code, stage: batch.stage })
+    .select({ id: batch.id, code: batch.code, stage: batch.stage, targetUnit: batch.targetUnit, source: batch.source })
     .from(batch)
     .where(eq(batch.id, input.batchId))
     .limit(1);
@@ -56,6 +67,42 @@ export async function createBatchStageEvent(input: CreateStageEventInput) {
   }
   if (input.inputQty + input.outputQty + input.rejectQty === 0) {
     throw new ServiceError("EMPTY_EVENT", "Isi minimal satu jumlah.");
+  }
+
+  // Validasi target (0030) hanya untuk batch INTERNAL. Batch EXTERNAL
+  // (makloon) mengikuti model entry/exit stage (docs/25 §4) — urutan bebas.
+  if ((b.source ?? "INTERNAL") === "INTERNAL") {
+    const target = (b.targetUnit ?? "PACK") as BatchTargetUnit;
+    const requiredStages = TARGET_STAGES[target] ?? [];
+    const stageIndex = requiredStages.indexOf(input.stage);
+    if (stageIndex === -1) {
+      throw new ServiceError(
+        "STAGE_NOT_IN_TARGET",
+        `Target batch ini ${target} — stage ${input.stage} tidak diperlukan. Ubah target dulu bila produk jadinya berubah.`,
+        { targetUnit: target, stage: input.stage }
+      );
+    }
+    if (stageIndex > 0) {
+      const prevStage = requiredStages[stageIndex - 1]!;
+      const [prevEvent] = await db
+        .select({ id: batchStageEvent.id })
+        .from(batchStageEvent)
+        .where(
+          and(
+            eq(batchStageEvent.batchId, input.batchId),
+            eq(batchStageEvent.stage, prevStage),
+            isNull(batchStageEvent.deletedAt)
+          )
+        )
+        .limit(1);
+      if (!prevEvent) {
+        throw new ServiceError(
+          "STAGE_SEQUENCE_REQUIRED",
+          `Target ${target}: catat stage ${prevStage} dulu sebelum ${input.stage}.`,
+          { targetUnit: target, missingStage: prevStage, stage: input.stage }
+        );
+      }
+    }
   }
 
   // Mesin opsional (karton manual tidak dicatat di sini — hanya pemakaian material)
@@ -135,4 +182,67 @@ export async function listBatchStageEvents(batchId: string) {
     .where(and(eq(batchStageEvent.batchId, batchId), isNull(batchStageEvent.deletedAt)))
     .orderBy(desc(batchStageEvent.eventAt))
     .limit(100);
+}
+
+// =============================================================================
+// Set Produk Jadi Target — diputuskan di HLP (0030)
+// Sebelum ada event stage: bebas ubah. Setelah ada: wajib alasan + audit,
+// dan target baru tidak boleh mengecualikan stage yang sudah dicatat.
+// =============================================================================
+
+export async function setBatchTarget(input: {
+  batchId: string;
+  targetUnit: BatchTargetUnit;
+  reason?: string;
+  actorUserId: string;
+}) {
+  const [b] = await db
+    .select({ id: batch.id, code: batch.code, targetUnit: batch.targetUnit })
+    .from(batch)
+    .where(eq(batch.id, input.batchId))
+    .limit(1);
+  if (!b) throw new ServiceError("BATCH_NOT_FOUND", "Batch tidak ditemukan.");
+
+  if (b.targetUnit === input.targetUnit) {
+    return { batchId: b.id, targetUnit: b.targetUnit };
+  }
+
+  const recordedStages = await db
+    .select({ stage: batchStageEvent.stage })
+    .from(batchStageEvent)
+    .where(and(eq(batchStageEvent.batchId, input.batchId), isNull(batchStageEvent.deletedAt)));
+
+  if (recordedStages.length > 0) {
+    if (!input.reason?.trim()) {
+      throw new ServiceError(
+        "TARGET_CHANGE_REASON_REQUIRED",
+        "Batch sudah punya catatan stage — perubahan target wajib disertai alasan."
+      );
+    }
+    const allowed = TARGET_STAGES[input.targetUnit];
+    const conflict = recordedStages.find((r) => !allowed.includes(r.stage as ChainStage));
+    if (conflict) {
+      throw new ServiceError(
+        "TARGET_CONFLICTS_EVENTS",
+        `Target ${input.targetUnit} tidak mencakup stage ${conflict.stage} yang sudah dicatat.`,
+        { targetUnit: input.targetUnit, conflictingStage: conflict.stage }
+      );
+    }
+  }
+
+  await db
+    .update(batch)
+    .set({ targetUnit: input.targetUnit })
+    .where(eq(batch.id, input.batchId));
+
+  await writeAudit({
+    actorUserId: input.actorUserId,
+    action: "batch.target.set",
+    entityTable: "batch",
+    entityId: input.batchId,
+    before: { targetUnit: b.targetUnit },
+    after: { targetUnit: input.targetUnit, reason: input.reason?.trim() || null },
+  });
+
+  return { batchId: b.id, targetUnit: input.targetUnit };
 }

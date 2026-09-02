@@ -20,6 +20,8 @@ export type E2eState = {
   packsLolos?: number;
   /** dari spec 05, dipakai 06 (dispatch) */
   cartonCode?: string;
+  /** dari spec 05b (karton unit SLOP/BAL) — cadangan dispatch multi-unit */
+  slopCartonCode?: string;
 };
 
 export function readState(): E2eState {

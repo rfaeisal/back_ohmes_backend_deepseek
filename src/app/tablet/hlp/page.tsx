@@ -20,6 +20,7 @@ interface BatchItem {
   machineCode: string;
   source?: string; // INTERNAL | EXTERNAL (makloon, docs/24)
   stage?: string; // PACKED | WRAPPED | SLOPPED | BALED (docs/25)
+  targetUnit?: string; // PACK | PACK_WRAP | SLOP | BAL (0030 — diputuskan di HLP)
   createdAt: string;
   packCount?: number;
   packedBatang?: number;
@@ -256,6 +257,30 @@ export default function HlpPage() {
   const stageLabel = (s: string) =>
     s === "PACKED" ? "PACKED" : s === "WRAPPED" ? "WRAPPED" : s === "SLOPPED" ? "SLOPPED" : "BALED";
 
+  // Produk jadi target (0030) — diputuskan di HLP sebelum stage dimulai.
+  // Setelah ada event stage, perubahan wajib alasan (server minta → prompt).
+  const handleTargetChange = async (val: string) => {
+    if (!selectedBatch) return;
+    const apply = async (reason?: string) => {
+      try {
+        await apiFetch(`/batches/${selectedBatch.id}/target`, {
+          method: "PATCH",
+          body: JSON.stringify({ targetUnit: val, reason }),
+        });
+        setSelectedBatch({ ...selectedBatch, targetUnit: val });
+        setActionMsg(`✅ Target produk jadi: ${val}`);
+      } catch (e: any) {
+        if ((e.message ?? "").includes("wajib disertai alasan")) {
+          const alasan = window.prompt("Batch sudah punya catatan stage. Alasan ubah target produk jadi:");
+          if (alasan) await apply(alasan);
+        } else {
+          setActionMsg(e.message);
+        }
+      }
+    };
+    await apply();
+  };
+
   // Input operasional (material/downtime/maintenance/waste) — docs/23 §3
   const [showMatOut, setShowMatOut] = useState(false);
   const [matOutFlow, setMatOutFlow] = useState<"PEMAKAIAN" | "WASTE">("PEMAKAIAN");
@@ -443,6 +468,9 @@ export default function HlpPage() {
                     {selectedBatch.code}{" "}
                     {selectedBatch.source === "EXTERNAL" && <Badge variant="warning">EXTERNAL</Badge>}
                     <Badge variant="neutral">{stageLabel(selectedBatch.stage ?? "PACKED")}</Badge>
+                    {selectedBatch.targetUnit && (
+                      <Badge variant="info">Target: {selectedBatch.targetUnit}</Badge>
+                    )}
                   </p>
                   <p className="text-sm text-gray-600">
                     {selectedBatch.batanganKg.toFixed(2)} kg · dari {selectedBatch.machineCode ?? (selectedBatch.source === "EXTERNAL" ? "makloon" : "-")}
@@ -464,6 +492,26 @@ export default function HlpPage() {
               </Button>
             )}
           </div>
+
+          {/* Produk jadi target (0030) */}
+          {selectedBatch && selectedBatch.source !== "EXTERNAL" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Produk Jadi Target</label>
+              <select
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white"
+                value={selectedBatch.targetUnit ?? "PACK"}
+                onChange={(e) => handleTargetChange(e.target.value)}
+              >
+                <option value="PACK">PACK (tanpa wrap)</option>
+                <option value="PACK_WRAP">PACK TERWRAP (WR)</option>
+                <option value="SLOP">SLOP (WR → SLOP)</option>
+                <option value="BAL">BAL (WR → SLOP → BAL)</option>
+              </select>
+              <p className="text-xs text-gray-400 mt-1">
+                Menentukan rantai wajib: stage di luar target akan ditolak sistem.
+              </p>
+            </div>
+          )}
 
           {/* Pilih mesin HLP */}
           <div>

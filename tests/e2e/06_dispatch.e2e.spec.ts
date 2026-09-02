@@ -41,14 +41,15 @@ test("dispatch: order → DISPATCHED → dokumen PDF", async ({ page, login }) =
   });
 
   await test.step("generate dokumen & unduh surat jalan PDF", async () => {
-    await page.getByRole("button", { name: /Dokumen/ }).click();
+    // .first(): bisa ada order lain di tabel (mis. dari spec 05b)
+    await page.getByRole("button", { name: /Dokumen/ }).first().click();
     await expect(page.getByText(/✅ Dokumen dibuat/)).toBeVisible();
 
     await expectPdfDownload(
       page,
       "**/api/v1/dispatch/documents/*/download",
       async () => {
-        await page.getByRole("button", { name: /Unduh/ }).click();
+        await page.getByRole("button", { name: /Unduh/ }).first().click();
       }
     );
   });
