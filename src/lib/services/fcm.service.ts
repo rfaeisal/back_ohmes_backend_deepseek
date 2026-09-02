@@ -190,6 +190,7 @@ export async function notifyShiftCompleted(shift: {
       title: "Shift selesai",
       body: `Shift ${shift.shiftId.substring(0, 8)}... siap disetujui.`,
       data: {
+        type: "SHIFT_COMPLETED",
         shift_id: shift.shiftId,
         plant_id: shift.plantId,
         machine_id: shift.machineId,
@@ -219,6 +220,7 @@ export async function notifyHlpRejectHigh(input: {
       title: "Reject HLP di atas ambang",
       body: `Batch ${input.batchCode} reject ${input.ratioPct}% (> 5%).`,
       data: {
+        type: "HLP_REJECT_HIGH",
         batch_code: input.batchCode,
         ratio_pct: String(input.ratioPct),
         plant_id: input.plantId,
@@ -248,6 +250,7 @@ export async function notifyExternalBatanganPending(input: {
       title: "Batangan external menunggu approval",
       body: `${input.senderName} — ${input.batanganKg} kg siap diverifikasi.`,
       data: {
+        type: "EXTERNAL_BATANGAN_PENDING",
         external_receiving_id: input.receivingId,
         plant_id: input.plantId,
         sender_name: input.senderName,
@@ -279,6 +282,7 @@ export async function notifyReceivingPending(receiving: {
       title: "Receiving menunggu approval",
       body: `Receiving ${receiving.receivingId.substring(0, 8)}... (${receiving.boxCount} boks) siap diverifikasi.`,
       data: {
+        type: "RECEIVING_PENDING",
         receiving_id: receiving.receivingId,
         plant_id: receiving.plantId,
         sj_id: receiving.supplierSjId ?? "",
