@@ -387,6 +387,7 @@ Server membuat record `shift_correction` (link ke shift asli), **tidak** UPDATE 
 
 ### `GET /shifts/:id`
 **Permission**: `shift.view`. Detail lengkap: report, members, waste, boxes, downtime, maintenance, handoff.
+Setiap objek di `boxes` kini menyertakan `tsgType` — jenis TSG boks (`"REGULER" | "MILD" | "PUTIHAN" | null`; null hanya untuk boks legacy tanpa link inventory). Additive, aman untuk klien lama.
 
 ### `GET /shifts?plantId=…&status=…&from=…&to=…&cursor=…`
 **Permission**: `shift.view`. List dengan filter.
@@ -492,7 +493,7 @@ Validasi server:
       "weighedAt": null,
       "batchCode": null,
       "boxes": [
-        { "boxId": "box_a1c", "boxNumber": 1, "boxCode": "TSG-20260808-042", "tsgWeightKg": 29.70, "outputWeightKg": null, "yieldPct": null, "isPartial": false, "openedAt": "2026-08-10T16:35:00+07:00", "completedAt": null }
+        { "boxId": "box_a1c", "boxNumber": 1, "boxCode": "TSG-20260808-042", "tsgWeightKg": 29.70, "outputWeightKg": null, "yieldPct": null, "isPartial": false, "tsgType": "REGULER", "openedAt": "2026-08-10T16:35:00+07:00", "completedAt": null }
       ]
     }
   ]
