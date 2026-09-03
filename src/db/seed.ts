@@ -8,7 +8,7 @@
 // Usage: pnpm db:seed
 // =============================================================================
 
-import { eq } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import db from "@/db";
 import {
   company,
@@ -229,7 +229,13 @@ async function seed() {
   // (ON CONFLICT DO NOTHING), tidak menghapus grant manual.
   const [existingCompany] = await db.select({ id: company.id }).from(company).limit(1);
   if (existingCompany) {
-    console.log("⏭ Database already seeded — sync permission saja.\n");
+    console.log("⏭ Database already seeded — sync permission + master produk saja.\n");
+    // 0033 sync: produk lama tanpa jenis TSG diberi default REGULER (derive
+    // rijekan membutuhkannya) — tidak menimpa jenis yang sudah di-set manual.
+    await db
+      .update(product)
+      .set({ tsgType: "REGULER", batangPerPack: 20 })
+      .where(and(eq(product.code, "PRD-HMR-STD"), isNull(product.tsgType)));
     const { role, permission } = await import("@/db/schema/identity");
     const roleRows = await db.select({ id: role.id, code: role.code }).from(role);
     const permRows = await db.select({ id: permission.id, code: permission.code }).from(permission);
@@ -413,6 +419,8 @@ async function seed() {
       code: "PRD-HMR-STD",
       brand: "Hummer",
       variant: "STD",
+      tsgType: "REGULER", // 0033: satu jenis TSG per produk
+      batangPerPack: 20, // 0033: default isi pack di HLP
     })
     .returning();
   console.log(`  ✓ Product: ${prd!.brand} ${prd!.variant}`);

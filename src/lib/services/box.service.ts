@@ -22,7 +22,7 @@ import { hlpShift } from "@/db/schema/hlp";
 import { machineTemplate, machine } from "@/db/schema/master-product";
 import { calculateYieldPct, getYieldIndicator, calculateBeratPerBatangGram, calculateTotalBatang, splitBatanganProportional } from "@/lib/calc";
 import { writeAudit } from "@/lib/audit";
-import { addRijekanEntry } from "./rijekan.service";
+import { addRijekanEntry, deriveRijekanContextFromBatch } from "./rijekan.service";
 import { notifyHlpRejectHigh } from "./fcm.service";
 import { ServiceError } from "./shift.service";
 export { ServiceError } from "./shift.service";
@@ -512,19 +512,21 @@ export async function weighBoxSession(input: WeighBoxSessionInput) {
 
   const { yieldMin, yieldMax } = await getYieldTemplateForShift(session.shiftReportId);
 
-  // Jejak makloon (0031): kalau SATU boks sesi berasal dari TSG makloon,
-  // batch batangan ikut ditandai isMakloonTsg + pemesan + produk pesanan —
-  // terwariskan ke produk akhir.
+  // Jejak makloon (0031, docs/26 §2.2): kalau SATU boks sesi berasal dari TSG
+  // makloon, batch batangan ikut ditandai isMakloonTsg + pemesan + produk
+  // pesanan + order — terwariskan ke produk akhir.
   const inventoryIds = boxes.map((b) => b.inventoryBoxId).filter((id): id is string => !!id);
   let isMakloonTsg = false;
   let makloonCustomer: string | null = null;
   let makloonTarget: string | null = null;
+  let makloonOrderId: string | null = null;
   if (inventoryIds.length > 0) {
     const makloonRows = await db
       .select({
         isMakloon: tsgInventory.isMakloon,
         makloonCustomer: tsgInventory.makloonCustomer,
         makloonTarget: tsgInventory.makloonTarget,
+        makloonOrderId: tsgInventory.makloonOrderId,
       })
       .from(tsgInventory)
       .where(and(inArray(tsgInventory.id, inventoryIds), eq(tsgInventory.isMakloon, true)))
@@ -533,6 +535,7 @@ export async function weighBoxSession(input: WeighBoxSessionInput) {
       isMakloonTsg = true;
       makloonCustomer = makloonRows[0]!.makloonCustomer ?? null;
       makloonTarget = makloonRows[0]!.makloonTarget ?? null;
+      makloonOrderId = makloonRows[0]!.makloonOrderId ?? null;
     }
   }
 
@@ -558,6 +561,7 @@ export async function weighBoxSession(input: WeighBoxSessionInput) {
         isMakloonTsg,
         makloonCustomer,
         makloonTarget,
+        makloonOrderId,
       })
       .returning();
 
@@ -756,8 +760,8 @@ export async function hlpPackInput(input: HlpPackInput) {
     );
   }
 
-  // Sesi HLP OPEN untuk mesin ini → packing otomatis menempel (docs/23 §2.2).
-  // Kalau tidak ada sesi terbuka, packing tetap boleh standalone (open question §7.1).
+  // Sesi HLP OPEN untuk mesin ini WAJIB (keputusan 3 Sep 2026) — packing
+  // hanya boleh dicatat dalam sesi terbuka, lalu otomatis menempel (docs/23 §2.2).
   let hlpShiftId: string | null = null;
   if (input.hlpShiftId !== undefined) {
     hlpShiftId = input.hlpShiftId;
@@ -773,7 +777,13 @@ export async function hlpPackInput(input: HlpPackInput) {
         )
       )
       .limit(1);
-    hlpShiftId = openShift?.id ?? null;
+    if (!openShift) {
+      throw new ServiceError(
+        "HLP_SESSION_REQUIRED",
+        "Buka sesi HLP untuk mesin ini dulu sebelum mencatat packing."
+      );
+    }
+    hlpShiftId = openShift.id;
   }
 
   const [pack] = await db
@@ -793,18 +803,25 @@ export async function hlpPackInput(input: HlpPackInput) {
     })
     .returning();
 
-  // Sink ledger rijekan: reject HLP masuk pembukuan (docs/23 §5.2) —
-  // reject batangan langsung + batangan dalam pack reject.
+  // Sink ledger rijekan: reject HLP masuk pool (docs/23 §5.2, docs/26 §3.2)
+  // — reject batangan langsung + batangan dalam pack reject. Identitas lot
+  // (jenis + asal + order) di-derive dari batch.
   const rejectBatangTotal = rejectPacks * input.isiPerPack + input.rejectBatangan;
   if (rejectBatangTotal > 0) {
-    void addRijekanEntry({
-      plantId: input.plantId,
-      entryType: "IN_HLP_REJECT",
-      quantity: rejectBatangTotal,
-      unit: "BATANG",
-      refId: pack!.id,
-      note: rejectReason ?? undefined,
-    });
+    void (async () => {
+      const ctx = await deriveRijekanContextFromBatch(input.batchId);
+      await addRijekanEntry({
+        plantId: input.plantId,
+        entryType: "IN_HLP_REJECT",
+        quantity: rejectBatangTotal,
+        unit: "BATANG",
+        refId: pack!.id,
+        note: rejectReason ?? undefined,
+        tsgType: ctx.tsgType,
+        origin: ctx.origin,
+        makloonOrderId: ctx.makloonOrderId,
+      });
+    })();
   }
 
   // Ambang reject → push FCM PM + supervisor (docs/23 §4.4, default 5%)
@@ -865,14 +882,17 @@ export async function getBatchSisaSummary(batchId: string) {
     : null;
 
   // Rincian per stage (docs/25 §5.1 — dijawab: rincian per stage).
-  // Sisa stage = output stage tsb − input stage berikutnya
-  // (pack terwrap tersisa = out(WR) − in(SLOP), dst.); BAL = output BAL.
+  // 0032: sisa = sisa TERCATAT operator di event stage berikutnya (Σ sisa_qty)
+  // bila ada; kalau tidak (data lama), fallback output stage − input berikutnya.
+  // BAL = output BAL. Lalu − dialokasikan ke karton.
   const stageRows = await db
     .select({
       stage: batchStageEvent.stage,
       inputQty: sql<number>`COALESCE(SUM(${batchStageEvent.inputQty}::numeric), 0)`.mapWith(Number),
       outputQty: sql<number>`COALESCE(SUM(${batchStageEvent.outputQty}::numeric), 0)`.mapWith(Number),
       rejectQty: sql<number>`COALESCE(SUM(${batchStageEvent.rejectQty}::numeric), 0)`.mapWith(Number),
+      sisaQty: sql<number>`COALESCE(SUM(${batchStageEvent.sisaQty}::numeric), 0)`.mapWith(Number),
+      sisaCount: sql<number>`COUNT(${batchStageEvent.sisaQty})`.mapWith(Number),
     })
     .from(batchStageEvent)
     .where(eq(batchStageEvent.batchId, batchId))
@@ -897,9 +917,17 @@ export async function getBatchSisaSummary(batchId: string) {
     .map((s) => {
       const next = s === "WR" ? "SLOP" : s === "SLOP" ? "BAL" : null;
       const allocated = allocatedByStage.get(s) ?? 0;
-      const sisa = next != null
-        ? Math.max(0, total(s, "outputQty") - total(next, "inputQty") - allocated)
-        : Math.max(0, total(s, "outputQty") - allocated);
+      let sisa: number;
+      if (next != null) {
+        const nextRows = byStage.get(next);
+        sisa =
+          nextRows && Number(nextRows.sisaCount) > 0
+            ? Number(nextRows.sisaQty)
+            : total(s, "outputQty") - total(next, "inputQty");
+      } else {
+        sisa = total(s, "outputQty");
+      }
+      sisa = Math.max(0, sisa - allocated);
       return {
         stage: s,
         inputQty: total(s, "inputQty"),

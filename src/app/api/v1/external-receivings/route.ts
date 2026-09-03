@@ -16,6 +16,8 @@ const createSchema = z.object({
   batanganKg: z.number().positive().max(10000),
   // Entry stage (docs/25 §4): order bisa masuk di stage mana pun
   entryStage: z.enum(["BATANGAN", "PACK", "PACK_WRAPPED", "SLOP", "BAL"]).optional(),
+  // Order makloon (docs/26 §2) — senderName disalin dari order kalau di-link
+  makloonOrderId: z.string().uuid().optional(),
   notes: z.string().max(300).optional(),
 });
 
@@ -55,6 +57,7 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
       docRef: parsed.data.docRef,
       batanganKg: parsed.data.batanganKg,
       entryStage: parsed.data.entryStage,
+      makloonOrderId: parsed.data.makloonOrderId,
       receivedBy: ctx.user.userId,
       notes: parsed.data.notes,
     });

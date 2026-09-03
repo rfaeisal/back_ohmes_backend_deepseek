@@ -9,9 +9,15 @@
 import { eq, and, isNull, desc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import db from "@/db";
-import { batchStageEvent, batch } from "@/db/schema/box";
+import { batchStageEvent, batch, hlpPack } from "@/db/schema/box";
+import { hlpShift } from "@/db/schema/hlp";
 import { machine } from "@/db/schema/master-product";
 import { writeAudit } from "@/lib/audit";
+import {
+  addRijekanEntry,
+  deriveRijekanContextFromBatch,
+  type RijekanUnit,
+} from "./rijekan.service";
 import { ServiceError } from "./shift.service";
 export { ServiceError } from "./shift.service";
 
@@ -26,7 +32,7 @@ const STAGE_RANK: Record<string, number> = {
   BALED: 3,
 };
 
-export const STAGE_UNIT: Record<ChainStage, string> = {
+export const STAGE_UNIT: Record<ChainStage, RijekanUnit> = {
   WR: "PACK",
   SLOP: "SLOP",
   BAL: "BAL",
@@ -50,6 +56,10 @@ export interface CreateStageEventInput {
   inputQty: number;
   outputQty: number;
   rejectQty: number;
+  // Rasio input per 1 output — SLOP: pack/slop, BAL: slop/bal (0032, fleksibel)
+  isiPerUnit?: number;
+  // Sisa input tidak terpakai — angka resmi untuk isi karton (0032)
+  sisaQty?: number;
   notes?: string;
   operatorBy: string;
 }
@@ -62,11 +72,27 @@ export async function createBatchStageEvent(input: CreateStageEventInput) {
     .limit(1);
   if (!b) throw new ServiceError("BATCH_NOT_FOUND", "Batch tidak ditemukan.");
 
-  if (input.inputQty < 0 || input.outputQty < 0 || input.rejectQty < 0) {
+  if (input.inputQty < 0 || input.outputQty < 0 || input.rejectQty < 0 || (input.sisaQty ?? 0) < 0) {
     throw new ServiceError("INVALID_QTY", "Jumlah tidak boleh negatif.");
   }
-  if (input.inputQty + input.outputQty + input.rejectQty === 0) {
+  if (input.isiPerUnit != null && input.isiPerUnit < 1) {
+    throw new ServiceError("INVALID_QTY", "Isi per unit harus minimal 1.");
+  }
+  if (input.inputQty + input.outputQty + input.rejectQty + (input.sisaQty ?? 0) === 0) {
     throw new ServiceError("EMPTY_EVENT", "Isi minimal satu jumlah.");
+  }
+
+  // Konservasi LUNAK (docs/26 §7): input = output × rasio + rijek + sisa.
+  // WR rasio 1:1; SLOP/BAL pakai isiPerUnit (kalau tidak diisi, tidak dicek).
+  // Mismatch → conservationWarning di response (BUKAN penolakan).
+  let conservationWarning: string | null = null;
+  const ratio = input.stage === "WR" ? 1 : (input.isiPerUnit ?? null);
+  if (ratio != null) {
+    const expected = input.outputQty * ratio + input.rejectQty + (input.sisaQty ?? 0);
+    if (Math.abs(expected - input.inputQty) > 0.001) {
+      conservationWarning =
+        `Input ${input.inputQty} tidak sesuai hitungan output × ${ratio} + rijek + sisa = ${expected}.`;
+    }
   }
 
   // Validasi target (0030) hanya untuk batch INTERNAL. Batch EXTERNAL
@@ -81,6 +107,23 @@ export async function createBatchStageEvent(input: CreateStageEventInput) {
         `Target batch ini ${target} — stage ${input.stage} tidak diperlukan. Ubah target dulu bila produk jadinya berubah.`,
         { targetUnit: target, stage: input.stage }
       );
+    }
+    // Packing HLP wajib ada sebelum stage pertama rantai (WR) — input WR
+    // secara fisik adalah pack hasil HLP, jadi tanpa catatan packing angka WR
+    // tidak punya dasar (keputusan diskusi 3 Sep 2026).
+    if (input.stage === "WR") {
+      const [packRow] = await db
+        .select({ id: hlpPack.id })
+        .from(hlpPack)
+        .where(eq(hlpPack.batchId, input.batchId))
+        .limit(1);
+      if (!packRow) {
+        throw new ServiceError(
+          "PACKING_REQUIRED",
+          "Catat packing HLP dulu sebelum mencatat stage WR.",
+          { targetUnit: target, stage: input.stage }
+        );
+      }
     }
     if (stageIndex > 0) {
       const prevStage = requiredStages[stageIndex - 1]!;
@@ -117,6 +160,26 @@ export async function createBatchStageEvent(input: CreateStageEventInput) {
     machineId = input.machineId;
   }
 
+  // Sesi HLP OPEN wajib (keputusan 3 Sep 2026): dengan mesin → sesi mesin itu;
+  // tanpa mesin → minimal satu sesi OPEN di plant.
+  const [openShift] = await db
+    .select({ id: hlpShift.id })
+    .from(hlpShift)
+    .where(
+      machineId
+        ? and(eq(hlpShift.hlpMachineId, machineId), eq(hlpShift.status, "OPEN"), isNull(hlpShift.deletedAt))
+        : and(eq(hlpShift.plantId, input.plantId), eq(hlpShift.status, "OPEN"), isNull(hlpShift.deletedAt))
+    )
+    .limit(1);
+  if (!openShift) {
+    throw new ServiceError(
+      "HLP_SESSION_REQUIRED",
+      machineId
+        ? "Buka sesi HLP untuk mesin ini dulu sebelum mencatat stage."
+        : "Buka sesi HLP dulu sebelum mencatat stage."
+    );
+  }
+
   const unit = STAGE_UNIT[input.stage];
   const [ev] = await db
     .insert(batchStageEvent)
@@ -128,6 +191,9 @@ export async function createBatchStageEvent(input: CreateStageEventInput) {
       inputQty: String(input.inputQty),
       outputQty: String(input.outputQty),
       rejectQty: String(input.rejectQty),
+      // WR tidak punya rasio (1:1) — hanya SLOP/BAL
+      isiPerUnit: input.stage === "WR" ? null : input.isiPerUnit ?? null,
+      sisaQty: input.sisaQty ?? null,
       unit,
       operatorBy: input.operatorBy,
       notes: input.notes?.trim() || null,
@@ -155,10 +221,40 @@ export async function createBatchStageEvent(input: CreateStageEventInput) {
       inputQty: input.inputQty,
       outputQty: input.outputQty,
       rejectQty: input.rejectQty,
+      isiPerUnit: input.isiPerUnit ?? null,
+      sisaQty: input.sisaQty ?? null,
     },
   });
 
-  return { ...ev, inputQty: Number(ev.inputQty), outputQty: Number(ev.outputQty), rejectQty: Number(ev.rejectQty) };
+  // Sink pool rijekan (docs/26 §3.2): reject stage masuk ledger dengan
+  // identitas lot di-derive dari batch. Fire-and-forget — gagal tidak
+  // menggagalkan pencatatan stage.
+  if (input.rejectQty > 0) {
+    void (async () => {
+      const ctx = await deriveRijekanContextFromBatch(input.batchId);
+      await addRijekanEntry({
+        plantId: input.plantId,
+        entryType: "IN_STAGE_REJECT",
+        quantity: input.rejectQty,
+        unit,
+        refId: ev.id,
+        note: input.notes?.trim() || undefined,
+        tsgType: ctx.tsgType,
+        origin: ctx.origin,
+        makloonOrderId: ctx.makloonOrderId,
+      });
+    })();
+  }
+
+  return {
+    ...ev,
+    inputQty: Number(ev.inputQty),
+    outputQty: Number(ev.outputQty),
+    rejectQty: Number(ev.rejectQty),
+    isiPerUnit: ev.isiPerUnit == null ? null : Number(ev.isiPerUnit),
+    sisaQty: ev.sisaQty == null ? null : Number(ev.sisaQty),
+    conservationWarning,
+  };
 }
 
 export async function listBatchStageEvents(batchId: string) {
@@ -172,6 +268,8 @@ export async function listBatchStageEvents(batchId: string) {
       inputQty: batchStageEvent.inputQty,
       outputQty: batchStageEvent.outputQty,
       rejectQty: batchStageEvent.rejectQty,
+      isiPerUnit: batchStageEvent.isiPerUnit,
+      sisaQty: batchStageEvent.sisaQty,
       unit: batchStageEvent.unit,
       operatorByName: sql<string>`(SELECT u.full_name FROM "user" u WHERE u.id = ${batchStageEvent.operatorBy})`.mapWith(String),
       eventAt: batchStageEvent.eventAt,

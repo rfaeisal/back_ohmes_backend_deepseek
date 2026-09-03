@@ -40,6 +40,7 @@ export {
   batch,
   hlpPack,
   shiftConsumption,
+  batanganOut,
 } from "./box";
 export {
   tsgSupplier,
@@ -92,9 +93,13 @@ export {
   hlpShift,
   hlpShiftMember,
   rijekanLedger,
+  rijekanAllocation,
+  rijekanReturn,
+  rijekanReturnItem,
 } from "./hlp";
 export {
   externalBatanganReceiving,
   externalPackOut,
 } from "./makloon";
+export { makloonOrder } from "./makloon-order";
 export { batchStageEvent } from "./box";

@@ -208,9 +208,9 @@ TODO #6 disupersede oleh desain ini.
 
 ---
 
-## 7. Pertanyaan tertunda — SEMUA TERJAWAB (1 Sep 2026)
+## 7. Pertanyaan tertunda — SEMUA TERJAWAB (1 Sep 2026, direvisi 3 Sep 2026)
 
-1. ~~Packing/input tanpa sesi OPEN.~~ **DIJAWAB: boleh standalone** — sesi hanya "menempel" kalau OPEN (sudah diimplementasikan: hlpShiftId auto-link).
+1. ~~Packing/input tanpa sesi OPEN.~~ **DIJAWAB (1 Sep 2026): boleh standalone** — sesi hanya "menempel" kalau OPEN (hlpShiftId auto-link). **DIREVISI 3 Sep 2026: sesi OPEN kini WAJIB** — `POST /hlp/pack` dan `POST /batch-stage-events` menolak dengan `HLP_SESSION_REQUIRED` bila tidak ada sesi OPEN (packing: sesi mesin tersebut; stage: sesi mesin bila mesin dipilih, minimal satu sesi OPEN di plant bila tanpa mesin). Tombol **Buka Sesi** dipindah ke strip tepat di bawah pilih mesin HLP.
 2. ~~Angka idle untuk auto-tutup sesi (X jam).~~ **DIJAWAB: 6 jam** (env `HLP_SHIFT_IDLE_HOURS`, diimplementasikan di instrumentation — tahap 2).
 3. ~~Permission operator HLP untuk input dari tablet.~~ **DIJAWAB**: material-out PEMAKAIAN/WASTE diizinkan untuk pemegang `hlp.pack` (ter-scope); downtime & maintenance lewat permission shift.downtime.log/shift.maintenance.log yang sudah dimiliki operator — tahap 3.
 4. ~~Koreksi historis reject pack.~~ **DIJAWAB**: tidak wajib — mulai bersih saat go-live (§4.2).

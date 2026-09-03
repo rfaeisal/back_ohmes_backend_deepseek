@@ -97,7 +97,7 @@ describe("addContentToCarton — STAGE", () => {
       [{ total: 0 }],
       [{ id: "b1", source: "INTERNAL", code: "btc_1" }],
       [{ total: 20 }],
-      [{ total: 5 }],
+      [{ inputQty: 5, sisaQty: null }], // event BAL lama tanpa sisa tercatat → fallback
       [{ total: 0 }],
       [{ total: 3 }]
     );
@@ -142,7 +142,7 @@ describe("addContentToCarton — STAGE", () => {
       [{ total: 0 }],
       [{ id: "b1", source: "INTERNAL", code: "btc_1" }],
       [{ total: 10 }],
-      [{ total: 8 }],
+      [{ inputQty: 8, sisaQty: null }], // event BAL lama tanpa sisa → fallback out−in
       [{ total: 1 }]
     );
     await expect(
@@ -156,11 +156,42 @@ describe("addContentToCarton — STAGE", () => {
       [{ total: 0 }],
       [{ id: "b1", source: "INTERNAL", code: "btc_1" }],
       [{ total: 0 }],
-      [{ total: 0 }],
+      [{ inputQty: 0, sisaQty: null }],
       [{ total: 0 }]
     );
     await expect(
       addContentToCarton({ cartonId: "c2", plantId: "p1", addedBy: "u1", sourceType: "STAGE", batchId: "b1", stage: "SLOP", packQty: 1 })
+    ).rejects.toMatchObject({ code: "STAGE_OUTPUT_INSUFFICIENT" });
+  });
+
+  it("0032: sisa TERCATAT di event BAL = angka resmi (mengalahkan rumus out−in)", async () => {
+    h.db._selectResults.push(
+      [openSlopCarton],
+      [{ total: 0 }],
+      [{ id: "b1", source: "INTERNAL", code: "btc_1" }],
+      [{ total: 8 }],
+      [{ inputQty: 9, sisaQty: 5 }], // sisa resmi 5, walau out−in = −1
+      [{ total: 2 }],                // allocated 2 → available 3
+      [{ total: 3 }]                 // recompute packCount setelah insert
+    );
+    const res = await addContentToCarton({
+      cartonId: "c2", plantId: "p1", addedBy: "u1",
+      sourceType: "STAGE", batchId: "b1", stage: "SLOP", packQty: 3,
+    });
+    expect(res.packCount).toBe(3);
+  });
+
+  it("0032: sisa tercatat kurang → STAGE_OUTPUT_INSUFFICIENT", async () => {
+    h.db._selectResults.push(
+      [openSlopCarton],
+      [{ total: 0 }],
+      [{ id: "b1", source: "INTERNAL", code: "btc_1" }],
+      [{ total: 8 }],
+      [{ inputQty: 9, sisaQty: 3 }],
+      [{ total: 0 }]
+    );
+    await expect(
+      addContentToCarton({ cartonId: "c2", plantId: "p1", addedBy: "u1", sourceType: "STAGE", batchId: "b1", stage: "SLOP", packQty: 5 })
     ).rejects.toMatchObject({ code: "STAGE_OUTPUT_INSUFFICIENT" });
   });
 });

@@ -72,15 +72,107 @@ describe("createBatchStageEvent", () => {
     ).rejects.toMatchObject({ code: "EMPTY_EVENT" });
   });
 
+  it("PACKING_REQUIRED: WR ditolak kalau packing HLP belum dicatat", async () => {
+    h.db._selectResults.push([balBatch]); // batch
+    h.db._selectResults.push([]); // belum ada hlp_pack
+    await expect(createBatchStageEvent(baseInput)).rejects.toMatchObject({
+      code: "PACKING_REQUIRED",
+      details: { stage: "WR" },
+    });
+  });
+
   it("mesin tidak ditemukan → MACHINE_NOT_FOUND", async () => {
     h.db._selectResults.push([balBatch]); // batch
+    h.db._selectResults.push([{ id: "pk1" }]); // packing HLP ada (prasyarat WR)
     h.db._selectResults.push([]); // machine select
     await expect(createBatchStageEvent({ ...baseInput, machineId: "m-x" })).rejects.toMatchObject({ code: "MACHINE_NOT_FOUND" });
   });
 
+  it("HLP_SESSION_REQUIRED: tanpa sesi OPEN ditolak", async () => {
+    h.db._selectResults.push([balBatch]); // batch
+    h.db._selectResults.push([{ id: "prev" }]); // prev WR ada (stage SLOP lolos sequence)
+    h.db._selectResults.push([]); // tidak ada sesi HLP OPEN di plant
+    await expect(
+      createBatchStageEvent({ ...baseInput, stage: "SLOP", inputQty: 1, outputQty: 1, rejectQty: 0 })
+    ).rejects.toMatchObject({ code: "HLP_SESSION_REQUIRED" });
+  });
+
+  it("0032: isi per unit & sisa ikut tersimpan dan dikembalikan", async () => {
+    h.db._selectResults.push([balBatch]); // batch
+    h.db._selectResults.push([{ id: "prev" }]); // prev WR ada → SLOP lolos sequence
+    h.db._selectResults.push([{ id: "s1" }]); // sesi HLP OPEN
+    h.db._returningResults.push({ id: "ev1", stage: "SLOP", inputQty: "9", outputQty: "0", rejectQty: "0", unit: "SLOP", isiPerUnit: 10, sisaQty: 9 });
+    const res = await createBatchStageEvent({
+      ...baseInput, stage: "SLOP", inputQty: 9, outputQty: 0, rejectQty: 0,
+      isiPerUnit: 10, sisaQty: 9,
+    });
+    expect(res.isiPerUnit).toBe(10);
+    expect(res.sisaQty).toBe(9);
+  });
+
+  // --- Konservasi lunak (docs/26 §7) ---
+
+  it("konservasi pas (WR 1:1) → tanpa warning", async () => {
+    h.db._selectResults.push([balBatch]); // batch
+    h.db._selectResults.push([{ id: "pk1" }]); // packing HLP ada (prasyarat WR)
+    h.db._selectResults.push([{ id: "m1" }]); // machine
+    h.db._selectResults.push([{ id: "s1" }]); // sesi HLP OPEN
+    h.db._returningResults.push({ id: "ev1", stage: "WR", inputQty: "40", outputQty: "38", rejectQty: "2", unit: "PACK" });
+    const res = await createBatchStageEvent({ ...baseInput, machineId: "m1" }); // 40 = 38 + 2
+    expect(res.conservationWarning).toBeNull();
+  });
+
+  it("konservasi mismatch → warning, tetap diterima", async () => {
+    h.db._selectResults.push([balBatch]);
+    h.db._selectResults.push([{ id: "pk1" }]);
+    h.db._selectResults.push([{ id: "m1" }]);
+    h.db._selectResults.push([{ id: "s1" }]);
+    h.db._returningResults.push({ id: "ev1", stage: "WR", inputQty: "40", outputQty: "30", rejectQty: "2", unit: "PACK" });
+    const res = await createBatchStageEvent({ ...baseInput, machineId: "m1", outputQty: 30 }); // 40 ≠ 30 + 2
+    expect(res.conservationWarning).toContain("tidak sesuai");
+  });
+
+  it("konservasi SLOP pakai isiPerUnit (10) → pas", async () => {
+    h.db._selectResults.push([balBatch]);
+    h.db._selectResults.push([{ id: "prev" }]); // prev WR ada → lolos sequence
+    h.db._selectResults.push([{ id: "s1" }]); // sesi HLP OPEN
+    h.db._returningResults.push({ id: "ev1", stage: "SLOP", inputQty: "47", outputQty: "4", rejectQty: "0", unit: "SLOP", isiPerUnit: 10, sisaQty: 7 });
+    const res = await createBatchStageEvent({
+      ...baseInput, stage: "SLOP", inputQty: 47, outputQty: 4, rejectQty: 0,
+      isiPerUnit: 10, sisaQty: 7,
+    }); // 4 × 10 + 0 + 7 = 47
+    expect(res.conservationWarning).toBeNull();
+  });
+
+  // --- Sink pool rijekan (docs/26 §3.2) ---
+
+  it("reject stage → entry IN_STAGE_REJECT masuk ledger", async () => {
+    h.db._selectResults.push([balBatch]); // batch (alur create)
+    h.db._selectResults.push([{ id: "pk1" }]);
+    h.db._selectResults.push([{ id: "m1" }]);
+    h.db._selectResults.push([{ id: "s1" }]);
+    h.db._returningResults.push({ id: "ev1", stage: "WR", inputQty: "40", outputQty: "38", rejectQty: "2", unit: "PACK" });
+    // derive sink: batch tanpa shiftReportId → langsung INTERNAL
+    h.db._selectResults.push([
+      { source: "INTERNAL", isMakloonTsg: false, makloonOrderId: null, shiftReportId: null },
+    ]);
+    await createBatchStageEvent({ ...baseInput, machineId: "m1" });
+    // tunggu fire-and-forget selesai (mikrotask + timer flush)
+    await new Promise((r) => setTimeout(r, 0));
+    const ins = h.db.calls.filter(
+      (c: any) => c.kind === "insert" && c.values?.entryType === "IN_STAGE_REJECT"
+    );
+    expect(ins).toHaveLength(1);
+    expect(ins[0].values.unit).toBe("PACK");
+    expect(ins[0].values.quantity).toBe("2");
+    expect(ins[0].values.origin).toBe("INTERNAL");
+  });
+
   it("sukses → insert event + stage naik ke WRAPPED", async () => {
     h.db._selectResults.push([balBatch]); // batch
+    h.db._selectResults.push([{ id: "pk1" }]); // packing HLP ada (prasyarat WR)
     h.db._selectResults.push([{ id: "m1" }]); // machine
+    h.db._selectResults.push([{ id: "s1" }]); // sesi HLP OPEN mesin
     h.db._returningResults.push({ id: "ev1", stage: "WR", inputQty: "40", outputQty: "38", rejectQty: "2", unit: "PACK" }); // insert returning
     const res = await createBatchStageEvent({ ...baseInput, machineId: "m1" });
     expect(res.inputQty).toBe(40);
@@ -93,6 +185,7 @@ describe("createBatchStageEvent", () => {
   it("stage tidak turun (event SLOP tidak menurunkan batch BALED)", async () => {
     h.db._selectResults.push([{ ...balBatch, stage: "BALED" }]);
     h.db._selectResults.push([{ id: "prev" }]); // prev stage WR ada → lolos sequence
+    h.db._selectResults.push([{ id: "s1" }]); // sesi HLP OPEN
     h.db._returningResults.push({ id: "ev1", stage: "SLOP", inputQty: "1", outputQty: "1", rejectQty: "0", unit: "SLOP" });
     await createBatchStageEvent({ ...baseInput, stage: "SLOP", inputQty: 1, outputQty: 1, rejectQty: 0 });
     const upd = h.db.calls.find((c: any) => c.kind === "update");
@@ -137,6 +230,7 @@ describe("createBatchStageEvent", () => {
 
   it("batch EXTERNAL (makloon) bebas dari validasi target — model entry/exit stage", async () => {
     h.db._selectResults.push([{ ...balBatch, source: "EXTERNAL" }]); // batch
+    h.db._selectResults.push([{ id: "s1" }]); // sesi HLP OPEN (tetap wajib, semua batch)
     h.db._returningResults.push({ id: "ev1", stage: "SLOP", inputQty: "1", outputQty: "1", rejectQty: "0", unit: "SLOP" });
     const res = await createBatchStageEvent({ ...baseInput, stage: "SLOP", inputQty: 1, outputQty: 1, rejectQty: 0 });
     expect(res.stage).toBe("SLOP"); // tidak ada cek prev WR

@@ -19,7 +19,8 @@ export default function GudangOutboundPage() {
   const [showNewCarton, setShowNewCarton] = useState(false);
   const [newCartonProduct, setNewCartonProduct] = useState("");
   const [newCartonCapacity, setNewCartonCapacity] = useState("50");
-  const [newCartonUnit, setNewCartonUnit] = useState<"PACK" | "SLOP" | "BAL">("PACK");
+  // Keputusan bisnis 3 Sep 2026 (docs/26 §1): karton hanya SLOP | BAL
+  const [newCartonUnit, setNewCartonUnit] = useState<"SLOP" | "BAL">("SLOP");
 
   // Form confirm finished goods — per unit (0029: PACK/SLOP/BAL)
   const [showConfirm, setShowConfirm] = useState(false);
@@ -263,7 +264,7 @@ export default function GudangOutboundPage() {
           <h1 className="text-3xl font-bold text-gray-900">Gudang Outbound</h1>
           <p className="text-gray-500">Finished goods &amp; kartoning</p>
         </div>
-        <Button onClick={() => { setNewCartonProduct(products[0]?.id ?? ""); setNewCartonCapacity("50"); setNewCartonUnit("PACK"); setShowNewCarton(true); }}>
+        <Button onClick={() => { setNewCartonProduct(products[0]?.id ?? ""); setNewCartonCapacity("50"); setNewCartonUnit("SLOP"); setShowNewCarton(true); }}>
           📦 Buat Karton Baru
         </Button>
         <Button variant="outline" onClick={() => { setExtOutBatchId(""); setExtOutDest(""); setExtOutDocRef(""); setExtOutExitStage("PACK"); setExtOutPack(""); setExtOutRejectPack("0"); setExtOutRejectBatang("0"); setExtOutError(""); setShowExtOut(true); }}>
@@ -424,14 +425,21 @@ export default function GudangOutboundPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Unit Karton</label>
-            <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white" value={newCartonUnit} onChange={(e) => setNewCartonUnit(e.target.value as any)}>
-              <option value="PACK">PACK</option>
+            <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white" value={newCartonUnit} onChange={(e) => {
+              const u = e.target.value as "SLOP" | "BAL";
+              const prd = products.find((p: any) => p.id === newCartonProduct);
+              // Default kapasitas dari standar produk (docs/26 §1)
+              setNewCartonUnit(u);
+              setNewCartonCapacity(
+                String(u === "SLOP" ? (prd?.kartonCapacitySlop ?? 50) : (prd?.kartonCapacityBal ?? 4))
+              );
+            }}>
               <option value="SLOP">SLOP</option>
               <option value="BAL">BAL</option>
             </select>
           </div>
           <Input
-            label={newCartonUnit === "PACK" ? "Kapasitas (pack)" : `Kapasitas (${unitLabel(newCartonUnit)})`}
+            label={`Kapasitas (${unitLabel(newCartonUnit)})`}
             type="number"
             value={newCartonCapacity}
             onChange={(e) => setNewCartonCapacity(e.target.value)}

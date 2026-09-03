@@ -22,6 +22,7 @@ import {
 import { shiftReport, shiftHandoff } from "./shift";
 import { tsgInventory } from "./wms-inbound";
 import { hlpShift } from "./hlp";
+import { makloonOrder } from "./makloon-order";
 
 // =============================================================================
 // TSG Box Session — sesi buka 1–6 boks sekaligus + timbang batangan kolektif
@@ -181,10 +182,48 @@ export const batch = pgTable("batch", {
   isMakloonTsg: boolean("is_makloon_tsg").notNull().default(false),
   makloonCustomer: text("makloon_customer"), // pemesan makloon (0031)
   makloonTarget: text("makloon_target"), // produk jadi pesanan (0031)
+  // Order makloon (docs/26 §2) — tautan resmi, kolom free-text di atas
+  // dipertahankan untuk data lama.
+  makloonOrderId: uuid("makloon_order_id").references(() => makloonOrder.id),
   code: text("code").notNull().unique(), // 'btc_MKR01_20260810_03' | 'btx_...'
   batanganKg: decimal("batangan_kg", { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+// =============================================================================
+// Batangan Out — batangan keluar sebagai produk final (docs/26 §6)
+// =============================================================================
+// Produk final #1 (batangan) untuk kebutuhan internal (antar pabrik /
+// keperluan pabrik) dan order makloon (PT. B). MAKLOON bisa juga lewat
+// external_pack_out exitStage=BATANGAN + dokumen serah terima makloon.
+// =============================================================================
+
+export const batanganOut = pgTable(
+  "batangan_out",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    plantId: uuid("plant_id")
+      .notNull()
+      .references(() => plant.id), // ← RLS
+    batchId: uuid("batch_id").references(() => batch.id),
+    qtyKg: decimal("qty_kg", { precision: 10, scale: 2 }).notNull(),
+    batangEst: integer("batang_est"), // perkiraan jumlah batang (estimasi)
+    destinationType: text("destination_type").notNull(), // INTERNAL | MAKLOON | LAIN
+    destinationName: text("destination_name").notNull(), // free text
+    docRef: text("doc_ref"),
+    outBy: uuid("out_by")
+      .notNull()
+      .references(() => user.id),
+    outAt: timestamp("out_at").notNull().defaultNow(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at"),
+  },
+  (t) => ({
+    idxPlant: index("idx_batangan_out_plant").on(t.plantId, t.outAt),
+    idxBatch: index("idx_batangan_out_batch").on(t.batchId),
+  })
+);
 
 // =============================================================================
 // HLP Pack — output pack dari mesin HLP
@@ -269,6 +308,10 @@ export const batchStageEvent = pgTable(
     inputQty: numeric("input_qty").notNull(),
     outputQty: numeric("output_qty").notNull(),
     rejectQty: numeric("reject_qty").notNull().default("0"),
+    // Rasio input per 1 output (SLOP: pack/slop; BAL: slop/bal) — fleksibel (0032)
+    isiPerUnit: integer("isi_per_unit"),
+    // Sisa input tidak terpakai — angka resmi untuk isi karton (0032)
+    sisaQty: integer("sisa_qty"),
     unit: text("unit").notNull(), // PACK | SLOP | BAL
     operatorBy: uuid("operator_by")
       .notNull()

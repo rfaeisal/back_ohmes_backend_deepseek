@@ -10,7 +10,7 @@ import { carton } from "@/db/schema/wms-outbound";
 const schema = z.object({
   productId: z.string().uuid(),
   capacityPack: z.number().int().min(1).max(200).default(50),
-  unit: z.enum(["PACK", "SLOP", "BAL"]).default("PACK"),
+  unit: z.enum(["SLOP", "BAL"]).default("SLOP"),
 });
 
 export const POST = withAuth(async (request: Request, ctx: AuthContext) => {

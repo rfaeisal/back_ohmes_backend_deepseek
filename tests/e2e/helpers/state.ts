@@ -22,6 +22,10 @@ export type E2eState = {
   cartonCode?: string;
   /** dari spec 05b (karton unit SLOP/BAL) — cadangan dispatch multi-unit */
   slopCartonCode?: string;
+  /** dari spec 10 test 1 — batch makloon (btx_) untuk reject HLP */
+  makloonBatchId?: string;
+  /** dari spec 10 test 1 — order makloon PT. A (serah terima waste) */
+  makloonOrderId?: string;
 };
 
 export function readState(): E2eState {

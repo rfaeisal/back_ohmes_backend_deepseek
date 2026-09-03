@@ -12,6 +12,7 @@ import db from "@/db";
 import {
   externalBatanganReceiving,
   externalPackOut,
+  makloonOrder,
 } from "@/db/schema";
 import { batch, hlpPack } from "@/db/schema/box";
 import { plant } from "@/db/schema/tenancy";
@@ -49,6 +50,8 @@ export interface CreateExternalReceivingInput {
   docRef?: string;
   batanganKg: number; // kg untuk BATANGAN; jumlah satuan stage untuk entry lain
   entryStage?: EntryStage;
+  /** Order makloon (docs/26 §2) — senderName disalin dari order */
+  makloonOrderId?: string;
   receivedBy: string;
   notes?: string;
 }
@@ -61,22 +64,53 @@ export async function createExternalReceiving(input: CreateExternalReceivingInpu
     throw new ServiceError("INVALID_KG", "Berat/jumlah harus 0-10000.");
   }
 
+  // Order makloon (docs/26 §2): link + salin pemesan; bahan masuk order harus
+  // BATANGAN. Status order OPEN → RECEIVING.
+  let effSenderName = input.senderName.trim();
+  let effOrderId: string | null = null;
+  if (input.makloonOrderId) {
+    const [order] = await db
+      .select()
+      .from(makloonOrder)
+      .where(eq(makloonOrder.id, input.makloonOrderId))
+      .limit(1);
+    if (!order || order.plantId !== input.plantId) {
+      throw new ServiceError("ORDER_NOT_FOUND", "Order makloon tidak ditemukan untuk pabrik ini.");
+    }
+    if (order.inputType !== "BATANGAN") {
+      throw new ServiceError(
+        "ORDER_INPUT_MISMATCH",
+        `Order ini menerima bahan masuk ${order.inputType} — bukan BATANGAN.`
+      );
+    }
+    effSenderName = order.customer;
+    effOrderId = order.id;
+  }
+
   const entryStage: EntryStage = input.entryStage ?? "BATANGAN";
 
   const [r] = await db
     .insert(externalBatanganReceiving)
     .values({
       plantId: input.plantId,
-      senderName: input.senderName.trim(),
+      senderName: effSenderName,
       docRef: input.docRef?.trim() || null,
       batanganKg: String(input.batanganKg),
       entryStage,
       entryUnit: ENTRY_UNIT[entryStage],
+      makloonOrderId: effOrderId,
       receivedBy: input.receivedBy,
       notes: input.notes?.trim() || null,
     })
     .returning();
   if (!r) throw new ServiceError("CREATE_FAILED", "Gagal mencatat penerimaan external.");
+
+  if (effOrderId) {
+    await db
+      .update(makloonOrder)
+      .set({ status: "RECEIVING" })
+      .where(and(eq(makloonOrder.id, effOrderId), eq(makloonOrder.status, "OPEN")));
+  }
 
   await writeAudit({
     actorUserId: input.receivedBy,
@@ -196,6 +230,28 @@ export async function approveExternalReceiving(
   // masuk = batch lahir di stage WRAPPED, dst. batanganKg hanya bermakna
   // untuk entry BATANGAN (kg) — entry lain pakai satuan stage.
   const entryStage = (r.entryStage as EntryStage) || "BATANGAN";
+
+  // Order makloon (docs/26 §2): tautan diteruskan ke batch; target unit
+  // batch mengikuti satuan akhir order (CARTON_* → satuan dasarnya); pemesan
+  // & target disalin ke kolom free-text (0031) untuk jejak downstream.
+  let makloonOrderId: string | null = r.makloonOrderId ?? null;
+  let makloonCustomer: string | null = null;
+  let makloonTarget: string | null = null;
+  let targetUnit: string | null = null;
+  if (makloonOrderId) {
+    const [order] = await db
+      .select({ finalForm: makloonOrder.finalForm, customer: makloonOrder.customer })
+      .from(makloonOrder)
+      .where(eq(makloonOrder.id, makloonOrderId))
+      .limit(1);
+    if (order) {
+      targetUnit =
+        order.finalForm === "CARTON_SLOP" ? "SLOP" : order.finalForm === "CARTON_BAL" ? "BAL" : order.finalForm;
+      makloonCustomer = order.customer;
+      makloonTarget = targetUnit;
+    }
+  }
+
   const [b] = await db
     .insert(batch)
     .values({
@@ -205,6 +261,10 @@ export async function approveExternalReceiving(
       source: "EXTERNAL",
       externalReceivingId: r.id,
       stage: ENTRY_BATCH_STAGE[entryStage],
+      targetUnit: targetUnit ?? "PACK",
+      makloonOrderId,
+      makloonCustomer,
+      makloonTarget,
       code,
       batanganKg: entryStage === "BATANGAN" ? r.batanganKg : "0",
     })

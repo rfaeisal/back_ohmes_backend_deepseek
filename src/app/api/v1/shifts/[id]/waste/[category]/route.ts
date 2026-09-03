@@ -6,7 +6,7 @@ import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import db from "@/db";
 import { shiftWaste, shiftReport } from "@/db/schema";
 import { ServiceError } from "@/lib/services/shift.service";
-import { addRijekanEntry } from "@/lib/services/rijekan.service";
+import { addRijekanEntry, deriveRijekanContextFromShift } from "@/lib/services/rijekan.service";
 
 const schema = z.object({ settledAt: z.string().datetime().optional() });
 
@@ -63,17 +63,24 @@ export const PATCH = withAuth(
           )
         );
 
-      // Sink ledger rijekan (docs/23 §5.2): RIJEKAN yang di-settle = masuk
-      // pembukuan (kg). Fire-and-forget — gagal tidak menggagalkan settle.
-      if (category === "RIJEKAN" && waste && waste.settlementStatus !== "LUNAS") {
-        void addRijekanEntry({
-          plantId: shift.plantId,
-          entryType: "IN_MAKER_WASTE",
-          quantity: Number(waste.kg),
-          unit: "KG",
-          refId: waste.id,
-          note: `Settle waste shift ${shiftId.substring(0, 8)}...`,
-        });
+      // Sink ledger rijekan (docs/26 §3.2): RIJEKAN & MENIR yang di-settle =
+      // masuk pool (kg) dengan identitas lot (jenis + asal + order) di-derive
+      // dari shift. Fire-and-forget — gagal tidak menggagalkan settle.
+      if ((category === "RIJEKAN" || category === "MENIR") && waste && waste.settlementStatus !== "LUNAS") {
+        void (async () => {
+          const ctx = await deriveRijekanContextFromShift(shiftId);
+          await addRijekanEntry({
+            plantId: shift.plantId,
+            entryType: category === "RIJEKAN" ? "IN_MAKER_WASTE" : "IN_MAKER_MENIR",
+            quantity: Number(waste.kg),
+            unit: "KG",
+            refId: waste.id,
+            note: `Settle waste shift ${shiftId.substring(0, 8)}...`,
+            tsgType: ctx.tsgType,
+            origin: ctx.origin,
+            makloonOrderId: ctx.makloonOrderId,
+          });
+        })();
       }
 
       return NextResponse.json({ shiftId, category, settlementStatus: "LUNAS" }, { status: 200 });

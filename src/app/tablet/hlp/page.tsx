@@ -1,5 +1,6 @@
 "use client";
 import { apiFetch } from "@/lib/utils/api-client";
+import { machineApplies } from "@/lib/utils";
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
@@ -24,6 +25,9 @@ interface BatchItem {
   isMakloonTsg?: boolean; // batangan dari TSG milik makloon (0031)
   makloonCustomer?: string | null; // pemesan makloon (0031)
   makloonTarget?: string | null; // produk jadi pesanan (0031)
+  // Produk batch (0033) — jenis TSG & batang per pack standar produk
+  productTsgType?: string | null;
+  productBatangPerPack?: number | null;
   createdAt: string;
   packCount?: number;
   packedBatang?: number;
@@ -50,6 +54,9 @@ export default function HlpPage() {
           machineCode: b.machineCode ?? "-",
           source: b.source ?? "INTERNAL",
           stage: b.stage ?? "PACKED",
+          targetUnit: b.targetUnit ?? "PACK",
+          productTsgType: b.productTsgType ?? null,
+          productBatangPerPack: b.productBatangPerPack ?? null,
           createdAt: b.createdAt,
           packCount: b.packCount ?? 0,
           packedBatang: b.packedBatang ?? 0,
@@ -154,7 +161,10 @@ export default function HlpPage() {
 
   const openMemberPicker = async () => {
     try {
-      const res = await apiFetch("/users");
+      // Hanya user lantai produksi (OPERATOR_*) di plant mesin ini (3 Sep 2026)
+      const m = hlpMachines.find((x: any) => x.id === hlpMachineId);
+      const qs = `floorOnly=1${m?.plantId ? `&plantId=${m.plantId}` : ""}`;
+      const res = await apiFetch(`/users?${qs}`);
       setUsers(res.data ?? []);
       setPickedMemberId("");
       setShowMemberPicker(true);
@@ -211,8 +221,34 @@ export default function HlpPage() {
   const [stageInput, setStageInput] = useState("");
   const [stageOutput, setStageOutput] = useState("");
   const [stageReject, setStageReject] = useState("0");
+  const [stageIsi, setStageIsi] = useState(""); // isi per slop/bal (0032)
+  const [stageSisa, setStageSisa] = useState(""); // sisa input tak terpakai (0032)
   const [stageNotes, setStageNotes] = useState("");
   const [stageBusy, setStageBusy] = useState(false);
+
+  // Default Input = hasil proses sebelumnya: WR ← pack lolos HLP batch ini,
+  // SLOP ← out(WR), BAL ← out(SLOP). Tetap bisa diedit manual.
+  const defaultInputFor = (s: "WR" | "SLOP" | "BAL") => {
+    if (s === "WR") {
+      const packs = Number(batchSummary?.packsLolos ?? 0);
+      return packs > 0 ? String(packs) : "";
+    }
+    const prev = s === "SLOP" ? "WR" : "SLOP";
+    const total = stageEvents
+      .filter((ev: any) => ev.stage === prev)
+      .reduce((sum: number, ev: any) => sum + (Number(ev.outputQty) || 0), 0);
+    return total > 0 ? String(total) : "";
+  };
+  // Default isi per unit (0032) — fleksibel, bisa diubah per catatan
+  const DEFAULT_ISI: Record<string, string> = { SLOP: "10", BAL: "20" };
+  // Output & sisa otomatis dari input ÷ isi per unit — tetap bisa diedit
+  const autoHitungSisa = (inp: string, isi: string) => {
+    const i = parseInt(inp || "0", 10) || 0;
+    const per = parseInt(isi || "0", 10) || 0;
+    if (i <= 0 || per < 1) return { output: "", sisa: "" };
+    const out = Math.floor(i / per);
+    return { output: String(out), sisa: String(i - out * per) };
+  };
 
   useEffect(() => {
     if (!selectedBatch) { setStageEvents([]); return; }
@@ -231,7 +267,10 @@ export default function HlpPage() {
     const input = parseInt(stageInput || "0", 10) || 0;
     const output = parseInt(stageOutput || "0", 10) || 0;
     const reject = parseInt(stageReject || "0", 10) || 0;
-    if (input + output + reject === 0) { setActionMsg("Isi minimal satu jumlah (input/output/reject)."); return; }
+    const sisa = stageSisa.trim() === "" ? undefined : parseInt(stageSisa, 10) || 0;
+    if (input + output + reject + (sisa ?? 0) === 0) { setActionMsg("Isi minimal satu jumlah."); return; }
+    const isiStr = stageIsi.trim();
+    const isi = stageSel === "WR" || isiStr === "" ? undefined : parseInt(isiStr, 10) || 0;
     setStageBusy(true);
     try {
       await apiFetch("/batch-stage-events", {
@@ -243,12 +282,14 @@ export default function HlpPage() {
           inputQty: input,
           outputQty: output,
           rejectQty: reject,
+          isiPerUnit: isi,
+          sisaQty: sisa,
           notes: stageNotes || undefined,
         }),
       });
       setActionMsg(`✅ Stage ${stageSel} dicatat — batch kini ${stageSel === "WR" ? "WRAPPED" : stageSel === "SLOP" ? "SLOPPED" : "BALED"}`);
       setShowStageDialog(false);
-      setStageInput(""); setStageOutput(""); setStageReject("0"); setStageNotes("");
+      setStageInput(""); setStageOutput(""); setStageReject("0"); setStageIsi(""); setStageSisa(""); setStageNotes("");
       const res = await apiFetch(`/batch-stage-events?batchId=${selectedBatch.id}`);
       setStageEvents(res.data ?? []);
       load();
@@ -308,10 +349,7 @@ export default function HlpPage() {
       const path = type === "CONSUMABLE" ? "/consumable-items" : "/spareparts";
       const res = await apiFetch(path);
       // applicable_machines: hanya item relevan mesin HLP
-      setMatItems((res.data ?? []).filter((i: any) => {
-        const am = i.applicableMachines ?? "BOTH";
-        return am === "BOTH" || am === "HLP";
-      }));
+      setMatItems((res.data ?? []).filter((i: any) => machineApplies(i.applicableMachines, "HLP")));
     } catch { setMatItems([]); }
   };
 
@@ -352,10 +390,8 @@ export default function HlpPage() {
       });
       setLastResult(result);
       setActionMsg(`✅ Packing dicatat — berat per batang ${Number(result.beratPerBatangGram).toFixed(2)} g/batang`);
-      setPacksLolos("");
-      setRejectBatangan("0");
-      setRejectPacks("0");
-      setRejectReason("");
+      // Nilai form dipertahankan sebagai default batch berikutnya (3 Sep 2026)
+      // — hanya batch yang di-reset, bukan angkanya.
       setSelectedBatch(null);
       setBatchSearch("");
       load();
@@ -480,11 +516,18 @@ export default function HlpPage() {
                     {selectedBatch.targetUnit && (
                       <Badge variant="info">Target: {selectedBatch.targetUnit}</Badge>
                     )}
+                    {selectedBatch.productTsgType && (
+                      <Badge variant="neutral">TSG {selectedBatch.productTsgType}</Badge>
+                    )}
                   </p>
                   <p className="text-sm text-gray-600">
                     {selectedBatch.batanganKg.toFixed(2)} kg · dari {selectedBatch.machineCode ?? (selectedBatch.source === "EXTERNAL" ? "makloon" : "-")}
                     {(selectedBatch.packCount ?? 0) > 0 &&
                       ` · sudah packing ${selectedBatch.packCount}× (${selectedBatch.packedBatang ?? 0} batang)`}
+                    {batchSummary && Number(batchSummary.packsLolos ?? 0) > 0 &&
+                      ` · ${batchSummary.packsLolos} pack lolos`}
+                    {batchSummary && (Number(batchSummary.rejectPacks ?? 0) > 0 || Number(batchSummary.rejectBatangan ?? 0) > 0) &&
+                      ` · reject ${batchSummary.rejectPacks} pack / ${batchSummary.rejectBatangan} btg`}
                   </p>
                   {batchSummary && batchSummary.totalBatangPakai > 0 && (
                     <p className="text-xs text-gray-500 mt-1">
@@ -511,7 +554,7 @@ export default function HlpPage() {
                 value={selectedBatch.targetUnit ?? "PACK"}
                 onChange={(e) => handleTargetChange(e.target.value)}
               >
-                <option value="PACK">PACK (tanpa wrap)</option>
+                <option value="PACK">PACK (default, tanpa wrap)</option>
                 <option value="PACK_WRAP">PACK TERWRAP (WR)</option>
                 <option value="SLOP">SLOP (WR → SLOP)</option>
                 <option value="BAL">BAL (WR → SLOP → BAL)</option>
@@ -539,6 +582,31 @@ export default function HlpPage() {
               <p className="text-xs text-red-500 mt-1">Belum ada mesin HLP. Setup di Admin → Master Data.</p>
             )}
           </div>
+
+          {/* Sesi HLP — wajib sebelum packing/stage (3 Sep 2026), dijangkau di sini */}
+          {hlpMachineId && (
+            <div className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${session ? "border-green-300 bg-green-50" : "border-amber-300 bg-amber-50"}`}>
+              {session ? (
+                <>
+                  <span className="text-green-800 font-medium">
+                    ✅ Sesi HLP aktif · mulai{" "}
+                    {new Date(session.startedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                    {" "}· {session.activeMemberCount ?? sessionMembers.length} anggota
+                  </span>
+                  <Button variant="outline" size="sm" disabled={sessionBusy} onClick={handleCloseSession}>
+                    Tutup Sesi
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <span className="text-amber-800 font-medium">⚠️ Belum ada sesi — packing &amp; stage wajib sesi aktif.</span>
+                  <Button size="sm" disabled={sessionBusy} onClick={handleOpenSession}>
+                    {sessionBusy ? "Membuka..." : "Buka Sesi"}
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-3 gap-3">
             <Input
@@ -682,10 +750,7 @@ export default function HlpPage() {
           </div>
         ) : (
           <div className="mt-3 space-y-2">
-            <p className="text-sm text-gray-400">Belum ada sesi terbuka untuk mesin ini. Sesi tidak terbatas 8 jam — anggota bisa diganti tanpa menutup sesi; tutup otomatis kalau idle 6 jam.</p>
-            <Button size="sm" className="w-full" disabled={sessionBusy} onClick={handleOpenSession}>
-              {sessionBusy ? "Membuka..." : "Buka Sesi"}
-            </Button>
+            <p className="text-sm text-gray-400">Belum ada sesi terbuka untuk mesin ini — buka lewat tombol <span className="font-medium text-amber-700">Buka Sesi</span> di atas form packing. Sesi tidak terbatas 8 jam — anggota bisa diganti tanpa menutup sesi; tutup otomatis kalau idle 6 jam.</p>
           </div>
         )}
       </Card>
@@ -721,7 +786,7 @@ export default function HlpPage() {
               <p className="text-sm text-gray-600">
                 Progress: <Badge variant={selectedBatch.stage !== "PACKED" ? "info" : "neutral"}>{stageLabel(selectedBatch.stage ?? "PACKED")}</Badge>
               </p>
-              <Button size="sm" variant="outline" onClick={() => { setStageSel("WR"); setStageMachineId(""); setStageInput(""); setStageOutput(""); setStageReject("0"); setStageNotes(""); setShowStageDialog(true); }}>
+              <Button size="sm" variant="outline" onClick={() => { setStageSel("WR"); setStageMachineId(""); setStageInput(defaultInputFor("WR")); setStageOutput(""); setStageReject("0"); setStageIsi(""); setStageSisa(""); setStageNotes(""); setShowStageDialog(true); }}>
                 + Catat Stage
               </Button>
             </div>
@@ -749,7 +814,10 @@ export default function HlpPage() {
                       <span className="text-xs text-gray-400">{new Date(ev.eventAt).toLocaleString("id-ID")}</span>
                     </div>
                     <p className="mt-1 text-gray-600">
-                      in {Number(ev.inputQty)} → out {Number(ev.outputQty)} · reject {Number(ev.rejectQty)} {ev.unit}
+                      in {Number(ev.inputQty)} → out {Number(ev.outputQty)} {ev.unit}
+                      {ev.isiPerUnit != null && ` · isi ${Number(ev.isiPerUnit)}/${ev.unit.toLowerCase()}`}
+                      {ev.sisaQty != null && ` · sisa ${Number(ev.sisaQty)}`}
+                      {" "}· reject {Number(ev.rejectQty)} btg
                     </p>
                     {ev.notes && <p className="text-xs text-gray-400 mt-1">{ev.notes}</p>}
                   </div>
@@ -841,7 +909,12 @@ export default function HlpPage() {
               return (
                 <button
                   key={b.id}
-                  onClick={() => { setSelectedBatch(b); setShowBatchPicker(false); }}
+                  onClick={() => {
+                    setSelectedBatch(b);
+                    // 0033: Isi per Pack mengikuti standar produk batch (fallback tetap)
+                    if (b.productBatangPerPack) setIsiPerPack(String(b.productBatangPerPack));
+                    setShowBatchPicker(false);
+                  }}
                   className={`w-full rounded-lg border-2 p-3 text-left transition-colors ${
                     packed
                       ? "border-gray-100 bg-gray-50"
@@ -954,7 +1027,23 @@ export default function HlpPage() {
             {(["WR", "SLOP", "BAL"] as const).map((s) => (
               <button
                 key={s}
-                onClick={() => setStageSel(s)}
+                onClick={() => {
+                  setStageSel(s);
+                  // Prefill Input dari proses sebelumnya; isi per unit default;
+                  // output & sisa otomatis — semuanya masih bisa diedit (0032)
+                  const inp = stageInput.trim() || defaultInputFor(s);
+                  setStageInput(inp);
+                  const isi = s === "WR" ? "" : DEFAULT_ISI[s];
+                  setStageIsi(isi);
+                  if (s !== "WR" && inp && isi) {
+                    const { output, sisa } = autoHitungSisa(inp, isi);
+                    setStageOutput(output);
+                    setStageSisa(sisa);
+                  } else {
+                    setStageOutput("");
+                    setStageSisa("");
+                  }
+                }}
                 className={`flex-1 rounded-lg border-2 px-3 py-2 text-sm font-medium ${
                   stageSel === s ? "border-orange-500 bg-orange-50 text-orange-700" : "border-gray-200 text-gray-500"
                 }`}
@@ -977,10 +1066,35 @@ export default function HlpPage() {
             </select>
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <Input label={`Input (${stageSel === "WR" ? "pack" : stageSel === "SLOP" ? "slop" : "bal"})`} type="number" inputMode="numeric" value={stageInput} onChange={(e) => setStageInput(e.target.value)} placeholder="0" />
-            <Input label="Output" type="number" inputMode="numeric" value={stageOutput} onChange={(e) => setStageOutput(e.target.value)} placeholder="0" />
-            <Input label="Reject" type="number" inputMode="numeric" value={stageReject} onChange={(e) => setStageReject(e.target.value)} placeholder="0" />
+            <Input
+              label={stageSel === "WR" ? "Input Pack" : stageSel === "SLOP" ? "Input WR (pack)" : "Input SLOP"}
+              type="number" inputMode="numeric" value={stageInput}
+              onChange={(e) => { setStageInput(e.target.value); const { output, sisa } = autoHitungSisa(e.target.value, stageIsi); setStageOutput(output); setStageSisa(sisa); }}
+              placeholder="0"
+            />
+            <Input
+              label={stageSel === "WR" ? "Output (pack)" : stageSel === "SLOP" ? "Output (slop)" : "Output (bal)"}
+              type="number" inputMode="numeric" value={stageOutput} onChange={(e) => setStageOutput(e.target.value)} placeholder="0"
+            />
+            <Input
+              label="Reject (batang)"
+              type="number" inputMode="numeric" value={stageReject} onChange={(e) => setStageReject(e.target.value)} placeholder="0"
+            />
           </div>
+          {stageSel !== "WR" && (
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label={stageSel === "SLOP" ? "Isi per Slop (pack)" : "Isi per Bal (slop)"}
+                type="number" inputMode="numeric" value={stageIsi}
+                onChange={(e) => { setStageIsi(e.target.value); const { output, sisa } = autoHitungSisa(stageInput, e.target.value); setStageOutput(output); setStageSisa(sisa); }}
+                placeholder={stageSel === "SLOP" ? "10" : "20"}
+              />
+              <Input
+                label={stageSel === "SLOP" ? "Sisa pack wrap" : "Sisa slop"}
+                type="number" inputMode="numeric" value={stageSisa} onChange={(e) => setStageSisa(e.target.value)} placeholder="0"
+              />
+            </div>
+          )}
           <Input label="Catatan (opsional)" value={stageNotes} onChange={(e) => setStageNotes(e.target.value)} />
           <Button size="operator" className="w-full" disabled={stageBusy} onClick={handleSubmitStage}>
             {stageBusy ? "Menyimpan..." : "SIMPAN STAGE"}

@@ -15,6 +15,7 @@ import { plant } from "./tenancy";
 import { user } from "./identity";
 import { shiftReport } from "./shift";
 import { supplierSj } from "./supplier-sj";
+import { makloonOrder } from "./makloon-order";
 
 // =============================================================================
 // Enums & master supplier — didefinisikan di tsg-types.ts (bebas circular
@@ -72,6 +73,8 @@ export const tsgReceiving = pgTable(
     isMakloon: boolean("is_makloon").notNull().default(false),
     makloonCustomer: text("makloon_customer"), // pemesan makloon
     makloonTarget: text("makloon_target"), // produk jadi pesanan: PACK|PACK_WRAP|SLOP|BAL|KARTON
+    // Order makloon (docs/26 §2) — tautan resmi; free-text di atas untuk data lama
+    makloonOrderId: uuid("makloon_order_id").references(() => makloonOrder.id),
     notes: text("notes"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     deletedAt: timestamp("deleted_at"),
@@ -127,6 +130,8 @@ export const tsgInventory = pgTable(
     isMakloon: boolean("is_makloon").notNull().default(false), // dari receiving (0031)
     makloonCustomer: text("makloon_customer"), // pemesan makloon (0031)
     makloonTarget: text("makloon_target"), // produk jadi pesanan (0031)
+    // Order makloon (docs/26 §2) — denormalized dari receiving (0035)
+    makloonOrderId: uuid("makloon_order_id").references(() => makloonOrder.id),
     status: tsgInventoryStatusEnum("status").notNull().default("AVAILABLE"),
     allocatedToShiftId: uuid("allocated_to_shift_id").references(
       () => shiftReport.id

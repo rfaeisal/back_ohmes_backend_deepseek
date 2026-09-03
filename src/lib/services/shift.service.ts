@@ -19,6 +19,8 @@ import {
   finishedGoodsReceiving,
   tsgInventory,
 } from "@/db/schema";
+import { batch, batchStageEvent } from "@/db/schema/box";
+import { TARGET_STAGES, type BatchTargetUnit } from "./chain.service";
 import { machine, shiftTemplate, product } from "@/db/schema/master-product";
 import { calculateShiftYield } from "@/lib/calc";
 import { writeAudit } from "@/lib/audit";
@@ -595,6 +597,41 @@ export async function getShiftDetail(shiftId: string) {
     })),
   });
 
+  // Rantai produksi belum tuntas (0030): batch INTERNAL dengan target ber-stage
+  // yang belum semua stage wajibnya dicatat — peringatan untuk supervisor.
+  const chainBatches = await db
+    .select({ id: batch.id, code: batch.code, targetUnit: batch.targetUnit, source: batch.source })
+    .from(batch)
+    // batch tidak punya deletedAt (soft delete tidak berlaku di tabel ini)
+    .where(eq(batch.shiftReportId, shiftId));
+  const chainEvents = chainBatches.length
+    ? await db
+        .select({ batchId: batchStageEvent.batchId, stage: batchStageEvent.stage })
+        .from(batchStageEvent)
+        .where(
+          and(
+            inArray(batchStageEvent.batchId, chainBatches.map((b) => b.id)),
+            isNull(batchStageEvent.deletedAt)
+          )
+        )
+    : [];
+  const recordedByBatch = new Map<string, Set<string>>();
+  for (const ev of chainEvents) {
+    const set = recordedByBatch.get(ev.batchId) ?? new Set<string>();
+    set.add(ev.stage);
+    recordedByBatch.set(ev.batchId, set);
+  }
+  const incompleteChains = chainBatches
+    .filter((b) => (b.source ?? "INTERNAL") === "INTERNAL")
+    .map((b) => {
+      const required = TARGET_STAGES[(b.targetUnit ?? "PACK") as BatchTargetUnit] ?? [];
+      const missingStages = required.filter((s) => !recordedByBatch.get(b.id)?.has(s));
+      return missingStages.length > 0
+        ? { batchCode: b.code, targetUnit: b.targetUnit, missingStages }
+        : null;
+    })
+    .filter((x): x is { batchCode: string; targetUnit: string; missingStages: string[] } => x !== null);
+
   return {
     ...shift,
     machineCode: machineInfo?.code,
@@ -609,6 +646,7 @@ export async function getShiftDetail(shiftId: string) {
     downtimes,
     maintenances,
     yieldPct,
+    incompleteChains,
   };
 }
 

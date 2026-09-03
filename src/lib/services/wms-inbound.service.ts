@@ -201,6 +201,7 @@ export async function approveReceiving(
         isMakloon: receiving.isMakloon,
         makloonCustomer: receiving.makloonCustomer,
         makloonTarget: receiving.makloonTarget,
+        makloonOrderId: receiving.makloonOrderId,
         status: "AVAILABLE",
       });
     }

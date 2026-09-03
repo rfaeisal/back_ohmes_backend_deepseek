@@ -1,5 +1,10 @@
 "use client";
 import { apiFetch } from "@/lib/utils/api-client";
+import {
+  APPLICABLE_MACHINE_OPTIONS,
+  parseApplicableMachines,
+  joinApplicableMachines,
+} from "@/lib/utils";
 
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardTitle } from "@/components/ui/card";
@@ -139,11 +144,23 @@ export default function MasterConsumablesPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Berlaku untuk mesin</label>
-            <select className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white" value={form.applicableMachines ?? "BOTH"} onChange={e => setForm({ ...form, applicableMachines: e.target.value })}>
-              <option value="MAKER">MAKER</option>
-              <option value="HLP">HLP</option>
-              <option value="BOTH">MAKER & HLP (Keduanya)</option>
-            </select>
+            <div className="flex flex-wrap gap-2">
+              {APPLICABLE_MACHINE_OPTIONS.map((m) => (
+                <label key={m} className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={parseApplicableMachines(form.applicableMachines).includes(m)}
+                    onChange={() => {
+                      const cur = new Set(parseApplicableMachines(form.applicableMachines));
+                      if (cur.has(m)) cur.delete(m);
+                      else cur.add(m);
+                      setForm({ ...form, applicableMachines: joinApplicableMachines(APPLICABLE_MACHINE_OPTIONS.filter((o) => cur.has(o))) });
+                    }}
+                  />
+                  {m}
+                </label>
+              ))}
+            </div>
           </div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
             <input

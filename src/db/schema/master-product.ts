@@ -45,6 +45,15 @@ export const product = pgTable("product", {
   code: text("code").notNull().unique(), // 'PRD-HMR-STD'
   brand: text("brand").notNull(), // 'Hummer'
   variant: text("variant"), // 'STD', 'LTS', dst
+  // Jenis TSG produk — satu per produk (0033): REGULER | MILD | PUTIHAN
+  tsgType: text("tsg_type"),
+  // Jumlah batang per pack standar (0033) — default isi pack di HLP
+  batangPerPack: integer("batang_per_pack"),
+  // Standar isi per produk (docs/26 §1) — default form, bisa override ber-alasan
+  slopIsiPack: integer("slop_isi_pack").notNull().default(10),
+  balIsiSlop: integer("bal_isi_slop").notNull().default(20),
+  kartonCapacitySlop: integer("karton_capacity_slop").notNull().default(50),
+  kartonCapacityBal: integer("karton_capacity_bal").notNull().default(4),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   deletedAt: timestamp("deleted_at"),

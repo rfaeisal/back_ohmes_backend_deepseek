@@ -3,8 +3,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import db from "@/db";
-import { isNull } from "drizzle-orm";
-import { user } from "@/db/schema";
+import { isNull, and, eq, exists, like } from "drizzle-orm";
+import { user, role, userAssignment } from "@/db/schema";
 import { hashPassword } from "@/lib/auth";
 
 const createSchema = z.object({
@@ -14,12 +14,41 @@ const createSchema = z.object({
   email: z.string().email().optional(),
 });
 
-// GET — reference data untuk team picker, roster, dsb (auth-only, RLS-scoped)
-export const GET = withAuth(async (_req: Request, _ctx: AuthContext) => {
+// GET — reference data untuk team picker, roster, dsb (auth-only, RLS-scoped).
+// Opsional: ?plantId=<uuid> (hanya user bertugas di plant itu) &
+// ?floorOnly=1 (hanya role lantai produksi, kode OPERATOR_*).
+export const GET = withAuth(async (request: Request, _ctx: AuthContext) => {
+  const url = new URL(request.url);
+  const plantId = url.searchParams.get("plantId");
+  const floorOnly = url.searchParams.get("floorOnly") === "1";
+
+  const conds = [isNull(user.deletedAt)];
+  if (floorOnly || plantId) {
+    // Role & scope user ada di user_assignment (bukan kolom user)
+    conds.push(
+      exists(
+        db
+          .select({ id: userAssignment.id })
+          .from(userAssignment)
+          .innerJoin(role, eq(role.id, userAssignment.roleId))
+          .where(
+            and(
+              eq(userAssignment.userId, user.id),
+              isNull(userAssignment.revokedAt),
+              ...(floorOnly ? [like(role.code, "OPERATOR_%")] : []),
+              ...(plantId
+                ? [and(eq(userAssignment.scopeType, "PLANT"), eq(userAssignment.scopeId, plantId))]
+                : [])
+            )
+          )
+      )
+    );
+  }
+
   const users = await db.select({
     id: user.id, username: user.username, fullName: user.fullName,
     email: user.email, isActive: user.isActive, createdAt: user.createdAt,
-  }).from(user).where(isNull(user.deletedAt)).orderBy(user.createdAt).limit(100);
+  }).from(user).where(and(...conds)).orderBy(user.createdAt).limit(100);
   return NextResponse.json({ data: users }, { status: 200 });
 });
 

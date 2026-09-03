@@ -66,7 +66,15 @@ export default function MasterDataPage() {
         shiftTemplate: "/shift-templates",
         region: "/regions",
       };
-      const body = type === "shiftTemplate" ? { ...form, durationMinutes: parseInt(form.durationMinutes || "660"), plantId: form.plantId || "3b775285-6b60-4ffa-ad7b-5558fc9f3da2" } : form;
+      // 0033: konversi batangPerPack string (Input) → number untuk produk
+      const normProduct = (f: any) => ({
+        ...f,
+        batangPerPack: f.batangPerPack ? parseInt(f.batangPerPack, 10) : undefined,
+        tsgType: f.tsgType || undefined,
+      });
+      const body = type === "shiftTemplate"
+        ? { ...form, durationMinutes: parseInt(form.durationMinutes || "660"), plantId: form.plantId || "3b775285-6b60-4ffa-ad7b-5558fc9f3da2" }
+        : type === "product" ? normProduct(form) : form;
       await apiFetch(endpoints[type]!, { method: "POST", body: JSON.stringify(body) });
       setShowAdd(null);
       setForm({});
@@ -98,7 +106,14 @@ export default function MasterDataPage() {
         shiftTemplate: `/shift-templates/${form.id}`,
         region: `/regions/${form.id}`,
       };
-      const body = type === "shiftTemplate" ? { ...form, durationMinutes: parseInt(form.durationMinutes || "660") } : form;
+      const normProduct = (f: any) => ({
+        ...f,
+        batangPerPack: f.batangPerPack ? parseInt(f.batangPerPack, 10) : undefined,
+        tsgType: f.tsgType || undefined,
+      });
+      const body = type === "shiftTemplate"
+        ? { ...form, durationMinutes: parseInt(form.durationMinutes || "660") }
+        : type === "product" ? normProduct(form) : form;
       await apiFetch(endpoints[type]!, { method: "PATCH", body: JSON.stringify(body) });
       setShowAdd(null); setForm({}); loadData();
     } catch (e: any) { alert(e.message); }
@@ -470,6 +485,17 @@ export default function MasterDataPage() {
             {!form.id && <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="PRD-HMR-LTS" />}
             <Input label="Brand" value={form.brand ?? ""} onChange={e => setForm({...form, brand: e.target.value})} placeholder="Hummer" />
             <Input label="Variant" value={form.variant ?? ""} onChange={e => setForm({...form, variant: e.target.value})} placeholder="LTS" />
+            {/* 0033 — satu jenis TSG per produk + batang per pack standar */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Jenis TSG</label>
+              <select className="w-full rounded-lg border px-4 py-3 bg-white" value={form.tsgType ?? ""} onChange={e => setForm({...form, tsgType: e.target.value})}>
+                <option value="">Tidak ditentukan</option>
+                <option value="REGULER">REGULER</option>
+                <option value="MILD">MILD</option>
+                <option value="PUTIHAN">PUTIHAN</option>
+              </select>
+            </div>
+            <Input label="Batang per Pack" type="number" inputMode="numeric" value={form.batangPerPack ?? ""} onChange={e => setForm({...form, batangPerPack: e.target.value})} placeholder="20" />
           </>)}
           {showAdd === "shiftTemplate" && (<>
             {!form.id && <Input label="Kode" value={form.code ?? ""} onChange={e => setForm({...form, code: e.target.value})} placeholder="shift_pagi" />}

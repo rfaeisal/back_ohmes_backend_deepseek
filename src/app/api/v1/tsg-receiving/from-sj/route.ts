@@ -14,6 +14,8 @@ const schema = z.object({
   isMakloon: z.boolean().optional().default(false),
   makloonCustomer: z.string().max(120).optional(),
   makloonTarget: z.enum(["PACK", "PACK_WRAP", "SLOP", "BAL", "KARTON"]).optional(),
+  // Order makloon (docs/26 §2) — customer/target disalin dari order
+  makloonOrderId: z.string().uuid().optional(),
 });
 
 export const POST = withAuth(
@@ -39,6 +41,7 @@ export const POST = withAuth(
         isMakloon: parsed.data.isMakloon,
         makloonCustomer: parsed.data.makloonCustomer,
         makloonTarget: parsed.data.makloonTarget,
+        makloonOrderId: parsed.data.makloonOrderId,
       });
 
       return NextResponse.json(result, { status: 201 });

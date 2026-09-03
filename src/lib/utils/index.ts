@@ -120,6 +120,48 @@ export function todayWib(): string {
 }
 
 // =============================================================================
+// Machine Applicability
+// =============================================================================
+
+/**
+ * Cek kolom applicable_machines (docs/26 §7.3): nilai tunggal
+ * (MAKER/HLP/BOTH) ATAU daftar dipisah koma ('WR,SLOP,BAL'). BOTH = semua.
+ */
+export function machineApplies(
+  applicable: string | null | undefined,
+  machineType: string
+): boolean {
+  const am = applicable?.trim() || "BOTH";
+  if (am === "BOTH") return true;
+  return am
+    .split(",")
+    .map((s) => s.trim())
+    .includes(machineType);
+}
+
+/** Opsi mesin untuk form applicable_machines (docs/26 §7.3). */
+export const APPLICABLE_MACHINE_OPTIONS = ["MAKER", "HLP", "WR", "SLOP", "BAL"];
+
+/** Baca kolom applicable_machines jadi daftar mesin terpilih (BOTH = semua). */
+export function parseApplicableMachines(am: string | null | undefined): string[] {
+  const v = am?.trim() || "BOTH";
+  if (v === "BOTH") return [...APPLICABLE_MACHINE_OPTIONS];
+  const opts = new Set(APPLICABLE_MACHINE_OPTIONS);
+  return v
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => opts.has(s));
+}
+
+/** Gabung daftar mesin terpilih jadi nilai kolom (kosong/semua = BOTH). */
+export function joinApplicableMachines(selected: string[]): string {
+  if (selected.length === 0 || selected.length === APPLICABLE_MACHINE_OPTIONS.length) {
+    return "BOTH";
+  }
+  return selected.join(",");
+}
+
+// =============================================================================
 // Slug & Code Generation
 // =============================================================================
 

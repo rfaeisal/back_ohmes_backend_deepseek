@@ -38,7 +38,28 @@ export default function RijekanReport() {
   useEffect(() => { load(); }, [load]);
 
   const entryLabel = (t: string) =>
-    t === "IN_MAKER_WASTE" ? "Rijekan MAKER" : t === "IN_HLP_REJECT" ? "Reject HLP" : "Keluar Reproses";
+    t === "IN_MAKER_WASTE"
+      ? "Rijekan MAKER"
+      : t === "IN_MAKER_MENIR"
+        ? "Menir MAKER"
+        : t === "IN_HLP_REJECT"
+          ? "Reject HLP"
+          : t === "IN_STAGE_REJECT"
+            ? "Reject Stage (WR/SLOP/BAL)"
+            : "Keluar Reproses";
+
+  const entryBadge = (t: string) =>
+    t === "IN_MAKER_WASTE" ? (
+      <Badge variant="warning">MAKER</Badge>
+    ) : t === "IN_MAKER_MENIR" ? (
+      <Badge variant="warning">MENIR</Badge>
+    ) : t === "IN_HLP_REJECT" ? (
+      <Badge variant="error">HLP</Badge>
+    ) : t === "IN_STAGE_REJECT" ? (
+      <Badge variant="error">STAGE</Badge>
+    ) : (
+      <Badge variant="success">REPROSES</Badge>
+    );
 
   return (
     <div>
@@ -61,12 +82,12 @@ export default function RijekanReport() {
 
       {/* Ringkasan */}
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <Card><p className="text-xs text-gray-500">Masuk Rijekan MAKER</p><p className="text-3xl font-bold text-yellow-700">{summary?.inKg ?? 0} kg</p></Card>
+        <Card><p className="text-xs text-gray-500">Masuk MAKER (riek + menir)</p><p className="text-3xl font-bold text-yellow-700">{summary?.inKg ?? 0} kg</p></Card>
         <Card><p className="text-xs text-gray-500">Masuk Reject HLP</p><p className="text-3xl font-bold text-red-700">{summary?.inBatang ?? 0} batang</p></Card>
+        <Card><p className="text-xs text-gray-500">Reject Stage (P/S/B)</p><p className="text-3xl font-bold text-red-700">{summary?.inStage?.PACK ?? 0} · {summary?.inStage?.SLOP ?? 0} · {summary?.inStage?.BAL ?? 0}</p></Card>
         <Card><p className="text-xs text-gray-500">Keluar Reproses</p><p className="text-3xl font-bold text-green-700">{summary?.outKg ?? 0} kg · {summary?.outBatang ?? 0} batang</p></Card>
-        <Card><p className="text-xs text-gray-500">Saldo Rijekan (kg)</p><p className="text-3xl font-bold text-blue-700">{summary?.saldoKg ?? 0} kg</p></Card>
+        <Card><p className="text-xs text-gray-500">Saldo (kg)</p><p className="text-3xl font-bold text-blue-700">{summary?.saldoKg ?? 0} kg</p></Card>
         <Card><p className="text-xs text-gray-500">Saldo Reject HLP (batang)</p><p className="text-3xl font-bold text-blue-700">{summary?.saldoBatang ?? 0} batang</p></Card>
-        <Card><p className="text-xs text-gray-500">Total Event</p><p className="text-3xl font-bold text-gray-900">{entries.length}</p></Card>
       </div>
 
       {/* Rincian */}
@@ -80,29 +101,29 @@ export default function RijekanReport() {
                 <th className="pb-3 text-sm font-semibold text-gray-600">Jenis</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Jumlah</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Satuan</th>
+                <th className="pb-3 text-sm font-semibold text-gray-600">TSG</th>
+                <th className="pb-3 text-sm font-semibold text-gray-600">Asal</th>
                 <th className="pb-3 text-sm font-semibold text-gray-600">Catatan</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} className="py-6 text-center text-gray-400">Memuat...</td></tr>
+                <tr><td colSpan={7} className="py-6 text-center text-gray-400">Memuat...</td></tr>
               ) : entries.length === 0 ? (
-                <tr><td colSpan={5} className="py-6 text-center text-gray-400">Belum ada rijekan tercatat. Settle waste RIJEKAN di shift atau catat reject di HLP.</td></tr>
+                <tr><td colSpan={7} className="py-6 text-center text-gray-400">Belum ada rijekan tercatat. Settle waste RIJEKAN/MENIR di shift, catat reject di HLP/stage.</td></tr>
               ) : entries.map((e) => (
                 <tr key={e.id} className="border-b border-gray-100">
                   <td className="py-3 text-sm">{new Date(e.createdAt).toLocaleString("id-ID")}</td>
                   <td className="py-3">
-                    {e.entryType === "IN_MAKER_WASTE" ? (
-                      <Badge variant="warning">MAKER</Badge>
-                    ) : e.entryType === "IN_HLP_REJECT" ? (
-                      <Badge variant="error">HLP</Badge>
-                    ) : (
-                      <Badge variant="success">REPROSES</Badge>
-                    )}
+                    {entryBadge(e.entryType)}
                     <span className="ml-2 text-xs text-gray-500">{entryLabel(e.entryType)}</span>
                   </td>
                   <td className="py-3 font-mono">{e.quantity}</td>
                   <td className="py-3 text-sm">{e.unit}</td>
+                  <td className="py-3 text-sm">{e.tsgType ?? "-"}</td>
+                  <td className="py-3 text-sm">
+                    {e.origin === "MAKLOON" ? <Badge variant="warning">MAKLOON</Badge> : e.origin === "INTERNAL" ? <Badge variant="neutral">INTERNAL</Badge> : "-"}
+                  </td>
                   <td className="py-3 text-sm text-gray-500 max-w-[260px] truncate" title={e.note ?? ""}>{e.note ?? "-"}</td>
                 </tr>
               ))}

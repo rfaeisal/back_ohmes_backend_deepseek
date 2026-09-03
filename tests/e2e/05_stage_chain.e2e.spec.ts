@@ -1,7 +1,9 @@
-// 05b_stage_cartoning — Rantai target (0030) + karton multi-satuan (0029):
+// 05_stage_chain — Rantai target (0030) + karton multi-satuan (0029):
 // batch INTERNAL diberi target BAL → SLOP tanpa WR ditolak → catat WR → SLOP
 // → karton unit SLOP → isi dari "Hasil SLOP" → READY → dispatch + surat jalan
 // PDF. Butuh state batchCode (02/04). Menulis { slopCartonCode }.
+// (Sejak docs/26 — karton hanya SLOP|BAL: spec ini MENDAHULUI 05b supaya
+// event stage tersedia saat 05b mengisi karton dari "Hasil SLOP".)
 import { test, expect } from "./fixtures";
 import { dialog, selectByLabel, selectOptionByText, expectPdfDownload } from "./helpers/ui";
 import { readState, skipIfMissing, writeState } from "./helpers/state";

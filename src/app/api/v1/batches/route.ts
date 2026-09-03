@@ -2,8 +2,8 @@
 import { NextResponse } from "next/server";
 import { eq, sql } from "drizzle-orm";
 import db from "@/db";
-import { batch } from "@/db/schema";
-import { machine } from "@/db/schema/master-product";
+import { batch, shiftReport } from "@/db/schema";
+import { machine, product } from "@/db/schema/master-product";
 import { withAuth } from "@/lib/auth/middleware";
 
 export const GET = withAuth(
@@ -21,12 +21,18 @@ export const GET = withAuth(
         makloonCustomer: batch.makloonCustomer,
         makloonTarget: batch.makloonTarget,
         createdAt: batch.createdAt,
+        // Produk batch (via shift) — rujukan jenis TSG & isi per pack (0033)
+        productId: shiftReport.productId,
+        productTsgType: product.tsgType,
+        productBatangPerPack: product.batangPerPack,
         // Ringkasan packing — supaya UI bisa tandai batch yang sudah dicatat
         packCount: sql<number>`(SELECT COUNT(*) FROM hlp_pack hp WHERE hp.batch_id = ${batch.id})`.mapWith(Number),
         packedBatang: sql<number>`(SELECT COALESCE(SUM(hp.total_batang), 0) FROM hlp_pack hp WHERE hp.batch_id = ${batch.id})`.mapWith(Number),
       })
       .from(batch)
       .leftJoin(machine, eq(batch.machineId, machine.id))
+      .leftJoin(shiftReport, eq(batch.shiftReportId, shiftReport.id))
+      .leftJoin(product, eq(shiftReport.productId, product.id))
       .orderBy(sql`${batch.createdAt} DESC`)
       .limit(100);
 

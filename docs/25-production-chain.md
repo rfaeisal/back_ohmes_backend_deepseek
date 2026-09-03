@@ -44,12 +44,24 @@ keluar ke customer di stage mana pun sesuai kontrak — generalisasi docs/24.
 5. **Produk jadi target per batch (0030)** — diputuskan operator HLP sebelum
    stage dimulai: `PACK` (tanpa stage) | `PACK_WRAP` (WR) | `SLOP` (WR→SLOP) |
    `BAL` (WR→SLOP→BAL). Stage di luar target ditolak (`STAGE_NOT_IN_TARGET`),
-   loncat urutan ditolak (`STAGE_SEQUENCE_REQUIRED`). Target boleh diubah
+   loncat urutan ditolak (`STAGE_SEQUENCE_REQUIRED`), dan **WR ditolak bila
+   packing HLP belum dicatat** (`PACKING_REQUIRED`) — input WR adalah pack
+   hasil HLP, jadi catatan packing wajib ada lebih dulu. Target boleh diubah
    sebelum ada event stage; sesudahnya wajib alasan + audit.
+   **Peringatan approval**: detail shift menampilkan rantai yang belum tuntas
+   relatif terhadap targetnya (bukan blokir — rantai boleh berhenti lebih awal
+   lewat ubah target ber-alasan).
 6. **Sisa per stage bisa dikartonkan** — `sisa(stage) = Σoutput(stage) −
    Σinput(stage berikutnya) − dialokasikan ke karton`. Sisa parsial yang
    "tidak memenuhi" untuk diproses ke stage berikutnya otomatis menjadi stok
    karton dalam satuan stage-nya (tidak ada minimum jumlah).
+   **0032 — rasio & sisa resmi**: dialog Catat Stage kini mencatat
+   `isi_per_unit` (rasio input per 1 output — SLOP: pack/slop, BAL: slop/bal;
+   default 10/20, fleksibel) dan `sisa_qty` (sisa input tak terpakai,
+   dicatat di event stage berikutnya). **Sisa TERCATAT operator = angka resmi**
+   untuk ketersediaan karton & ekspektasi FG; bila event lama tidak punya
+   sisa tercatat, fallback ke rumus otomatis di atas. Reject stage tetap
+   dihitung dalam **batang**.
 
 ## 3. Skema
 

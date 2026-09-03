@@ -18,6 +18,7 @@ import {
 import { plant } from "./tenancy";
 import { user } from "./identity";
 import { batch } from "./box";
+import { makloonOrder } from "./makloon-order";
 
 export const externalBatanganReceiving = pgTable(
   "external_batangan_receiving",
@@ -28,6 +29,8 @@ export const externalBatanganReceiving = pgTable(
       .references(() => plant.id), // ← RLS
     senderName: text("sender_name").notNull(), // pengirim FREE TEXT
     docRef: text("doc_ref"), // nomor PO/DO
+    // Order makloon (docs/26 §2) — tautan resmi
+    makloonOrderId: uuid("makloon_order_id").references(() => makloonOrder.id),
     batanganKg: numeric("batangan_kg").notNull(),
     // Entry stage (docs/25 §4): BATANGAN | PACK | PACK_WRAPPED | SLOP | BAL
     entryStage: text("entry_stage").notNull().default("BATANGAN"),
@@ -62,6 +65,8 @@ export const externalPackOut = pgTable(
     batchId: uuid("batch_id")
       .notNull()
       .references(() => batch.id),
+    // Order makloon (docs/26 §2) — tautan resmi
+    makloonOrderId: uuid("makloon_order_id").references(() => makloonOrder.id),
     destinationName: text("destination_name").notNull(), // customer FREE TEXT
     docRef: text("doc_ref"),
     packQty: integer("pack_qty").notNull(),

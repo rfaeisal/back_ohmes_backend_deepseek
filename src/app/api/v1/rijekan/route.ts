@@ -1,10 +1,15 @@
-// GET + POST /api/v1/rijekan — overview ledger rijekan (docs/23 §5.4)
-// Masuk otomatis: waste RIJEKAN settle (KG) + reject HLP (BATANG).
-// Keluar (OUT_REPROSES) dicatat manual saat receiving reproses dibuat.
+// GET + POST /api/v1/rijekan — overview + pool rijekan (docs/23 §5.4, docs/26 §3)
+// Masuk otomatis: waste RIJEKAN/MENIR settle (KG) + reject HLP (BATANG) +
+// reject stage WR/SLOP/BAL. Keluar: reproses (/rijekan/reproses) atau
+// serah terima makloon (/rijekan/return). POST legacy tetap: OUT manual.
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withAuth, type AuthContext } from "@/lib/auth/middleware";
-import { getRijekanOverview, addRijekanEntry } from "@/lib/services/rijekan.service";
+import {
+  getRijekanOverview,
+  addRijekanEntry,
+  getRijekanPool,
+} from "@/lib/services/rijekan.service";
 
 export const GET = withAuth(async (request: Request, ctx: AuthContext) => {
   const url = new URL(request.url);
@@ -20,7 +25,9 @@ export const GET = withAuth(async (request: Request, ctx: AuthContext) => {
     from: url.searchParams.get("from") ?? undefined,
     to: url.searchParams.get("to") ?? undefined,
   });
-  return NextResponse.json(result, { status: 200 });
+  // Pool rijek tersedia — dasar memulai reproses / serah terima (docs/26 §3.3)
+  const pool = await getRijekanPool(plantId);
+  return NextResponse.json({ ...result, pool }, { status: 200 });
 }, { requiredPermission: "tsg.inventory.view" });
 
 const outSchema = z.object({

@@ -14,6 +14,13 @@ test("HLP catat packing dari batch Maker → 25 pack lolos", async ({
   await login("kecer");
   await page.goto("/tablet/hlp");
 
+  await test.step("buka sesi HLP (wajib sebelum packing — 3 Sep 2026)", async () => {
+    await selectOptionByText(selectByLabel(page, "Mesin HLP"), "HLP-01");
+    const buka = page.getByRole("button", { name: "Buka Sesi" });
+    if (await buka.count()) await buka.click(); // sesi bisa sudah ada (iterate mode)
+    await expect(page.getByText(/Sesi HLP aktif/)).toBeVisible();
+  });
+
   await test.step("pilih batch dari picker", async () => {
     await page
       .getByRole("button", { name: /Pilih Boks Batangan \(scan kode btc_\.\.\.\)/ })

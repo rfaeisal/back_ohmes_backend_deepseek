@@ -15,6 +15,7 @@ import {
   tsgReceiving,
   tsgReceivingBox,
   tsgInventory,
+  makloonOrder,
 } from "@/db/schema";
 import { writeAudit } from "@/lib/audit";
 import { ServiceError } from "./shift.service";
@@ -65,6 +66,8 @@ export interface ReceiveFromSjInput {
   isMakloon?: boolean;
   makloonCustomer?: string;
   makloonTarget?: "PACK" | "PACK_WRAP" | "SLOP" | "BAL" | "KARTON";
+  /** Order makloon (docs/26 §2) — customer/target disalin dari order */
+  makloonOrderId?: string;
 }
 
 // =============================================================================
@@ -472,6 +475,34 @@ export async function receiveFromSupplierSj(input: ReceiveFromSjInput) {
     }
   }
 
+  // Order makloon (docs/26 §2): kalau di-link, customer & target disalin dari
+  // order (input free-text diabaikan) dan order naik status → RECEIVING.
+  let effIsMakloon = input.isMakloon ?? false;
+  let effCustomer = input.makloonCustomer?.trim() || null;
+  // Kolom makloon_target bebas teks — nilai order (mis. BATANGAN) boleh disimpan
+  let effTarget: string | null = input.makloonTarget ?? null;
+  let effOrderId: string | null = null;
+  if (input.makloonOrderId) {
+    const [order] = await db
+      .select()
+      .from(makloonOrder)
+      .where(eq(makloonOrder.id, input.makloonOrderId))
+      .limit(1);
+    if (!order || order.plantId !== input.plantId) {
+      throw new ServiceError("ORDER_NOT_FOUND", "Order makloon tidak ditemukan untuk pabrik ini.");
+    }
+    if (order.inputType !== "TSG") {
+      throw new ServiceError(
+        "ORDER_INPUT_MISMATCH",
+        `Order ini menerima bahan masuk ${order.inputType} — bukan TSG.`
+      );
+    }
+    effIsMakloon = true;
+    effCustomer = order.customer;
+    effTarget = order.finalForm === "CARTON_SLOP" ? "SLOP" : order.finalForm === "CARTON_BAL" ? "BAL" : order.finalForm;
+    effOrderId = order.id;
+  }
+
   // receivingCode mengikuti pola createReceiving (RCV-<date>-<seq>)
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const existingCount = await db
@@ -502,9 +533,10 @@ export async function receiveFromSupplierSj(input: ReceiveFromSjInput) {
         supplierDocRef: sj.sjNumber,
         source: "SJ",
         approvalStatus: "APPROVED", // SJ = sudah terverifikasi label & jumlah di gudang supplier
-        isMakloon: input.isMakloon ?? false,
-        makloonCustomer: input.makloonCustomer?.trim() || null,
-        makloonTarget: input.makloonTarget ?? null,
+        isMakloon: effIsMakloon,
+        makloonCustomer: effCustomer,
+        makloonTarget: effTarget,
+        makloonOrderId: effOrderId,
         notes: `Dari Surat Jalan Supplier ${sj.sjNumber}`,
       })
       .returning();
@@ -530,9 +562,10 @@ export async function receiveFromSupplierSj(input: ReceiveFromSjInput) {
         plantId: input.plantId,
         boxId: rb.id,
         tsgType: b.tsgType ?? "REGULER",
-        isMakloon: input.isMakloon ?? false,
-        makloonCustomer: input.makloonCustomer?.trim() || null,
-        makloonTarget: input.makloonTarget ?? null,
+        isMakloon: effIsMakloon,
+        makloonCustomer: effCustomer,
+        makloonTarget: effTarget,
+        makloonOrderId: effOrderId,
         status: "AVAILABLE",
       });
     }
@@ -541,6 +574,14 @@ export async function receiveFromSupplierSj(input: ReceiveFromSjInput) {
       .update(supplierSj)
       .set({ status: "RECEIVED", receivedAt: new Date(), updatedAt: new Date() })
       .where(eq(supplierSj.id, input.supplierSjId));
+
+    // Order makloon naik status: OPEN → RECEIVING (docs/26 §2.1)
+    if (effOrderId) {
+      await tx
+        .update(makloonOrder)
+        .set({ status: "RECEIVING" })
+        .where(and(eq(makloonOrder.id, effOrderId), eq(makloonOrder.status, "OPEN")));
+    }
 
     return header;
   });

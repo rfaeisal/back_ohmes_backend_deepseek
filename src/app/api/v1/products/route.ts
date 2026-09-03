@@ -6,7 +6,14 @@ import db from "@/db";
 import { isNull } from "drizzle-orm";
 import { product } from "@/db/schema";
 
-const schema = z.object({ code: z.string().min(1), brand: z.string().min(1), variant: z.string().optional() });
+const schema = z.object({
+  code: z.string().min(1),
+  brand: z.string().min(1),
+  variant: z.string().optional(),
+  // 0033 — satu jenis TSG per produk + batang per pack standar
+  tsgType: z.enum(["REGULER", "MILD", "PUTIHAN"]).optional(),
+  batangPerPack: z.number().int().min(1).max(200).optional(),
+});
 
 export const GET = withAuth(async () => {
   const items = await db.select().from(product).where(isNull(product.deletedAt)).limit(100);

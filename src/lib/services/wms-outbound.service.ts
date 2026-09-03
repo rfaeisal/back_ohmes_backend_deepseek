@@ -53,12 +53,15 @@ export async function autoCreateFinishedGoods(shiftId: string) {
     .where(eq(batch.shiftReportId, shiftId));
 
   // SLOP/BAL = agregat stage event semua batch shift ini.
-  // SLOP = sisa setelah baling: max(0, Σout(SLOP) − Σin(BAL)); BAL = Σout(BAL).
+  // 0032: SLOP = sisa TERCATAT di event BAL (Σ sisa_qty) bila ada; kalau tidak
+  // (data lama), fallback max(0, Σout(SLOP) − Σin(BAL)). BAL = Σout(BAL).
   const stageRows = await db
     .select({
       stage: batchStageEvent.stage,
       outTotal: sql<number>`COALESCE(SUM(${batchStageEvent.outputQty}), 0)`.mapWith(Number),
       inTotal: sql<number>`COALESCE(SUM(${batchStageEvent.inputQty}), 0)`.mapWith(Number),
+      sisaTotal: sql<number>`COALESCE(SUM(${batchStageEvent.sisaQty}), 0)`.mapWith(Number),
+      sisaCount: sql<number>`COUNT(${batchStageEvent.sisaQty})`.mapWith(Number),
     })
     .from(batchStageEvent)
     .innerJoin(batch, eq(batchStageEvent.batchId, batch.id))
@@ -69,9 +72,15 @@ export async function autoCreateFinishedGoods(shiftId: string) {
   const outOf = (s: string) => Number(byStage.get(s)?.outTotal ?? 0);
   const inOf = (s: string) => Number(byStage.get(s)?.inTotal ?? 0);
 
+  const balRows = byStage.get("BAL");
+  const slopExpected =
+    balRows && Number(balRows.sisaCount) > 0
+      ? Number(balRows.sisaTotal)
+      : Math.max(0, outOf("SLOP") - inOf("BAL"));
+
   const expectedByUnit: Record<string, number> = {
     PACK: packs[0]?.total ?? 0,
-    SLOP: Math.max(0, outOf("SLOP") - inOf("BAL")),
+    SLOP: slopExpected,
     BAL: outOf("BAL"),
   };
 
@@ -239,8 +248,10 @@ export type AddContentInput = {
   | { sourceType: "STAGE"; batchId: string; stage: ChainStage }
 );
 
-// Tersedia per (batch, stage): sisa yang bisa dikartonkan =
-// Σoutput(stage) − Σinput(stage berikutnya) − sudah dialokasikan ke karton.
+// Tersedia per (batch, stage): sisa yang bisa dikartonkan.
+// 0032: sisa TERCATAT operator = angka resmi — bila ada event stage berikutnya
+// yang mengisi sisa_qty, pakai Σ(sisa_qty) event itu; kalau tidak (data lama),
+// fallback rumus: Σoutput(stage) − Σinput(stage berikutnya). Lalu − dialokasikan.
 async function getStageAvailabilityForBatch(batchId: string, stage: ChainStage) {
   const [outRow] = await db
     .select({
@@ -257,11 +268,11 @@ async function getStageAvailabilityForBatch(batchId: string, stage: ChainStage) 
 
   const next = NEXT_STAGE[stage];
   let nextInput = 0;
+  let sisa = 0;
   if (next) {
-    const [inRow] = await db
-      .select({
-        total: sql<number>`COALESCE(SUM(${batchStageEvent.inputQty}), 0)`.mapWith(Number),
-      })
+    // Sisa tercatat di event stage berikutnya (0032)
+    const nextRows = await db
+      .select({ inputQty: batchStageEvent.inputQty, sisaQty: batchStageEvent.sisaQty })
       .from(batchStageEvent)
       .where(
         and(
@@ -270,7 +281,14 @@ async function getStageAvailabilityForBatch(batchId: string, stage: ChainStage) 
           isNull(batchStageEvent.deletedAt)
         )
       );
-    nextInput = Number(inRow?.total ?? 0);
+    nextInput = nextRows.reduce((s, r) => s + Number(r.inputQty ?? 0), 0);
+    const hasRecordedSisa = nextRows.some((r) => r.sisaQty != null);
+    sisa = hasRecordedSisa
+      ? nextRows.reduce((s, r) => s + (r.sisaQty == null ? 0 : Number(r.sisaQty)), 0)
+      : Number(outRow?.total ?? 0) - nextInput;
+  } else {
+    // BAL: tidak ada konversi sesudahnya — sisa = seluruh output
+    sisa = Number(outRow?.total ?? 0);
   }
 
   const [allocRow] = await db
@@ -285,7 +303,7 @@ async function getStageAvailabilityForBatch(batchId: string, stage: ChainStage) 
 
   const outputTotal = Number(outRow?.total ?? 0);
   const allocated = Number(allocRow?.total ?? 0);
-  const available = Math.max(0, outputTotal - nextInput - allocated);
+  const available = Math.max(0, sisa - allocated);
 
   return { outputTotal, nextInput, allocated, available };
 }

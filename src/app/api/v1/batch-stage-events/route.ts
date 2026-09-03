@@ -17,6 +17,10 @@ const createSchema = z.object({
   inputQty: z.number().min(0).default(0),
   outputQty: z.number().min(0).default(0),
   rejectQty: z.number().min(0).default(0),
+  // Rasio input per 1 output (0032) — hanya SLOP/BAL; service mengabaikan untuk WR
+  isiPerUnit: z.number().int().min(1).optional(),
+  // Sisa input tidak terpakai (0032) — angka resmi isi karton
+  sisaQty: z.number().int().min(0).optional(),
   notes: z.string().max(200).optional(),
 });
 
@@ -59,6 +63,8 @@ export const POST = withAuth(async (request: Request, ctx: AuthContext) => {
       inputQty: parsed.data.inputQty,
       outputQty: parsed.data.outputQty,
       rejectQty: parsed.data.rejectQty,
+      isiPerUnit: parsed.data.isiPerUnit,
+      sisaQty: parsed.data.sisaQty,
       notes: parsed.data.notes,
       operatorBy: ctx.user.userId,
     });

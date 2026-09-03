@@ -133,6 +133,22 @@ export default function ApprovalsPage() {
               <div><span className="text-gray-500">Selesai:</span> {selected.actualEnd ? new Date(selected.actualEnd).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "-"}</div>
             </div>
 
+            {/* Peringatan rantai produksi belum tuntas (0030) */}
+            {selected.incompleteChains?.length > 0 && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm space-y-1">
+                <p className="font-semibold text-amber-800">⚠️ Rantai produksi belum tuntas</p>
+                {selected.incompleteChains.map((c: any, i: number) => (
+                  <p key={i} className="text-amber-800">
+                    <span className="font-mono">{c.batchCode}</span> (target {c.targetUnit}) — stage belum dicatat:{" "}
+                    <strong>{c.missingStages.join(" → ")}</strong>
+                  </p>
+                ))}
+                <p className="text-xs text-amber-700">
+                  Konfirmasi ke lantai produksi sebelum approve — boleh approve bila produk jadi memang berhenti di tahap ini.
+                </p>
+              </div>
+            )}
+
             {/* Tim */}
             {selected.members?.length > 0 && (
               <div>

@@ -1,5 +1,6 @@
 "use client";
 import { apiFetch } from "@/lib/utils/api-client";
+import { machineApplies } from "@/lib/utils";
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
@@ -1005,10 +1006,10 @@ export default function GudangInboundPage() {
             <div className="space-y-2 max-h-[300px] overflow-y-auto">
               {matOutItems.map((item, i) => {
                 const baseList = matOutType === "CONSUMABLE" ? consumableList : sparepartList;
-                // Filter penanda mesin berlaku (MAKER/HLP/BOTH) saat PEMAKAIAN
+                // Filter penanda mesin berlaku (MAKER/HLP/WR/SLOP/BAL/BOTH) saat PEMAKAIAN
                 const machineType = matOutFlow === "PEMAKAIAN" ? machines.find((m: any) => m.id === matOutMachine)?.type : null;
                 const list = machineType
-                  ? baseList.filter((c: any) => (c.applicableMachines ?? "BOTH") === "BOTH" || c.applicableMachines === machineType)
+                  ? baseList.filter((c: any) => machineApplies(c.applicableMachines, machineType))
                   : baseList;
                 return (
                   <div key={i} className="flex items-center gap-3 rounded-lg border border-gray-200 p-3">
