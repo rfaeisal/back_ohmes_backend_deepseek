@@ -1,5 +1,5 @@
 "use client";
-import { apiFetch } from "@/lib/utils/api-client";
+import { apiFetch, getToken } from "@/lib/utils/api-client";
 
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardTitle } from "@/components/ui/card";
@@ -70,6 +70,18 @@ export default function BatanganOutPage() {
 
   const destLabel = (t: string) =>
     t === "MAKLOON" ? "Makloon" : t === "INTERNAL" ? "Internal" : "Lainnya";
+
+  const openDocument = async (id: string) => {
+    try {
+      // Pola gotcha #14: fetch blob + window.open (bukan halaman HTML print)
+      const token = getToken();
+      const res = await fetch(`/api/v1/batangan-out/${id}/document`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const blob = await res.blob();
+      window.open(URL.createObjectURL(blob), "_blank");
+    } catch { alert("Gagal membuka dokumen."); }
+  };
 
   return (
     <div>
@@ -156,13 +168,14 @@ export default function BatanganOutPage() {
                     <th className="pb-3 text-sm font-semibold text-gray-600">Tujuan</th>
                     <th className="pb-3 text-sm font-semibold text-gray-600">Berat</th>
                     <th className="pb-3 text-sm font-semibold text-gray-600">Petugas</th>
+                    <th className="pb-3 text-sm font-semibold text-gray-600">Dokumen</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan={5} className="py-6 text-center text-gray-400">Memuat...</td></tr>
+                    <tr><td colSpan={6} className="py-6 text-center text-gray-400">Memuat...</td></tr>
                   ) : outs.length === 0 ? (
-                    <tr><td colSpan={5} className="py-6 text-center text-gray-400">Belum ada batangan keluar.</td></tr>
+                    <tr><td colSpan={6} className="py-6 text-center text-gray-400">Belum ada batangan keluar.</td></tr>
                   ) : outs.map((o) => (
                     <tr key={o.id} className="border-b border-gray-100">
                       <td className="py-3 text-sm">{new Date(o.outAt).toLocaleString("id-ID")}</td>
@@ -174,6 +187,9 @@ export default function BatanganOutPage() {
                       </td>
                       <td className="py-3 font-mono">{o.qtyKg} kg{o.batangEst ? ` (±${o.batangEst} btg)` : ""}</td>
                       <td className="py-3 text-sm text-gray-500">{o.outByName ?? "-"}</td>
+                      <td className="py-3">
+                        <Button size="sm" variant="outline" onClick={() => openDocument(o.id)}>BA</Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

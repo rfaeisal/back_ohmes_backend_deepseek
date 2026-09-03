@@ -8,7 +8,7 @@
 
 import { eq, and, desc, sql } from "drizzle-orm";
 import db from "@/db";
-import { batanganOut, batch, makloonOrder } from "@/db/schema";
+import { batanganOut, batch, makloonOrder, user } from "@/db/schema";
 import { writeAudit } from "@/lib/audit";
 import { ServiceError } from "./shift.service";
 
@@ -104,6 +104,47 @@ export async function createBatanganOut(input: CreateBatanganOutInput) {
   });
 
   return { ...out, qtyKg: Number(out.qtyKg) };
+}
+
+export async function getBatanganOutDetail(id: string) {
+  const [out] = await db
+    .select()
+    .from(batanganOut)
+    .where(eq(batanganOut.id, id))
+    .limit(1);
+  if (!out) return null;
+
+  const [b] = out.batchId
+    ? await db
+        .select({ code: batch.code, batanganKg: batch.batanganKg })
+        .from(batch)
+        .where(eq(batch.id, out.batchId))
+        .limit(1)
+    : [undefined];
+
+  const [order] = out.makloonOrderId
+    ? await db
+        .select({ code: makloonOrder.code, productName: makloonOrder.productName })
+        .from(makloonOrder)
+        .where(eq(makloonOrder.id, out.makloonOrderId))
+        .limit(1)
+    : [undefined];
+
+  const [actor] = await db
+    .select({ name: user.fullName })
+    .from(user)
+    .where(eq(user.id, out.outBy))
+    .limit(1);
+
+  return {
+    ...out,
+    qtyKg: Number(out.qtyKg),
+    batchCode: b?.code ?? null,
+    batanganKg: b ? Number(b.batanganKg) : null,
+    orderCode: order?.code ?? null,
+    productName: order?.productName ?? null,
+    outByName: actor?.name ?? null,
+  };
 }
 
 export async function listBatanganOuts(plantId: string, limit = 100) {
