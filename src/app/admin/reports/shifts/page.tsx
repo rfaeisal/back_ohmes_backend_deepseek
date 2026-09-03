@@ -196,6 +196,24 @@ export default function ShiftReportPage() {
                       <p className="text-xs text-gray-500">{w.category.replace("_", " ")}</p>
                       <p className="font-bold">{w.kg} kg</p>
                       <Badge variant={w.settlementStatus === "LUNAS" ? "success" : "warning"}>{w.settlementStatus}</Badge>
+                      {w.settlementStatus === "PENDING" && (
+                        <button
+                          className="mt-1 text-xs text-blue-600 hover:underline"
+                          onClick={async () => {
+                            // Settle → waste RIJEKAN/MENIR masuk pool rijekan (docs/26 §3.2)
+                            try {
+                              await apiFetch(`/shifts/${selected.id}/waste/${w.category}`, {
+                                method: "PATCH",
+                                body: JSON.stringify({}),
+                              });
+                              const detail = await apiFetch(`/shifts/${selected.id}`);
+                              setSelected(detail);
+                            } catch (e: any) { alert(e.message); }
+                          }}
+                        >
+                          LUNAS-kan
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>

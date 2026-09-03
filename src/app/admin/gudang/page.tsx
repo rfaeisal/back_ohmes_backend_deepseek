@@ -210,12 +210,20 @@ export default function GudangInboundPage() {
   const [extError, setExtError] = useState("");
   const [rejectExtId, setRejectExtId] = useState<string | null>(null);
   const [rejectExtReason, setRejectExtReason] = useState("");
+  // Order makloon (docs/26 §2) — dropdown di form penerimaan
+  const [extOrderId, setExtOrderId] = useState("");
+  const [sjRecvOrderId, setSjRecvOrderId] = useState("");
+  const [makloonOrders, setMakloonOrders] = useState<any[]>([]);
 
   const loadExtReceivings = async () => {
     try {
-      const res = await apiFetch("/external-receivings?status=PENDING");
-      setExtReceivings(res.data ?? []);
-    } catch { setExtReceivings([]); }
+      const [ext, ord] = await Promise.all([
+        apiFetch("/external-receivings?status=PENDING"),
+        apiFetch("/makloon-orders"),
+      ]);
+      setExtReceivings(ext.data ?? []);
+      setMakloonOrders((ord.data ?? []).filter((o: any) => o.status !== "DONE"));
+    } catch { setExtReceivings([]); setMakloonOrders([]); }
   };
 
   const handleSubmitExtReceive = async () => {
@@ -232,11 +240,12 @@ export default function GudangInboundPage() {
           docRef: extDocRef || undefined,
           batanganKg: kg,
           entryStage: extEntryStage,
+          makloonOrderId: extOrderId || undefined,
           notes: extNotes || undefined,
         }),
       });
       setShowExtReceive(false);
-      setExtSender(""); setExtDocRef(""); setExtKg(""); setExtNotes("");
+      setExtSender(""); setExtDocRef(""); setExtKg(""); setExtNotes(""); setExtOrderId("");
       loadExtReceivings();
     } catch (e: any) { setExtError(e.message); }
     finally { setExtSaving(false); }
@@ -389,10 +398,11 @@ export default function GudangInboundPage() {
           isMakloon: sjRecvIsMakloon,
           makloonCustomer: sjRecvCustomer || undefined,
           makloonTarget: sjRecvTarget || undefined,
+          makloonOrderId: sjRecvOrderId || undefined,
         }),
       });
       setSjRecvSj(null);
-      setSjRecvIsMakloon(false); setSjRecvCustomer(""); setSjRecvTarget("");
+      setSjRecvIsMakloon(false); setSjRecvCustomer(""); setSjRecvTarget(""); setSjRecvOrderId("");
       loadSjShipped();
       loadInventory();
       setReceivingError("");
@@ -449,7 +459,7 @@ export default function GudangInboundPage() {
           <Button size="xl" variant="outline" onClick={() => { setMatOutFlow("TRANSFER"); setMatOutMachine(""); setMatOutCounterpart(""); setMatOutReason(""); setMatOutItems([{ itemId: "", qty: "" }]); setMatOutError(""); loadMaterialItems(matOutType); loadMachines(); setShowMatOut(true); }}>
             📤 Keluar Material & Sparepart
           </Button>
-          <Button size="xl" variant="outline" onClick={() => { setExtSender(""); setExtDocRef(""); setExtKg(""); setExtEntryStage("BATANGAN"); setExtNotes(""); setExtError(""); setShowExtReceive(true); }}>
+          <Button size="xl" variant="outline" onClick={() => { setExtSender(""); setExtDocRef(""); setExtKg(""); setExtEntryStage("BATANGAN"); setExtNotes(""); setExtOrderId(""); setExtError(""); setShowExtReceive(true); }}>
             🏭 Terima Batangan External (Makloon)
           </Button>
         </div>
@@ -1089,6 +1099,25 @@ export default function GudangInboundPage() {
       {/* Dialog terima batangan external (makloon) */}
       <Dialog open={showExtReceive} onClose={() => setShowExtReceive(false)} title="🏭 Terima Batangan External (Makloon)">
         <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Order Makloon (opsional)</label>
+            <select
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white"
+              value={extOrderId}
+              onChange={(e) => {
+                const order = makloonOrders.find((o: any) => o.id === e.target.value);
+                setExtOrderId(e.target.value);
+                if (order) setExtSender(order.customer); // pemesan disalin dari order
+              }}
+            >
+              <option value="">— Tanpa order —</option>
+              {makloonOrders
+                .filter((o: any) => o.inputType === "BATANGAN")
+                .map((o: any) => (
+                  <option key={o.id} value={o.id}>{o.code} · {o.customer} · {o.productName}</option>
+                ))}
+            </select>
+          </div>
           <Input label="Nama Pengirim *" value={extSender} onChange={(e) => setExtSender(e.target.value)} placeholder="cth: PT Makloon Jaya" />
           <Input label="Nomor PO/DO" value={extDocRef} onChange={(e) => setExtDocRef(e.target.value)} placeholder="cth: PO-009" />
           <div>
@@ -1138,15 +1167,50 @@ export default function GudangInboundPage() {
           <p className="text-sm text-gray-500">
             Finalisasi: membuat receiving TSG + inventory dari label SJ ini (status → RECEIVED).
           </p>
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 py-1">
-            <input
-              type="checkbox"
-              checked={sjRecvIsMakloon}
-              onChange={(e) => setSjRecvIsMakloon(e.target.checked)}
-              className="size-4"
-            />
-            TSG milik makloon (jejak sampai produk akhir)
-          </label>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Order Makloon (opsional)</label>
+            <select
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base bg-white"
+              value={sjRecvOrderId}
+              onChange={(e) => {
+                const order = makloonOrders.find((o: any) => o.id === e.target.value);
+                setSjRecvOrderId(e.target.value);
+                if (order) {
+                  // Customer & target disalin dari order (docs/26 §2)
+                  setSjRecvIsMakloon(true);
+                  setSjRecvCustomer(order.customer);
+                  setSjRecvTarget(
+                    order.finalForm === "CARTON_SLOP" || order.finalForm === "CARTON_BAL" ? "KARTON"
+                      : order.finalForm === "PACK_WRAP" ? "PACK_WRAP"
+                        : order.finalForm === "BATANGAN" ? "PACK"
+                          : order.finalForm
+                  );
+                }
+              }}
+            >
+              <option value="">— Tanpa order —</option>
+              {makloonOrders
+                .filter((o: any) => o.inputType === "TSG")
+                .map((o: any) => (
+                  <option key={o.id} value={o.id}>{o.code} · {o.customer} · {o.productName}</option>
+                ))}
+            </select>
+          </div>
+          {sjRecvOrderId ? (
+            <p className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm">
+              Customer & produk pesanan diambil dari order — di bawah ini otomatis terisi.
+            </p>
+          ) : (
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 py-1">
+              <input
+                type="checkbox"
+                checked={sjRecvIsMakloon}
+                onChange={(e) => setSjRecvIsMakloon(e.target.checked)}
+                className="size-4"
+              />
+              TSG milik makloon (jejak sampai produk akhir)
+            </label>
+          )}
           {sjRecvIsMakloon && (
             <>
               <Input label="Pemesan Makloon" placeholder="cth: PT Makloon Jaya" value={sjRecvCustomer} onChange={(e) => setSjRecvCustomer(e.target.value)} />
