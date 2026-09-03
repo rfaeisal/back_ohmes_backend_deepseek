@@ -23,14 +23,18 @@ Produk jadi yang keluar dari pabrik (internal maupun order makloon):
 
 Keputusan & perubahan:
 
-- **`target_unit` + `BATANGAN`** (CHECK `ck_batch_target_unit` diperluas).
+- **`target_unit` + `BATANGAN`** (CHECK `ck_batch_target_unit` diperluas; tipe
+  `TARGET_STAGES.BATANGAN = []`). Batch BATANGAN **ditolak packing HLP**
+  (`BATANGAN_FINAL`); target makloon otomatis dari `order.finalForm` saat
+  timbang sesi (PT. B lahir bertarget BATANGAN); perubahan target kini juga
+  wajib alasan bila batch sudah punya `hlp_pack` (perketatan 0030).
 - **Karton hanya SLOP | BAL** — nilai PACK ditutup (CHECK `ck_carton_unit`).
   Data karton PACK lama (kalau ada) ditutup/dikonversi sebelum migrasi.
 - **Standar isi per produk** (pola `batang_per_pack` 0033): kolom baru di `product` —
   `slop_isi_pack` (default 10), `bal_isi_slop` (default 20),
   `karton_capacity_slop` (default 50), `karton_capacity_bal` (default 4).
   Jadi default di form, tetap bisa di-override per kejadian dengan alasan.
-- **Batangan keluar** — tabel baru `batangan_out` (lihat §6).
+- **Batangan keluar** — tabel baru `batangan_out` (lihat §6) + PDF berita acara.
 
 ## 2. Order Makloon — entitas `makloon_order`
 

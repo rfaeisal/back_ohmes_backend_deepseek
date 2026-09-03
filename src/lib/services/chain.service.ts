@@ -39,13 +39,15 @@ export const STAGE_UNIT: Record<ChainStage, RijekanUnit> = {
 };
 
 // Produk jadi target per batch (0030) — menentukan rantai stage wajib.
-export type BatchTargetUnit = "PACK" | "PACK_WRAP" | "SLOP" | "BAL";
-export const BATCH_TARGETS: BatchTargetUnit[] = ["PACK", "PACK_WRAP", "SLOP", "BAL"];
+// BATANGAN (docs/26 §1): produk final #1 — tanpa HLP/stage, langsung keluar.
+export type BatchTargetUnit = "PACK" | "PACK_WRAP" | "SLOP" | "BAL" | "BATANGAN";
+export const BATCH_TARGETS: BatchTargetUnit[] = ["PACK", "PACK_WRAP", "SLOP", "BAL", "BATANGAN"];
 export const TARGET_STAGES: Record<BatchTargetUnit, ChainStage[]> = {
   PACK: [],
   PACK_WRAP: ["WR"],
   SLOP: ["WR", "SLOP"],
   BAL: ["WR", "SLOP", "BAL"],
+  BATANGAN: [],
 };
 
 export interface CreateStageEventInput {
@@ -310,11 +312,19 @@ export async function setBatchTarget(input: {
     .from(batchStageEvent)
     .where(and(eq(batchStageEvent.batchId, input.batchId), isNull(batchStageEvent.deletedAt)));
 
-  if (recordedStages.length > 0) {
+  // Packing HLP juga jadi alasan wajib (keputusan 3 Sep 2026 — docs/26 §1):
+  // batch yang sudah di-packing tidak boleh ganti target diam-diam.
+  const [packRow] = await db
+    .select({ id: hlpPack.id })
+    .from(hlpPack)
+    .where(eq(hlpPack.batchId, input.batchId))
+    .limit(1);
+
+  if (recordedStages.length > 0 || packRow) {
     if (!input.reason?.trim()) {
       throw new ServiceError(
         "TARGET_CHANGE_REASON_REQUIRED",
-        "Batch sudah punya catatan stage — perubahan target wajib disertai alasan."
+        "Batch sudah punya catatan packing/stage — perubahan target wajib disertai alasan."
       );
     }
     const allowed = TARGET_STAGES[input.targetUnit];

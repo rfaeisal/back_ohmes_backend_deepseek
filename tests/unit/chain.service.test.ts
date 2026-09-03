@@ -51,6 +51,8 @@ describe("TARGET_STAGES", () => {
     expect(TARGET_STAGES.PACK_WRAP).toEqual(["WR"]);
     expect(TARGET_STAGES.SLOP).toEqual(["WR", "SLOP"]);
     expect(TARGET_STAGES.BAL).toEqual(["WR", "SLOP", "BAL"]);
+    // docs/26 §1: batangan = produk final — tanpa HLP/stage
+    expect(TARGET_STAGES.BATANGAN).toEqual([]);
   });
 });
 
@@ -278,6 +280,23 @@ describe("setBatchTarget", () => {
       code: "TARGET_CONFLICTS_EVENTS",
       details: { targetUnit: "PACK_WRAP", conflictingStage: "SLOP" },
     });
+  });
+
+  it("TARGET_CHANGE_REASON_REQUIRED saat sudah ada packing HLP tanpa alasan (docs/26 §1)", async () => {
+    h.db._selectResults.push([{ id: "b1", code: "btx_01", targetUnit: "PACK" }]); // batch
+    h.db._selectResults.push([]); // tanpa stage event
+    h.db._selectResults.push([{ id: "pk1" }]); // tapi sudah di-packing HLP
+    await expect(
+      setBatchTarget({ batchId: "b1", targetUnit: "BAL", actorUserId: "u1" })
+    ).rejects.toMatchObject({ code: "TARGET_CHANGE_REASON_REQUIRED" });
+  });
+
+  it("target BATANGAN diterima (produk final — tanpa stage)", async () => {
+    h.db._selectResults.push([{ id: "b1", code: "btx_01", targetUnit: "PACK" }]);
+    h.db._selectResults.push([]);
+    h.db._selectResults.push([]);
+    const res = await setBatchTarget({ batchId: "b1", targetUnit: "BATANGAN", actorUserId: "u1" });
+    expect(res.targetUnit).toBe("BATANGAN");
   });
 });
 

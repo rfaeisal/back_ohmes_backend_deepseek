@@ -52,8 +52,8 @@ test("rantai target → WR → SLOP → karton SLOP → dispatch PDF", async ({
   const batchId = batch.id;
   let slopCartonCode: string | null = null;
 
-  await test.step("set target BAL (belum ada event → tanpa alasan)", async () => {
-    const res = await gudangApi("PATCH", `/batches/${batchId}/target`, { targetUnit: "BAL" });
+  await test.step("set target BAL (sudah di-packing HLP → wajib alasan, docs/26 §1)", async () => {
+    const res = await gudangApi("PATCH", `/batches/${batchId}/target`, { targetUnit: "BAL", reason: "E2E rantai BAL" });
     const bodyText = await res.text();
     expect(res.ok(), `PATCH target gagal ${res.status()}: ${bodyText}`).toBeTruthy();
   });

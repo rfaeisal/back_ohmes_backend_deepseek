@@ -1,12 +1,13 @@
 // PATCH /batches/:id/target — tentukan produk jadi target batch (0030)
-// PACK | PACK_WRAP | SLOP | BAL — diputuskan operator HLP sebelum stage dimulai
+// PACK | PACK_WRAP | SLOP | BAL | BATANGAN (docs/26 §1) — diputuskan operator
+// HLP sebelum stage dimulai; makloon otomatis dari order saat timbang.
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withAuth, type AuthContext } from "@/lib/auth/middleware";
 import { setBatchTarget, ServiceError } from "@/lib/services/chain.service";
 
 const schema = z.object({
-  targetUnit: z.enum(["PACK", "PACK_WRAP", "SLOP", "BAL"]),
+  targetUnit: z.enum(["PACK", "PACK_WRAP", "SLOP", "BAL", "BATANGAN"]),
   reason: z.string().max(200).optional(),
 });
 

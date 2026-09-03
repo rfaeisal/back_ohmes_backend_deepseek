@@ -16,6 +16,7 @@ import {
   hlpPack,
   batchStageEvent,
   tsgReceivingBox,
+  makloonOrder,
 } from "@/db/schema";
 import { cartonContent } from "@/db/schema/wms-outbound";
 import { hlpShift } from "@/db/schema/hlp";
@@ -539,6 +540,23 @@ export async function weighBoxSession(input: WeighBoxSessionInput) {
     }
   }
 
+  // Order makloon (docs/26 §2.3): target unit batch mengikuti satuan akhir
+  // order — PT. B (TSG → BATANGAN) lahir langsung bertarget BATANGAN dari
+  // timbang, tanpa perlu diputuskan di HLP.
+  let targetUnit: string | null = null;
+  if (makloonOrderId) {
+    const [order] = await db
+      .select({ finalForm: makloonOrder.finalForm })
+      .from(makloonOrder)
+      .where(eq(makloonOrder.id, makloonOrderId))
+      .limit(1);
+    if (order) {
+      targetUnit =
+        order.finalForm === "CARTON_SLOP" ? "SLOP" : order.finalForm === "CARTON_BAL" ? "BAL" : order.finalForm;
+      makloonTarget = targetUnit;
+    }
+  }
+
   // Kode batch: btc_MKR01_20260814_03 (urutan per hari per mesin)
   const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const prefix = `btc_${machineCode}_${datePart}_`;
@@ -562,6 +580,7 @@ export async function weighBoxSession(input: WeighBoxSessionInput) {
         makloonCustomer,
         makloonTarget,
         makloonOrderId,
+        targetUnit: targetUnit ?? "PACK",
       })
       .returning();
 
@@ -747,6 +766,16 @@ export async function hlpPackInput(input: HlpPackInput) {
     .from(batch)
     .where(eq(batch.id, input.batchId))
     .limit(1);
+
+  // Produk final batangan (docs/26 §1, keputusan 3 Sep 2026): batch dengan
+  // target BATANGAN TIDAK diproses HLP — langsung keluar lewat batangan_out.
+  if (b && b.targetUnit === "BATANGAN") {
+    throw new ServiceError(
+      "BATANGAN_FINAL",
+      "Batch ini produk final batangan — tidak diproses HLP. Ubah target dulu bila batangan akan dipacking.",
+      { batchId: input.batchId, targetUnit: "BATANGAN" }
+    );
+  }
 
   let beratPerBatangGram: number | null = null;
 
