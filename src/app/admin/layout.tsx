@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { isSessionExpired, redirectToLogin } from "@/lib/utils/api-client";
 import { canAccessAdmin } from "@/lib/utils/admin-gate";
 import Link from "next/link";
-import { LayoutDashboard, ClipboardCheck, ClipboardList, MapPin, TrendingUp, Wrench, Users, Settings, ScrollText, Shield, Printer, FileText, FileBarChart, Factory, LogOut, Smartphone, Calendar, Package, BarChart3, Menu, X, Recycle } from "lucide-react";
+import { LayoutDashboard, ClipboardCheck, ClipboardList, MapPin, TrendingUp, Wrench, Users, Settings, ScrollText, Shield, Printer, FileText, FileBarChart, Factory, LogOut, Smartphone, Calendar, Package, PackageOpen, BarChart3, Menu, X, Recycle } from "lucide-react";
 
 type NavItem = { href: string; label: string; icon: any; permissions?: string[]; superadminOnly?: boolean };
 type NavSection = { title: string; items: NavItem[] };
@@ -24,6 +24,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/admin/supplier-sj", label: "Surat Jalan Supplier", icon: FileText, permissions: ["supplier.sj.pool"] },
       { href: "/admin/makloon-orders", label: "Order Makloon", icon: ClipboardList, permissions: ["tsg.receiving.view"] },
       { href: "/admin/rijekan-pool", label: "Pool Rijekan", icon: Recycle, permissions: ["tsg.inventory.view"] },
+      { href: "/admin/batangan-out", label: "Batangan Keluar", icon: PackageOpen, permissions: ["tsg.inventory.transfer"] },
     ],
   },
   {

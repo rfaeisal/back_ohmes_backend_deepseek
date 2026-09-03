@@ -630,7 +630,10 @@ export async function getShiftDetail(shiftId: string) {
         ? { batchCode: b.code, targetUnit: b.targetUnit, missingStages }
         : null;
     })
-    .filter((x): x is { batchCode: string; targetUnit: string; missingStages: string[] } => x !== null);
+    .filter(
+      (x): x is { batchCode: string; targetUnit: string; missingStages: ("WR" | "SLOP" | "BAL")[] } =>
+        x !== null
+    );
 
   return {
     ...shift,

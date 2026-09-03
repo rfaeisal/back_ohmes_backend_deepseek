@@ -210,6 +210,8 @@ export const batanganOut = pgTable(
     batangEst: integer("batang_est"), // perkiraan jumlah batang (estimasi)
     destinationType: text("destination_type").notNull(), // INTERNAL | MAKLOON | LAIN
     destinationName: text("destination_name").notNull(), // free text
+    // Order makloon (docs/26 §6) — diwarisi dari batch makloon
+    makloonOrderId: uuid("makloon_order_id").references(() => makloonOrder.id),
     docRef: text("doc_ref"),
     outBy: uuid("out_by")
       .notNull()

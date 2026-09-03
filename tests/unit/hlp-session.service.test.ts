@@ -110,6 +110,7 @@ describe("leaveHlpShiftMember", () => {
     h.db._selectResults.push([{ id: "mem1", userId: "u2", leftAt: null }]);
     h.db._returningResults.push({ id: "mem1", leftAt: new Date() });
     const res = await leaveHlpShiftMember("mem1");
-    expect(res.leftAt).toBeTruthy();
+    expect(res).toBeTruthy();
+    expect(res!.leftAt).toBeTruthy();
   });
 });

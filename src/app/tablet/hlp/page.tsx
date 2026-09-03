@@ -1033,7 +1033,7 @@ export default function HlpPage() {
                   // output & sisa otomatis — semuanya masih bisa diedit (0032)
                   const inp = stageInput.trim() || defaultInputFor(s);
                   setStageInput(inp);
-                  const isi = s === "WR" ? "" : DEFAULT_ISI[s];
+                  const isi = s === "WR" ? "" : DEFAULT_ISI[s] ?? "";
                   setStageIsi(isi);
                   if (s !== "WR" && inp && isi) {
                     const { output, sisa } = autoHitungSisa(inp, isi);

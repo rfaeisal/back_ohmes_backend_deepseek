@@ -286,6 +286,6 @@ describe("listBatchStageEvents", () => {
     h.db._selectResults.push([{ id: "ev1", stage: "WR", inputQty: "40", outputQty: "38", rejectQty: "2", unit: "PACK" }]);
     const res = await listBatchStageEvents("b1");
     expect(res).toHaveLength(1);
-    expect(res[0].stage).toBe("WR");
+    expect(res[0]!.stage).toBe("WR");
   });
 });

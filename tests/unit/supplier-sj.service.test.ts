@@ -74,7 +74,8 @@ describe("weighSupplierSjBox", () => {
     h.db._selectResults.push([{ id: "b1", supplierSjId: null, createdBy: "u1", labelStatus: "AVAILABLE", supplierWeightKg: null }]);
     h.db._returningResults.push({ id: "b1", boxCode: base.boxCode, tsgType: "REGULER", labelStatus: "ASSIGNED", supplierWeightKg: "30.5" });
     const res = await weighSupplierSjBox(base);
-    expect(res.labelStatus).toBe("ASSIGNED");
+    expect(res).toBeTruthy();
+    expect(res!.labelStatus).toBe("ASSIGNED");
     const upd = h.db.calls.find((c: any) => c.kind === "update" && c.set?.labelStatus === "ASSIGNED");
     expect(upd).toBeTruthy();
     expect(upd.set.plantId).toBe("plant-a");
